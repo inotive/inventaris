@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+    display: none;
+}
+
+/* Ensure NProgress bar is always visible above headers */
+#nprogress {
+    pointer-events: none;
+}
+#nprogress .bar {
+    background: #3b82f6 !important; /* Tailwind indigo-500 */
+    position: fixed !important;
+    z-index: 2147483647 !important; /* over everything */
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 3px !important;
+}
+#nprogress .peg {
+    box-shadow: 0 0 10px #3b82f6, 0 0 5px #3b82f6 !important;
+}
+
+.simplebar-scrollbar::before {
+    @apply bg-gray-600 dark:bg-gray-300;
+}

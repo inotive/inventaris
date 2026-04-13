@@ -1,0 +1,122 @@
+<script setup>
+import AppLayout from "@/Layouts/AppLayout.vue";
+import Breadcrumb from "@/Components/common/Breadcrumb.vue";
+import { Head, Link, useForm } from "@inertiajs/vue3";
+
+const breadcrumbs = [
+    { label: "Konfigurasi" },
+    { label: "Kategori Checklist" },
+    { label: "Tambah" },
+];
+
+const form = useForm({
+    name: "",
+    code: "",
+    description: "",
+});
+
+const submit = () => {
+    form.post(route("checklist-categories.store"), {
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset();
+        },
+    });
+};
+
+defineOptions({ layout: AppLayout });
+</script>
+
+<template>
+    <Head title="Tambah Kategori Checklist" />
+    <div class="px-6 py-6">
+        <div class="flex justify-between items-center mb-4">
+            <Breadcrumb :items="breadcrumbs" />
+            <Link
+                :href="route('checklist-categories.index')"
+                as="button"
+                class="inline-flex items-center px-3 py-2 rounded-md p-button p-component"
+            >
+                <i class="mr-2 lni lni-chevron-left" /> Kembali
+            </Link>
+        </div>
+
+        <div class="bg-white rounded-lg border border-gray-200">
+            <div class="flex justify-between items-center px-4 py-3 border-b">
+                <h2 class="text-xl font-semibold text-gray-800">
+                    Informasi Kategori
+                </h2>
+            </div>
+            <form class="p-4 space-y-4" @submit.prevent="submit">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="block mb-1 text-sm text-gray-600"
+                            >Nama</label
+                        >
+                        <input
+                            v-model="form.name"
+                            type="text"
+                            placeholder="Nama kategori"
+                            class="w-full text-sm font-medium placeholder-gray-500 text-gray-600 rounded-lg border-gray-400 placeholder:font-normal dark:border-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                        />
+                        <div
+                            v-if="form.errors.name"
+                            class="text-sm text-red-500"
+                        >
+                            {{ form.errors.name[0] }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm text-gray-600"
+                            >Kode</label
+                        >
+                        <input
+                            v-model="form.code"
+                            type="text"
+                            placeholder="Kode unik"
+                            class="w-full text-sm font-medium placeholder-gray-500 text-gray-600 rounded-lg border-gray-400 placeholder:font-normal dark:border-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                        />
+                        <div
+                            v-if="form.errors.code"
+                            class="text-sm text-red-500"
+                        >
+                            {{ form.errors.code[0] }}
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block mb-1 text-sm text-gray-600"
+                            >Deskripsi</label
+                        >
+                        <textarea
+                            v-model="form.description"
+                            rows="3"
+                            placeholder="Deskripsi (opsional)"
+                            class="w-full text-sm font-medium placeholder-gray-500 text-gray-600 rounded-lg border-gray-400 placeholder:font-normal dark:border-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+                        />
+                        <div
+                            v-if="form.errors.description"
+                            class="text-sm text-red-500"
+                        >
+                            {{ form.errors.description[0] }}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-2 justify-start pt-2">
+                    <button
+                        type="submit"
+                        class="px-3 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                        :disabled="form.processing"
+                    >
+                        Simpan
+                    </button>
+                    <Link
+                        :href="route('checklist-categories.index')"
+                        as="button"
+                        class="px-3 py-2 rounded-md border hover:bg-gray-50"
+                        >Kembali</Link
+                    >
+                </div>
+            </form>
+        </div>
+    </div>
+</template>
