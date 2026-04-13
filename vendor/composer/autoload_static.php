@@ -2111,6 +2111,7 @@ class ComposerStaticInit52c3fe3254c32ed34d961d0d2d8698d4
         'Database\\Seeders\\ItemStockSeeder' => __DIR__ . '/../..' . '/database/seeders/ItemStockSeeder.php',
         'Database\\Seeders\\LeaveTypeSeeder' => __DIR__ . '/../..' . '/database/seeders/LeaveTypeSeeder.php',
         'Database\\Seeders\\LogActivitySeeder' => __DIR__ . '/../..' . '/database/seeders/LogActivitySeeder.php',
+        'Database\\Seeders\\MasterPenyimpananSeeder' => __DIR__ . '/../..' . '/database/seeders/MasterPenyimpananSeeder.php',
         'Database\\Seeders\\MaterialRequestSeeder' => __DIR__ . '/../..' . '/database/seeders/MaterialRequestSeeder.php',
         'Database\\Seeders\\NotificationSeeder' => __DIR__ . '/../..' . '/database/seeders/NotificationSeeder.php',
         'Database\\Seeders\\PermissionSeeder' => __DIR__ . '/../..' . '/database/seeders/PermissionSeeder.php',

@@ -1143,6 +1143,7 @@ return array(
     'Database\\Seeders\\ItemStockSeeder' => $baseDir . '/database/seeders/ItemStockSeeder.php',
     'Database\\Seeders\\LeaveTypeSeeder' => $baseDir . '/database/seeders/LeaveTypeSeeder.php',
     'Database\\Seeders\\LogActivitySeeder' => $baseDir . '/database/seeders/LogActivitySeeder.php',
+    'Database\\Seeders\\MasterPenyimpananSeeder' => $baseDir . '/database/seeders/MasterPenyimpananSeeder.php',
     'Database\\Seeders\\MaterialRequestSeeder' => $baseDir . '/database/seeders/MaterialRequestSeeder.php',
     'Database\\Seeders\\NotificationSeeder' => $baseDir . '/database/seeders/NotificationSeeder.php',
     'Database\\Seeders\\PermissionSeeder' => $baseDir . '/database/seeders/PermissionSeeder.php',
