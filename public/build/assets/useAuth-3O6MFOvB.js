@@ -1,0 +1,1 @@
+import{L as t}from"./app-FJlZV6HY.js";function i(){const s=t(),r=s.props.auth?.user??null,n=s.props.auth?.roles??[],e=s.props.auth?.permissions??[];return{user:r,roles:n,permissions:e,is:o=>n.includes(o),can:o=>e.includes(o)}}export{i as u};
