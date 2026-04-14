@@ -15,7 +15,7 @@
     <!-- Scripts -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @routes
-    @vite('resources/js/app.js')
+    @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
     @inertiaHead
 </head>
 
