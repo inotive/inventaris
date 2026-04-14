@@ -2,11 +2,11 @@
     <FullScreenLayout>
         <div class="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
             <div
-                class="flex relative flex-col justify-center w-full h-screen lg:flex-row dark:bg-gray-900"
+                class="relative flex flex-col justify-center w-full h-screen lg:flex-row dark:bg-gray-900"
             >
                 <div class="flex flex-col flex-1 w-full lg:w-1/2">
                     <div
-                        class="flex flex-col flex-1 justify-center mx-auto w-full max-w-md"
+                        class="flex flex-col justify-center flex-1 w-full max-w-md mx-auto"
                     >
                         <div>
                             <div class="mb-5 text-center sm:mb-8">
@@ -91,7 +91,7 @@
                                                     @click="
                                                         togglePasswordVisibility
                                                     "
-                                                    class="absolute right-5 top-1/2 z-30 text-gray-500 -translate-y-1/2 cursor-pointer dark:text-gray-400"
+                                                    class="absolute z-30 text-gray-500 -translate-y-1/2 cursor-pointer right-5 top-1/2 dark:text-gray-400"
                                                 >
                                                     <svg
                                                         v-if="!showPassword"
@@ -144,15 +144,15 @@
 
                                         <!-- Remember me -->
                                         <div
-                                            class="flex justify-between items-center"
+                                            class="flex items-center justify-between"
                                         >
                                             <label
-                                                class="inline-flex gap-2 items-center select-none"
+                                                class="inline-flex items-center gap-2 select-none"
                                             >
                                                 <input
                                                     type="checkbox"
                                                     v-model="form.remember"
-                                                    class="text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                                    class="text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                                 />
                                                 <span
                                                     class="text-sm text-gray-600"
@@ -164,7 +164,7 @@
                                         <div>
                                             <button
                                                 type="submit"
-                                                class="flex gap-2 justify-center items-center px-4 py-3 w-full text-sm font-medium text-white bg-indigo-500 rounded-lg transition shadow-theme-xs hover:bg-indigo-600"
+                                                class="flex items-center justify-center w-full gap-2 px-4 py-3 text-sm font-medium text-white transition bg-indigo-500 rounded-lg shadow-theme-xs hover:bg-indigo-600"
                                             >
                                                 Masuk Sekarang
                                                 <svg
@@ -189,16 +189,16 @@
                     </div>
                 </div>
                 <div
-                    class="hidden relative items-center w-full h-full bg-indigo-700 lg:w-1/2 dark:bg-white/5 lg:grid"
+                    class="relative items-center hidden w-full h-full bg-indigo-700 lg:w-1/2 dark:bg-white/5 lg:grid"
                 >
                     <div
-                        class="flex justify-center items-center px-8 text-white z-1"
+                        class="flex items-center justify-center px-8 text-white z-1"
                     >
                         <common-grid-shape />
                         <!-- Carousel Container -->
                         <div class="relative w-full max-w-2xl">
                             <!-- Carousel Items -->
-                            <div class="overflow-hidden relative">
+                            <div class="relative overflow-hidden">
                                 <div
                                     class="flex transition-transform duration-500 ease-in-out"
                                     :style="{
@@ -214,7 +214,7 @@
                                     >
                                         <!-- Logo/Image -->
                                         <div
-                                            class="flex justify-center items-center"
+                                            class="flex items-center justify-center"
                                         >
                                             <img
                                                 v-if="slide.img_url"
@@ -224,7 +224,7 @@
                                             />
                                             <img
                                                 v-else
-                                                src="/images/logo/bg-login.png"
+                                                src="public/images/logo/bg-login.png"
                                                 alt="Logo"
                                                 class="object-contain opacity-95 drop-shadow-2xl w-250 h-250"
                                             />
@@ -248,7 +248,7 @@
 
                                 <!-- Navigation Dots -->
                                 <div
-                                    class="flex absolute bottom-0 left-1/2 gap-2 justify-center mt-36 -translate-x-1/2"
+                                    class="absolute bottom-0 flex justify-center gap-2 -translate-x-1/2 left-1/2 mt-36"
                                 >
                                     <button
                                         v-for="(slide, index) in slides"
@@ -267,7 +267,7 @@
                                 <!-- Navigation Arrows -->
                                 <button
                                     @click="prevSlide"
-                                    class="flex absolute left-4 top-1/2 justify-center items-center w-10 h-10 text-white rounded-full backdrop-blur-sm transition-all -translate-y-1/2 bg-white/10 hover:bg-white/20"
+                                    class="absolute flex items-center justify-center w-10 h-10 text-white transition-all -translate-y-1/2 rounded-full left-4 top-1/2 backdrop-blur-sm bg-white/10 hover:bg-white/20"
                                     aria-label="Previous slide"
                                 >
                                     <svg
@@ -286,7 +286,7 @@
                                 </button>
                                 <button
                                     @click="nextSlide"
-                                    class="flex absolute right-4 top-1/2 justify-center items-center w-10 h-10 text-white rounded-full backdrop-blur-sm transition-all -translate-y-1/2 bg-white/10 hover:bg-white/20"
+                                    class="absolute flex items-center justify-center w-10 h-10 text-white transition-all -translate-y-1/2 rounded-full right-4 top-1/2 backdrop-blur-sm bg-white/10 hover:bg-white/20"
                                     aria-label="Next slide"
                                 >
                                     <svg
@@ -348,28 +348,28 @@ const slides = ref(
                   title: "Kelola Stok",
                   description:
                       "Pantau dan kelola stok barang secara real-time. Sistem penyimpanan modern memastikan setiap barang tercatat dengan akurat dan mudah ditelusuri.",
-                  img_url: "/images/logo/carousel-inventory-1.jpg",
+                  img_url: "public/images/logo/carousel-inventory-1.jpg",
               },
               {
                   category: "Manajemen Inventaris",
                   title: "Efisiensi Gudang",
                   description:
                       "Optimalkan tata letak dan pengelolaan gudang untuk meningkatkan efisiensi operasional. Atur alur barang masuk dan keluar dengan sistematis.",
-                  img_url: "/images/logo/carousel-inventory-2.jpg",
+                  img_url: "public/images/logo/carousel-inventory-2.jpg",
               },
               {
                   category: "Manajemen Inventaris",
                   title: "Tercatat Rapi",
                   description:
                       "Setiap transaksi barang masuk dan keluar tercatat secara digital. Data inventaris selalu akurat dan siap untuk pelaporan kapan saja.",
-                  img_url: "/images/logo/carousel-inventory-3.jpg",
+                  img_url: "public/images/logo/carousel-inventory-3.jpg",
               },
               {
                   category: "Manajemen Inventaris",
                   title: "Laporan Cepat",
                   description:
                       "Hasilkan laporan inventaris secara otomatis dan cepat. Dapatkan wawasan mendalam tentang kondisi stok untuk pengambilan keputusan yang tepat.",
-                  img_url: "/images/logo/carousel-inventory-4.jpg",
+                  img_url: "public/images/logo/carousel-inventory-4.jpg",
               },
           ]
 );
