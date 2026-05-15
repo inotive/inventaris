@@ -111,6 +111,8 @@
                                     label="Cari Barang"
                                     label-key="name"
                                     search-key="name"
+                                    :readonly="r.is_preloaded"
+                                    :disabled="r.is_preloaded"
                                 />
                             </td>
                             <td class="py-2.5 px-3 align-middle border-b border-gray-200 dark:border-gray-700">
@@ -120,6 +122,8 @@
                                         type="number"
                                         min="0"
                                         class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                        :readonly="r.is_preloaded"
+                                        :disabled="r.is_preloaded"
                                     />
                                     <span class="text-gray-700 dark:text-gray-300">{{ r.unit?.short_name }}</span>
                                 </div>
@@ -315,6 +319,7 @@ const addItem = () => {
         unit: {},
         note: "",
         received_note: "",
+        is_preloaded: false,
     });
     bindWatcher(newRow);
     items.value.push(newRow);
@@ -345,7 +350,7 @@ function handleItemsLoaded(items) {
         const row = reactive({
             uid: uuidv4(),
             item_id:
-                options.value.find((o) => o.id === item.item_id) ??
+                options.value.find((o) => o.id == item.item_id) ??
                 null,
             code: item.code,
             name: item.name,
@@ -354,6 +359,7 @@ function handleItemsLoaded(items) {
             quantity_actually_received: item.quantity_received, // Default to received quantity
             note: item.note,
             received_note: "",
+            is_preloaded: true,
         });
         bindWatcher(row);
         return row;
@@ -370,7 +376,7 @@ onMounted(() => {
         items.value = props.goodReceipt.items.map((item) => {
             const row = reactive({
                 uid: uuidv4(),
-                item_id: options.value.find((o) => o.id === item.item_id) ?? null,
+                item_id: options.value.find((o) => o.id == item.item_id) ?? null,
                 code: item.item?.code || '',
                 name: item.item?.name || '',
                 unit: item.item?.unit || {},
@@ -378,6 +384,7 @@ onMounted(() => {
                 quantity_actually_received: item.quantity_actually_received || item.quantity_received,
                 note: item.note || '',
                 received_note: item.received_note || '',
+                is_preloaded: true,
             });
             bindWatcher(row);
             return row;

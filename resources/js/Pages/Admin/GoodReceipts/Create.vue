@@ -111,8 +111,8 @@
                                     label="Cari Barang"
                                     label-key="name"
                                     search-key="name"
-                                    readonly="true"
-                                    disabled="true"
+                                    :readonly="r.is_preloaded"
+                                    :disabled="r.is_preloaded"
                                 />
                             </td>
                             <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 align-middle min-w-[120px]">
@@ -122,8 +122,8 @@
                                         type="number"
                                         min="0"
                                         class="w-20 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center readonly:bg-gray-100 dark:readonly:bg-gray-700"
-                                        readonly="true"
-                                        disabled="true"
+                                        :readonly="r.is_preloaded"
+                                        :disabled="r.is_preloaded"
                                     />
                                     <span>{{ r.unit?.short_name }}</span>
                                 </div>
@@ -390,6 +390,7 @@ const addRequest = () => {
         unit: {},
         note: "",
         received_note: "",
+        is_preloaded: false,
     });
     bindWatcher(newRow);
     requests.value.push(newRow);
@@ -420,7 +421,7 @@ function handleItemsLoaded(items) {
         const row = reactive({
             uid: uuidv4(),
             item_id:
-                options.value.find((o) => o.id === item.item_id) ??
+                options.value.find((o) => o.id == item.item_id) ??
                 null,
             code: item.code,
             name: item.name,
@@ -429,6 +430,7 @@ function handleItemsLoaded(items) {
             quantity_actually_received: item.quantity_requested, // Default to requested quantity
             note: item.note,
             received_note: "",
+            is_preloaded: true,
         });
         bindWatcher(row);
         return row;
