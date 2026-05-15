@@ -255,9 +255,11 @@ class PurchaseRequestController extends Controller
         $branches = Branch::where('id', $userBranchId)->pluck('id');
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
 
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->when(!$isSuperadmin && empty($filters['branch_id']), function ($query) use ($branches) {
-            return $query->whereIn('items.branch_id', $branches);
-        })->get();
+        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
+            ->orderBy('name')
+            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($userBranchId) {
+                return $query->where('items.branch_id', $userBranchId);
+            })->get();
 
 
 

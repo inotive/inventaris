@@ -44,13 +44,15 @@ class GoodTransferController extends Controller
         $sortDirection = $request->get('sortDirection', 'desc');
         $groupBy = $request->get('groupBy');
 
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
-        $branchScopeIds = Branch::where('id', Auth::user()->employee->branch_id)->pluck('id'); // ⬅️ rename untuk mencegah tabrakan nama
 
         $query = GoodTransfer::query()
             ->with(['fromBranch:id,name', 'toBranch:id,name', 'sentBy:id,name', 'receivedBy:id,name'])
-            ->when(!$isSuperadmin, function ($query) use ($branchScopeIds) {
-                return $query->whereIn('from_branch', $branchScopeIds)->orWhereIn('to_branch', $branchScopeIds);
+            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($userBranchId) {
+                return $query->where(function($q) use ($userBranchId) {
+                    $q->where('from_branch', $userBranchId)->orWhere('to_branch', $userBranchId);
+                });
             });
 
         // Apply filters
@@ -73,9 +75,9 @@ class GoodTransferController extends Controller
         $validSortColumns = ['transfer_no', 'from_branch', 'to_branch', 'transferred_at', 'status', 'created_at'];
         $query->orderBy(in_array($sortBy, $validSortColumns) ? $sortBy : 'created_at', $sortDirection);
 
-        // Dropdown cabang (dibatasi jika bukan superadmin)
-        $branches = Branch::when(!$isSuperadmin, function ($q) use ($branchScopeIds) {
-            return $q->whereIn('id', $branchScopeIds);
+        // Dropdown cabang (dibatasi jika bukan superadmin dan bukan branch central)
+        $branches = Branch::when(!$isSuperadmin && $userBranchId != 2, function ($q) use ($userBranchId) {
+            return $q->where('id', $userBranchId);
         })->select('id', 'name')->orderBy('name')->get();
 
         $goodTransfers = $query->paginate($perPage)->withQueryString();
@@ -120,14 +122,13 @@ class GoodTransferController extends Controller
         $transfer_no = GoodTransfer::generateTransferNo();
         $branches = Branch::orderBy('id')->get();
         $employees = Employee::orderBy('name')->get();
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
-        $branchIds = Branch::where('id', Auth::user()->employee->branch_id)->pluck('id');
 
-        // fix: hilangkan referensi $filters tak terdefinisi
         $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
             ->orderBy('name')
-            ->when(!$isSuperadmin, function ($query) use ($branchIds) {
-                return $query->whereIn('items.branch_id', $branchIds);
+            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($userBranchId) {
+                return $query->where('items.branch_id', $userBranchId);
             })->get();
 
         $roles = Auth::user()->getRoleNames()->first();

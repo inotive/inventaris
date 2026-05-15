@@ -160,17 +160,18 @@ class GoodIssuesController extends Controller
         abort_unless(Gate::allows('good_issues.create'), 403, 'Anda tidak memiliki akses untuk menambah pemakaian barang');
 
         $departments = Department::with(['branch'])->orderBy('name')->get();
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
-        $departmentIds = Department::where('id', Auth::user()->employee->branch_id)->pluck('id');
+        $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
         $materialRequests = MaterialRequest::doesntHave('goodIssues')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) use ($departmentIds) {
+            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
                 return $query->whereIn('department_id', $departmentIds);
             })
             ->orderBy('request_no', 'desc')
             ->get();
 
-        $items = Item::with(['unit'])->when(!$isSuperadmin, function ($query) use ($departmentIds) {
-            return $query->whereIn('branch_id', $departmentIds);
+        $items = Item::with(['unit'])->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($userBranchId) {
+            return $query->where('branch_id', $userBranchId);
         })->orderBy('name')->get();
 
         $user = Auth::user();
