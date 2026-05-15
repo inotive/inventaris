@@ -218,7 +218,7 @@ class SubmissionUsageController extends Controller
                 $update = $goodIssueItem->goodIssue()->update([
                     'status' => 'approved',
                     'approved_at' => now(),
-                    'approved_by' => Auth::user()->id,
+                    'approved_by' => Auth::user()->employee->id,
                 ]);
 
 
@@ -276,7 +276,7 @@ class SubmissionUsageController extends Controller
                 $goodIssue->update([
                     'status' => 'rejected',
                     'notes' => $notes,
-                    'approved_by' => Auth::id(),
+                    'approved_by' => Auth::user()->employee->id,
                     'approved_at' => now(),
                 ]);
 

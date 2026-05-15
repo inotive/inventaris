@@ -127,7 +127,7 @@ class SubmissionLoanController extends Controller
 
         $receivable->update([
             'status' => 'approved',
-            'approved_by' => $user->id,
+            'approved_by' => $user->employee->id,
             'approved_at' => now(),
         ]);
 
@@ -156,7 +156,7 @@ class SubmissionLoanController extends Controller
         $loan->update([
             'status' => 'rejected',
             'admin_notes' => $request->string('admin_notes')->toString() ?? '-',
-            'approved_by' => $user->id,
+            'approved_by' => $user->employee->id,
             'approved_at' => now(),
         ]);
 
@@ -196,7 +196,7 @@ class SubmissionLoanController extends Controller
 
         $receivable->update([
             'status' => 'cancelled',
-            'approved_by' => $user->id,
+            'approved_by' => $user->employee->id,
             'approved_at' => now(),
         ]);
 

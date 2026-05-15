@@ -297,7 +297,7 @@ class EmployeeOvertimeController extends Controller
 
         $overtime->update([
             'status' => 'cancelled',
-            'approved_by' => Auth::user()->id,
+            'approved_by' => Auth::user()->employee->id,
             'approved_at' => now(),
         ]);
 

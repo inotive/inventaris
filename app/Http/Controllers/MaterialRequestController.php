@@ -423,7 +423,7 @@ class MaterialRequestController extends Controller
         $materialRequest->update([
             'status' => 'rejected',
             'approved_at' => now(),
-            'approved_by' => Auth::user()->id,
+            'approved_by' => Auth::user()->employee->id,
         ]);
         $this->logActivity($materialRequest->id, 'Menolak Permintaan', 'Permintaan ditolak.');
         return redirect()

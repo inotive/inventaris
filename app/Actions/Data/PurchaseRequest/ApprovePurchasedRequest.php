@@ -36,7 +36,7 @@ class ApprovePurchasedRequest
             $purchaseRequest->update([
                 'status' => $status,
                 'approved_at' => now(),
-                'approved_by' => Auth::user()->id,
+                'approved_by' => Auth::user()->employee->id,
             ]);
 
             // activity log
