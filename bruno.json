@@ -1,0 +1,15 @@
+{
+  "version": "1",
+  "name": "henskristal",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ],
+  "size": 0.2176666259765625,
+  "filesCount": 198,
+  "presets": {
+    "requestType": "http",
+    "requestUrl": "http://127.0.0.1:8001"
+  }
+}

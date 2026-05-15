@@ -1,0 +1,1 @@
+import{_ as t}from"./FlashMessage-Czx3qQia.js";import{_ as e,a as o,b as r}from"./LayoutShell-BFUby28D.js";import{o as l,c as n,w as a,b as _,r as c}from"./app-z9LAIVRf.js";const d={__name:"AppLayout",setup(f){return(s,m)=>(l(),n(r,null,{default:a(()=>[_(e,null,{default:a(()=>[_(o,null,{default:a(()=>[_(t),c(s.$slots,"default")]),_:3})]),_:3})]),_:3}))}};export{d as _};
