@@ -217,6 +217,17 @@
                                 </div>
                             </th>
                             <th
+                                class="py-3 bg-gray-100 border border-gray-200 dark:border-gray-600 dark:bg-gray-800"
+                            >
+                                <div class="flex justify-center items-center px-3">
+                                    <p
+                                        class="font-medium text-gray-500 whitespace-nowrap dark:text-gray-400"
+                                    >
+                                        Departemen
+                                    </p>
+                                </div>
+                            </th>
+                            <th
                                 @click="changeSort('username')"
                                 class="py-3 bg-gray-100 border border-gray-200 cursor-pointer dark:border-gray-600 dark:bg-gray-800"
                             >
@@ -411,7 +422,20 @@
                                         <p
                                             class="text-gray-500 dark:text-gray-400"
                                         >
-                                            {{ user.employee?.branch?.name || '-' }}
+                                            {{ user.branch_name }}
+                                        </p>
+                                    </div>
+                                </td>
+                                <td
+                                    class="py-2.5 border border-gray-200 dark:border-gray-600"
+                                >
+                                    <div
+                                        class="flex justify-center items-center px-3 whitespace-nowrap"
+                                    >
+                                        <p
+                                            class="text-gray-500 dark:text-gray-400"
+                                        >
+                                            {{ user.department_name }}
                                         </p>
                                     </div>
                                 </td>
@@ -538,8 +562,8 @@
                             <td
                                 :colspan="
                                     can('users.edit') || can('users.delete')
-                                        ? 8
-                                        : 7
+                                        ? 9
+                                        : 8
                                 "
                                 class="py-6 font-medium text-center text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600"
                             >
@@ -790,6 +814,66 @@
                                 class="text-sm text-red-500"
                             >
                                 {{ form.errors.role }}
+                            </div>
+                        </div>
+
+                        <div class="space-y-1 text-sm">
+                            <label
+                                for="branch"
+                                class="text-gray-900 dark:text-white"
+                                >Cabang</label
+                            >
+                            <select
+                                id="branch"
+                                v-model="form.branch_id"
+                                class="block p-2.5 w-full text-sm text-gray-600 rounded-lg border-gray-400 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                            >
+                                <option selected hidden value="">
+                                    Pilih cabang
+                                </option>
+                                <option
+                                    v-for="branch in props.branches"
+                                    :key="branch.id"
+                                    :value="branch.id"
+                                >
+                                    {{ branch.name }}
+                                </option>
+                            </select>
+                            <div
+                                v-if="form.errors.branch_id"
+                                class="text-sm text-red-500"
+                            >
+                                {{ form.errors.branch_id }}
+                            </div>
+                        </div>
+
+                        <div class="space-y-1 text-sm">
+                            <label
+                                for="department"
+                                class="text-gray-900 dark:text-white"
+                                >Departemen</label
+                            >
+                            <select
+                                id="department"
+                                v-model="form.department_id"
+                                class="block p-2.5 w-full text-sm text-gray-600 rounded-lg border-gray-400 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                            >
+                                <option selected hidden value="">
+                                    Pilih departemen
+                                </option>
+                                <option
+                                    v-for="dept in props.departments"
+                                    :key="dept.id"
+                                    :value="dept.id"
+                                >
+                                    {{ dept.name }}
+                                </option>
+                            </select>
+                            <div
+                                v-if="form.errors.department_id"
+                                class="text-sm text-red-500"
+                            >
+                                {{ form.errors.department_id }}
                             </div>
                         </div>
 
@@ -1659,6 +1743,8 @@ const form = useForm({
     status: "active",
     password: "",
     password_confirmation: "",
+    branch_id: "",
+    department_id: "",
 });
 
 // Buka modal untuk tambah
@@ -1950,16 +2036,17 @@ function openEditModal(user) {
     if (!can("users.edit")) {
         return;
     }
+    form.clearErrors();
     form.id = user.id;
     form.name = user.name;
     form.username = user.username;
     form.email = user.email;
-    form.role = user.roles[0].name;
-    form.status = user.status || "active";
+    form.role = user.roles[0]?.name || "";
+    form.status = user.status;
+    form.branch_id = user.branch_id || "";
+    form.department_id = user.department_id || "";
     form.password = "";
     form.password_confirmation = "";
-    showPassword.value = false;
-    showPasswordConfirmation.value = false;
     selectedItem.value = user;
     isEditMode.value = true;
     isModalOpen.value = true;

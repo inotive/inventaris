@@ -64,14 +64,12 @@ class RoleController extends Controller
 
         $data = $request->validate([
             'name' => ['required','string','max:255'],
-            'leave_quota_per_year' => ['nullable','integer','min:0'],
-            'loan_quota' => ['nullable','numeric','min:0'],
         ]);
 
         $payload = [
             'name' => $data['name'],
-            'leave_quota_per_year' => $data['leave_quota_per_year'] ?? 0,
-            'loan_quota' => $data['loan_quota'] ?? 0,
+            'leave_quota_per_year' => 0,
+            'loan_quota' => 0,
         ];
 
         Role::create($payload);
@@ -137,17 +135,13 @@ class RoleController extends Controller
             return back()->with('success', 'Hak akses berhasil diperbarui');
         }
 
-        // Otherwise update basic fields (name + quotas)
+        // Otherwise update basic fields (name)
         $data = $request->validate([
             'name' => ['required','string','max:255'],
-            'leave_quota_per_year' => ['nullable','integer','min:0'],
-            'loan_quota' => ['nullable','numeric','min:0'],
         ]);
 
         $role->update([
             'name' => $data['name'],
-            'leave_quota_per_year' => $data['leave_quota_per_year'] ?? ($role->leave_quota_per_year ?? 0),
-            'loan_quota' => $data['loan_quota'] ?? ($role->loan_quota ?? 0),
         ]);
 
         return back()->with('success', 'Jabatan berhasil diperbarui');

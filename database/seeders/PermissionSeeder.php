@@ -17,6 +17,7 @@ class PermissionSeeder extends Seeder
                 'key' => 'dashboard',
                 'actions' => ['view'],
             ],
+/*
             'Hasil Inspeksi' => [
                 'key' => 'inspections',
                 'actions' => ['view'],
@@ -109,6 +110,7 @@ class PermissionSeeder extends Seeder
                 'key' => 'employee_performances',
                 'actions' => ['view', 'edit', 'calculate_kpi'],
             ],
+*/
             'Permintaan Barang' => [
                 'key' => 'material_requests',
                 'actions' => ['view', 'create', 'edit', 'delete', 'approve'],
@@ -165,6 +167,7 @@ class PermissionSeeder extends Seeder
                 'key' => 'roles',
                 'actions' => ['view', 'create', 'edit', 'delete'],
             ],
+/*
             'Daftar Checklist' => [
                 'key' => 'checklists',
                 'actions' => ['view', 'create', 'edit', 'delete'],
@@ -189,6 +192,7 @@ class PermissionSeeder extends Seeder
                 'key' => 'leave_balances',
                 'actions' => ['manage'],
             ],
+*/
             'Kategori Barang' => [
                 'key' => 'item_categories',
                 'actions' => ['view', 'create', 'edit', 'delete'],
@@ -197,6 +201,7 @@ class PermissionSeeder extends Seeder
                 'key' => 'units',
                 'actions' => ['view', 'create', 'edit', 'delete'],
             ],
+/*
             'Kategori Kendaraan' => [
                 'key' => 'vehicle_categories',
                 'actions' => ['view', 'create', 'edit', 'delete'],
@@ -213,6 +218,7 @@ class PermissionSeeder extends Seeder
                 'key' => 'compliance',
                 'actions' => ['view', 'create', 'edit', 'delete'],
             ],
+*/
         ];
 
         $labels = [

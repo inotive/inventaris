@@ -93,33 +93,7 @@
                                 </div>
                             </th>
 
-                            <th
-                                class="py-3 bg-gray-100 border border-gray-200 dark:border-gray-600 dark:bg-gray-800"
-                            >
-                                <div
-                                    class="flex items-center justify-center px-3"
-                                >
-                                    <p
-                                        class="font-medium text-gray-500 whitespace-nowrap dark:text-gray-400"
-                                    >
-                                        Jatah Cuti
-                                    </p>
-                                </div>
-                            </th>
 
-                            <th
-                                class="py-3 bg-gray-100 border border-gray-200 dark:border-gray-600 dark:bg-gray-800"
-                            >
-                                <div
-                                    class="flex items-center justify-center px-3"
-                                >
-                                    <p
-                                        class="font-medium text-gray-500 whitespace-nowrap dark:text-gray-400"
-                                    >
-                                        Jatah Piutang
-                                    </p>
-                                </div>
-                            </th>
                             <th
                                 @click="changeSort('total')"
                                 class="py-3 bg-gray-100 border border-gray-200 cursor-pointer dark:border-gray-600 dark:bg-gray-800"
@@ -243,32 +217,7 @@
                                 </div>
                             </td>
 
-                            <td
-                                class="py-2.5 border border-gray-200 dark:border-gray-600"
-                            >
-                                <div
-                                    class="flex items-center justify-center whitespace-nowrap"
-                                >
-                                    <p
-                                        class="font-medium text-gray-800 dark:text-white/90"
-                                    >
-                                        {{ (role.leave_quota_per_year ?? 0) }} Hari
-                                    </p>
-                                </div>
-                            </td>
-                            <td
-                                class="py-2.5 border border-gray-200 dark:border-gray-600"
-                            >
-                                <div
-                                    class="flex items-center justify-center whitespace-nowrap"
-                                >
-                                    <p
-                                        class="font-medium text-gray-800 dark:text-white/90"
-                                    >
-                                        {{ formatCurrency(role.loan_quota || 0) }}
-                                    </p>
-                                </div>
-                            </td>
+
                             <td
                                 class="py-2.5 border border-gray-200 dark:border-gray-600"
                                 @click="can('roles.view') && openStatsModal(role, 'users')"
@@ -335,8 +284,8 @@
                         </tr>
 
                         <tr v-else>
-                            <td
-                                :colspan="can('roles.edit') || can('roles.delete') ? 7 : 6"
+                                <td
+                                :colspan="can('roles.edit') || can('roles.delete') ? 5 : 4"
                                 class="py-6 font-medium text-center text-gray-500 dark:text-gray-400"
                             >
                                 Tidak ada data ditemukan
@@ -459,31 +408,7 @@
                             </div>
                         </div>
 
-                        <div class="space-y-1 text-sm">
-                            <label for="leave_quota_per_year" class="font-semibold text-gray-900 dark:text-white">Jatah Cuti (hari/tahun)</label>
-                            <input
-                                id="leave_quota_per_year"
-                                class="w-full text-sm font-medium text-gray-600 placeholder-gray-500 border-gray-400 rounded-lg placeholder:font-normal dark:border-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
-                                type="number"
-                                min="0"
-                                step="1"
-                                v-model.number="form.leave_quota_per_year"
-                                placeholder="Contoh: 12"
-                            />
-                        </div>
 
-                        <div class="space-y-1 text-sm">
-                            <label for="loan_quota" class="font-semibold text-gray-900 dark:text-white">Jatah Piutang (Rp)</label>
-                            <input
-                                id="loan_quota"
-                                class="w-full text-sm font-medium text-gray-600 placeholder-gray-500 border-gray-400 rounded-lg placeholder:font-normal dark:border-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
-                                type="number"
-                                min="0"
-                                step="1000"
-                                v-model.number="form.loan_quota"
-                                placeholder="Contoh: 3000000"
-                            />
-                        </div>
                     </div>
                 </Modal>
 
@@ -582,8 +507,6 @@ const isEditMode = ref(false);
 const form = useForm({
     id: null,
     name: "",
-    leave_quota_per_year: 0,
-    loan_quota: 0,
 });
 
 // Currency formatter for IDR
@@ -602,8 +525,6 @@ function openAddModal() {
         return;
     }
     form.reset();
-    form.leave_quota_per_year = 12;
-    form.loan_quota = 0;
     isEditMode.value = false;
     isModalOpen.value = true;
 }
@@ -615,8 +536,6 @@ function openEditModal(role) {
     }
     form.id = role.id;
     form.name = role.name;
-    form.leave_quota_per_year = role.leave_quota_per_year ?? 0;
-    form.loan_quota = role.loan_quota ?? 0;
     selectedItem.value = role;
     isEditMode.value = true;
     isModalOpen.value = true;

@@ -174,6 +174,8 @@ class UserController extends Controller
         $users->getCollection()->transform(function ($user) {
             $user->branch_id = $user->employee->branch_id ?? null;
             $user->department_id = $user->employee->department_id ?? null;
+            $user->branch_name = optional(optional($user->employee)->branch)->name ?? '-';
+            $user->department_name = optional(optional($user->employee)->department)->name ?? '-';
             $user->shift_id = $user->employee->shift_id ?? null;
             $user->working_start_date = $user->employee->working_start_date ?? null;
             $user->birthdate = $user->employee->birthdate ?? null;
@@ -237,6 +239,8 @@ class UserController extends Controller
             'role' => ['required', 'string', 'exists:roles,name'],
             'status' => ['required', 'string', 'in:active,inactive,pending'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'branch_id' => ['required', 'exists:branches,id'],
+            'department_id' => ['required', 'exists:departments,id'],
         ]);
 
         $user = User::create([
@@ -249,6 +253,18 @@ class UserController extends Controller
 
         // Assign role
         $user->assignRole($validated['role']);
+
+        // Automatically create employee record
+        \App\Models\Employee::create([
+            'user_id' => $user->id,
+            'name' => $validated['name'],
+            'branch_id' => $validated['branch_id'],
+            'department_id' => $validated['department_id'],
+            'status' => 'Tetap', // Default status
+            'gender' => 'Laki-laki', // Default gender
+            'working_start_date' => now(), // Default start date
+            'verification' => true,
+        ]);
 
         return redirect()->back()->with('success', 'Pengguna berhasil ditambahkan');
     }
@@ -297,6 +313,8 @@ class UserController extends Controller
             'role' => ['required', 'string', 'exists:roles,name'],
             'status' => ['required', 'string', 'in:active,inactive,pending'],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'branch_id' => ['required', 'exists:branches,id'],
+            'department_id' => ['required', 'exists:departments,id'],
         ]);
 
         $updateData = [
@@ -311,6 +329,16 @@ class UserController extends Controller
         }
 
         $user->update($updateData);
+
+        // Update or create employee record
+        \App\Models\Employee::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'name' => $validated['name'],
+                'branch_id' => $validated['branch_id'],
+                'department_id' => $validated['department_id'],
+            ]
+        );
 
         // Sync role
         $user->syncRoles([$validated['role']]);
