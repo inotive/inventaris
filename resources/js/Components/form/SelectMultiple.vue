@@ -174,8 +174,12 @@ const dropdownStyle = ref({});
 const selectedItems = computed(() => {
     if (!props.modelValue || !Array.isArray(props.modelValue)) return [];
     return props.items.filter(item =>
-        props.modelValue.includes(item.id) ||
-        props.modelValue.some(val => typeof val === 'object' && val?.id === item.id)
+        props.modelValue.some(val => {
+            if (typeof val === 'object') {
+                return val?.id == item.id;
+            }
+            return val == item.id;
+        })
     );
 });
 
@@ -308,8 +312,12 @@ function closeDropdown() {
 
 function isSelected(item) {
     if (!props.modelValue || !Array.isArray(props.modelValue)) return false;
-    return props.modelValue.includes(item.id) ||
-           props.modelValue.some(val => typeof val === 'object' && val?.id === item.id);
+    return props.modelValue.some(val => {
+        if (typeof val === 'object') {
+            return val?.id == item.id;
+        }
+        return val == item.id;
+    });
 }
 
 function toggleItem(item) {

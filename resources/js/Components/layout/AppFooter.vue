@@ -14,7 +14,7 @@
                     href="/"
                     class="font-bold text-blue-600 hover:text-blue-700"
                 >
-                    Sistem Penyimpanan
+                    Sinergi Putra Borneo
                 </Link>
                 <span class="text-gray-500">- Backoffice Website</span>
             </div>

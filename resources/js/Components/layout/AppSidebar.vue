@@ -26,10 +26,10 @@
                     </div>
                     <div class="flex flex-col leading-tight">
                         <div class="font-bold tracking-wider text-blue-600">
-                            Sistem
+                            Sinergi
                         </div>
                         <div class="text-sm italic text-sky-500">
-                            Penyimpanan
+                            Putra Borneo
                         </div>
                     </div>
                 </div>
