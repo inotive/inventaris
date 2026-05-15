@@ -57,6 +57,8 @@ Useful links to wrappers other than the popular frameworks mentioned above
 
 ## Usage
 
+### Client-Side (Browser)
+
 ```js
 import ApexCharts from 'apexcharts'
 ```
@@ -83,9 +85,82 @@ var chart = new ApexCharts(document.querySelector('#chart'), options)
 chart.render()
 ```
 
+### Server-Side Rendering (SSR)
+
+ApexCharts now supports SSR for Next.js, Nuxt, SvelteKit, Astro, and other meta-frameworks:
+
+```js
+import ApexCharts from 'apexcharts/ssr'
+
+const chartHTML = await ApexCharts.renderToHTML({
+  series: [{ data: [30, 40, 35, 50, 49, 60, 70, 91, 125] }],
+  chart: { type: 'bar' },
+  xaxis: {
+    categories: [1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999]
+  }
+}, {
+  width: 500,
+  height: 300
+})
+
+// Returns hydration-ready HTML with embedded SVG
+```
+
+```js
+// Client-side hydration (makes chart interactive)
+import ApexCharts from 'apexcharts/client'
+
+// Hydrate specific chart
+ApexCharts.hydrate(document.getElementById('my-chart'))
+
+// Or hydrate all charts on the page
+ApexCharts.hydrateAll()
+```
+
 This will render the following chart
 
 <p align="center"><a href="https://apexcharts.com/javascript-chart-demos/column-charts/"><img src="https://apexcharts.com/media/first-bar-chart.svg"></a></p>
+
+### Tree-shaking — ship only what you use
+
+By default `import ApexCharts from 'apexcharts'` includes everything. If you want a smaller bundle, import from `apexcharts/core` and add only the chart types and features you need:
+
+```js
+import ApexCharts from 'apexcharts/core'   // bare class — no chart types, no features
+
+// Import by the exact chart type name you use in { chart: { type: '...' } }
+import 'apexcharts/line'
+import 'apexcharts/bar'
+// import 'apexcharts/area'
+// import 'apexcharts/scatter'
+
+// Optional features
+import 'apexcharts/features/legend'
+import 'apexcharts/features/toolbar'      // zoom/pan toolbar
+// import 'apexcharts/features/exports'      // SVG/PNG/CSV download
+// import 'apexcharts/features/annotations'
+// import 'apexcharts/features/keyboard'     // keyboard navigation
+```
+
+**Vite users:** Vite's dependency pre-bundler can create two separate copies of ApexCharts, causing `"chart type X is not registered"` errors even when the import is present. Fix this by listing all apexcharts sub-entries in `optimizeDeps.include`:
+
+```js
+// vite.config.js
+export default {
+  optimizeDeps: {
+    include: [
+      'apexcharts/core',
+      'apexcharts/line',   // add only the ones you import
+      'apexcharts/bar',
+      'apexcharts/features/legend',
+      'apexcharts/features/toolbar',
+      // ...
+    ],
+  },
+}
+```
+
+See [tree-shaking](https://apexcharts.com/docs/tree-shaking/) for the full guide.
 
 ### A little more than the basic
 
@@ -201,10 +276,6 @@ Email: <a href="info@apexcharts.com">info@apexcharts.com</a>
 Twitter: <a href="https://twitter.com/apexcharts">@apexcharts</a>
 
 Facebook: <a href="https://facebook.com/apexcharts">fb.com/apexcharts</a>
-
-## Dependency
-
-ApexCharts uses <a href="https://svgdotjs.github.io/" target="_blank">SVG.js</a> for drawing shapes, animations, applying svg filters, and a lot more under the hood. The library is bundled in the final build file, so you don't need to include it.
 
 ## License
 

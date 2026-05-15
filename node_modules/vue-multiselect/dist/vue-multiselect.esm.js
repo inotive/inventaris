@@ -889,6 +889,7 @@ var pointerMixin = {
       }
 
       if (this.filteredOptions.length > 0 &&
+        this.filteredOptions[this.pointer] &&
         this.filteredOptions[this.pointer].$isLabel &&
         !this.groupSelect
       ) {
@@ -1075,13 +1076,22 @@ var script = {
       default: false
     },
     /**
-     * Uses Vue Teleport's feature. Teleports the open dropdown to the bottom of the body element
+     * Uses Vue Teleport's feature. Teleports the open dropdown to the bottom of the teleportTarget element
      * @default false
      * @type {Boolean}
      */
     useTeleport: {
       type: Boolean,
       default: false
+    },
+    /**
+     * Target selector for teleporting the dropdown element
+     * @default 'body'
+     * @type {String|Object}
+     */
+    teleportTarget: {
+      type: [String, Object],
+      default: 'body'
     },
     /**
      * Classes to apply to the `multiselect__content-wrapper` element. This element is a teleport element (when enabled), so can be used to specifically target
@@ -1355,7 +1365,7 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
         : createCommentVNode("v-if", true)
     ], 512 /* NEED_PATCH */),
     (openBlock(), createBlock(Teleport, {
-      to: "body",
+      to: $props.teleportTarget,
       disabled: !$props.useTeleport
     }, [
       createVNode(Transition, { name: "multiselect" }, {
@@ -1452,7 +1462,7 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
                       ])
                     ])
                   ], 512 /* NEED_PATCH */), [
-                    [vShow, $props.showNoOptions && ((_ctx.options.length === 0 || ($options.hasOptionGroup === true && _ctx.filteredOptions.length === 0)) && !_ctx.search && !$props.loading)]
+                    [vShow, $props.showNoOptions && _ctx.filteredOptions.length === 0 && !_ctx.search && !$props.loading]
                   ]),
                   renderSlot(_ctx.$slots, "afterList")
                 ], 12 /* STYLE, PROPS */, _hoisted_9)
@@ -1461,7 +1471,7 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
         ]),
         _: 3 /* FORWARDED */
       })
-    ], 8 /* PROPS */, ["disabled"]))
+    ], 8 /* PROPS */, ["to", "disabled"]))
   ], 42 /* CLASS, PROPS, NEED_HYDRATION */, _hoisted_1))
 }
 
