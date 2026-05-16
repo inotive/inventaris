@@ -36,6 +36,7 @@
                         <option value="" class="bg-gray-200 opacity-50">Kelompokan Berdasarkan</option>
                         <option value="item">Group: Nama Barang</option>
                         <option value="category">Group: Kategori Barang</option>
+                        <option value="branch">Group: Cabang</option>
                     </select>
                 </div>
             </div>
@@ -516,6 +517,8 @@ function keyOf(row) {
     switch (effectiveGroup.value) {
         case "category":
             return row.category ?? "Kategori Barang";
+        case "branch":
+            return row.branch ?? "Cabang";
         case "item":
             return row.name;
         default:
@@ -526,7 +529,9 @@ function keyOf(row) {
 function groupLabel(key) {
     switch (effectiveGroup.value) {
         case "category":
-            return `Tanggal Keluar: ${key}`;
+            return `Kategori Barang: ${key}`;
+        case "branch":
+            return `Cabang: ${key}`;
         case "item":
             return `Nama Barang: ${key}`;
         default:

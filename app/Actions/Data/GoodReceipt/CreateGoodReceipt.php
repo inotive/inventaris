@@ -60,8 +60,22 @@ class CreateGoodReceipt
                 'note' => 'Penerimaan barang berhasil diterima oleh ' . Auth::user()->employee?->name . ' dari ' . $name,
             ];
 
-            $item = Item::find($item['item_id']);
-            app(UpdateStockItem::class)->execute($stockInData, $item);
+            $originalItem = Item::find($item['item_id']);
+            $receiverBranchId = Auth::user()->employee?->branch_id;
+
+            // Find matching item in receiver's branch
+            $targetItem = $originalItem;
+            if ($receiverBranchId && $receiverBranchId != $originalItem->branch_id) {
+                $itemInReceiverBranch = Item::where('name', $originalItem->name)
+                    ->where('branch_id', $receiverBranchId)
+                    ->first();
+                if ($itemInReceiverBranch) {
+                    $targetItem = $itemInReceiverBranch;
+                    $stockInData['item_id'] = $targetItem->id;
+                }
+            }
+
+            app(UpdateStockItem::class)->execute($stockInData, $targetItem);
         }
 
         return $goodReceipt;

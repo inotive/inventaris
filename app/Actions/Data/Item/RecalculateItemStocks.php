@@ -21,7 +21,7 @@ class RecalculateItemStocks
                 $tx->initial_stock = $running;
 
                 $type = strtolower((string) $tx->type);
-                $delta = in_array($type, ['in','transfer_in'], true)
+                $delta = in_array($type, ['in','transfer_in','adjust_in'], true)
                     ? (float) $tx->amount
                     : -(float) $tx->amount;
 

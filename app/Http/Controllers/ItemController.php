@@ -21,13 +21,17 @@ class ItemController extends Controller
         $user = Auth::user()->load('employee.branch');
 
         $perPage = (int) $request->input('per_page', 10);
+        $isSuperadmin = Auth::user()->hasRole("Superadmin");
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
 
         $filters = [
             'q' => $request->string('q')->toString(),
             'code' => $request->string('code')->toString(),
             'name' => $request->string('name')->toString(),
             'unit_id' => $request->integer('unit_id') ?: null,
-            'branch_id' => $request->has('branch_id') && $request->input('branch_id') !== '' ? (int) $request->input('branch_id') : null,
+            'branch_id' => $request->has('branch_id') 
+                ? ($request->input('branch_id') !== '' ? (int) $request->input('branch_id') : null) 
+                : ($isSuperadmin ? null : $userBranchId),
             'item_id' => $request->integer('item_id') ?: null,
             'category_id' => $request->integer('category_id') ?: null,
         ];
@@ -36,16 +40,16 @@ class ItemController extends Controller
         $sortDirection = strtolower($request->get('sortDirection', 'desc')) === 'asc' ? 'asc' : 'desc';
         $groupBy = $request->get('groupBy');
 
-        $isSuperadmin = Auth::user()->hasRole("Superadmin");
-        $branches = Branch::where('id', Auth::user()->employee->branch_id)->pluck('id');
-
+        $canViewGlobal = Auth::user()->can('items.view_global') || $isSuperadmin;
+        
         $query = Item::query()
             ->with(['branch', 'category', 'unit', 'stocks', 'stock'])
             ->leftJoin('item_categories as ic', 'ic.id', '=', 'items.category_id')
             ->leftJoin('units as u', 'u.id', '=', 'items.unit_id')
+            ->leftJoin('branches as b', 'b.id', '=', 'items.branch_id')
             ->select('items.*')
-            ->when(!$isSuperadmin && empty($filters['branch_id']), function ($query) use ($branches) {
-                return $query->whereIn('items.branch_id', $branches);
+            ->when(!$canViewGlobal && empty($filters['branch_id']), function ($query) use ($userBranchId) {
+                return $query->where('items.branch_id', $userBranchId);
             });
 
         if ($filters['q']) {
@@ -74,6 +78,21 @@ class ItemController extends Controller
             $query->where('items.category_id', $filters['category_id']);
         }
 
+        // Auto-sort by groupBy field if provided
+        if ($groupBy) {
+            switch ($groupBy) {
+                case 'category':
+                    $query->orderBy('ic.name', 'asc');
+                    break;
+                case 'branch':
+                    $query->orderBy('b.name', 'asc');
+                    break;
+                case 'item':
+                    $query->orderBy('items.name', 'asc');
+                    break;
+            }
+        }
+
         switch ($sortBy) {
             case 'code':
             case 'name':
@@ -85,6 +104,9 @@ class ItemController extends Controller
             case 'unit':
             case 'unit_id':
                 $query->orderBy('u.name', $sortDirection);
+                break;
+            case 'branch':
+                $query->orderBy('b.name', $sortDirection);
                 break;
             default:
                 $query->orderBy('items.id', $sortDirection);
@@ -109,7 +131,7 @@ class ItemController extends Controller
                     'branch' => $gt->branch?->name ?? null,
                     'stock' => $gt->stocks?->first()?->last_stock ?? 0,
                     'min_stock' => $gt->min_stock ?? 0,
-                    'unit' => $gt->unit?->name ?? '-',
+                    'unit' => $gt->unit?->short_name ?? $gt->unit?->name ?? '-',
                     'unit_id' => $gt->unit_id,
                     'last_stock' => $gt->stock?->last_stock ?? 0,
                     'created_at' => $gt->created_at->locale('id')->translatedFormat('d F Y'),
@@ -123,7 +145,7 @@ class ItemController extends Controller
             'sortDirection' => $sortDirection,
             'groupBy' => in_array($groupBy, ['ordered_by'], true) ? $groupBy : null,
             'sidebarCounts' => [
-                'total' => Item::where('branch_id', $user->employee->branch_id ?: 1)->count(),
+                'total' => $canViewGlobal ? Item::count() : Item::where('branch_id', $userBranchId)->count(),
             ],
         ]);
     }

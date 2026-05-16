@@ -38,12 +38,12 @@ class MaterialRequestController extends Controller
         }
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
         $userBranchId = Auth::user()->employee->branch_id ?? null;
-
+        $canViewGlobal = Auth::user()->can('material_requests.view_global') || $isSuperadmin;
         $departments = Department::where('branch_id', $userBranchId)->pluck('id');
 
         $query = MaterialRequest::query()
             ->with(['department:id,name', 'requester:id,name', 'approver:id,name'])
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departments) {
+            ->when(!$canViewGlobal, function ($query) use ($departments) {
                 return $query->whereIn('department_id', $departments);
             });
 
@@ -130,13 +130,13 @@ class MaterialRequestController extends Controller
         $canDelete = Auth::user()->can('material_requests.delete');
         $canView = Auth::user()->can('material_requests.view');
         $canCreate = Auth::user()->can('material_requests.create');
+        $canViewGlobal = Auth::user()->can('material_requests.view_global') || $isSuperadmin;
 
-
-        $departments = Department::query()->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departments) {
+        $departments = Department::query()->when(!$canViewGlobal, function ($query) use ($departments) {
             return $query->whereIn('id', $departments);
         })->select('id', 'name')->orderBy('name')->get();
 
-        $employees = Employee::query()->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departments) {
+        $employees = Employee::query()->when(!$canViewGlobal, function ($query) use ($departments) {
             return $query->whereIn('department_id', $departments);
         })->select('id', 'name')->orderBy('name')->get();
 
@@ -177,11 +177,14 @@ class MaterialRequestController extends Controller
 
         // Get user's department branch to filter items
         $user = Auth::user();
+        $isSuperadmin = $user->hasRole("Superadmin");
         $userBranchId = $user->employee?->department?->branch_id;
 
         // Filter items based on user's department branch
+        $canCreateGlobal = Auth::user()->can('material_requests.create_global') || $isSuperadmin;
+
         $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
-            ->when($userBranchId && $userBranchId != 2, function ($query) use ($userBranchId) {
+            ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
                 return $query->where('branch_id', $userBranchId);
             })
             ->orderBy('name')

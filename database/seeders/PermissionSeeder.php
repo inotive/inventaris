@@ -15,7 +15,7 @@ class PermissionSeeder extends Seeder
         $modules = [
             'Dashboard' => [
                 'key' => 'dashboard',
-                'actions' => ['view'],
+                'actions' => ['view', 'view_global'],
             ],
 /*
             'Hasil Inspeksi' => [
@@ -113,43 +113,43 @@ class PermissionSeeder extends Seeder
 */
             'Permintaan Barang' => [
                 'key' => 'material_requests',
-                'actions' => ['view', 'create', 'edit', 'delete', 'approve'],
+                'actions' => ['view', 'view_global', 'create', 'create_global', 'edit', 'delete', 'approve'],
             ],
-            'Pengajuan Barang' => [
+            'Pengajuan Pembelian' => [
                 'key' => 'purchase_requests',
-                'actions' => ['view', 'create', 'edit', 'delete', 'approve'],
+                'actions' => ['view', 'view_global', 'create', 'create_global', 'edit', 'delete', 'approve'],
             ],
             'Pembelian Barang' => [
                 'key' => 'purchase_orders',
-                'actions' => ['view', 'create', 'edit', 'delete', 'approve'],
+                'actions' => ['view', 'view_global', 'create', 'create_global', 'edit', 'delete', 'approve'],
             ],
             'Perpindahan Barang' => [
                 'key' => 'good_transfers',
-                'actions' => ['view', 'create', 'edit', 'delete', 'approve'],
+                'actions' => ['view', 'view_global', 'create', 'create_global', 'edit', 'delete', 'approve'],
             ],
             'Penerimaan Barang' => [
                 'key' => 'good_receipts',
-                'actions' => ['view', 'create', 'edit', 'delete'],
+                'actions' => ['view', 'view_global', 'create', 'create_global', 'edit', 'delete'],
             ],
             'Pemakaian Barang' => [
                 'key' => 'good_issues',
-                'actions' => ['view', 'create', 'edit', 'delete', 'approve'],
+                'actions' => ['view', 'view_global', 'create', 'create_global', 'edit', 'delete', 'approve'],
             ],
             'Daftar Barang' => [
                 'key' => 'items',
-                'actions' => ['view', 'create', 'edit', 'delete'],
+                'actions' => ['view', 'view_global', 'create', 'edit', 'delete'],
             ],
             'Stock Masuk' => [
                 'key' => 'stock_in',
-                'actions' => ['view', 'create', 'edit', 'delete'],
+                'actions' => ['view', 'view_global', 'create', 'edit', 'delete'],
             ],
             'Stock Keluar' => [
                 'key' => 'stock_out',
-                'actions' => ['view', 'create', 'edit', 'delete'],
+                'actions' => ['view', 'view_global', 'create', 'edit', 'delete'],
             ],
             'Rekap Stok' => [
                 'key' => 'stock_recap',
-                'actions' => ['view'],
+                'actions' => ['view', 'view_global', 'adjust'],
             ],
             'Daftar Cabang' => [
                 'key' => 'branches',
@@ -223,7 +223,9 @@ class PermissionSeeder extends Seeder
 
         $labels = [
             'view'    => 'Lihat Data',
+            'view_global' => 'Lihat Data (Semua Cabang)',
             'create'  => 'Tambah Data',
+            'create_global' => 'Tambah Data (Lintas Cabang)',
             'edit'    => 'Edit Data',
             'delete'  => 'Hapus Data',
             'approve' => 'Approve',
@@ -232,6 +234,8 @@ class PermissionSeeder extends Seeder
             'delete_salary_slip' => 'Hapus Slip Gaji',
             'calculate_kpi' => 'Hitung KPI',
             'manage' => 'Kelola',
+            'view_all_stock' => 'Lihat Stok 0',
+            'adjust'  => 'Penyesuaian Stok',
         ];
 
         foreach ($modules as $groupName => $module) {

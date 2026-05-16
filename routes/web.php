@@ -322,6 +322,7 @@ Route::middleware([
 
 Route::middleware(['web'])->group(function () {
     Route::get('/stock-recap', [StockRecapController::class, 'index'])->name('stock-recap.index');
+    Route::post('/stock-recap/adjust', [StockRecapController::class, 'adjust'])->name('stock-recap.adjust');
     Route::get('/api/stock-recap/detail', [StockRecapController::class, 'detail'])->name('stock-recap.detail');
 });
 

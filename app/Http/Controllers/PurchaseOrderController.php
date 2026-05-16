@@ -50,9 +50,13 @@ class PurchaseOrderController extends Controller
         $query = PurchaseOrder::query()
             ->with(['request:id,request_no', 'applicant:id,name', 'branch:id,name', 'items.item.unit']);
 
-        // Filter by branch for non-superadmin users (except branch_id 2)
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2) {
-            $query->where('branch_id', $userBranchId);
+        // Filter by branch for non-superadmin users
+        $canViewGlobal = Auth::user()->hasRole('Superadmin') || Auth::user()->can('purchase_orders.view_global');
+        if (!$canViewGlobal) {
+            $userBranchId = Auth::user()->employee?->branch_id;
+            if ($userBranchId) {
+                $query->where('branch_id', $userBranchId);
+            }
         }
 
         // Apply filters
@@ -142,10 +146,12 @@ class PurchaseOrderController extends Controller
         $branches = Branch::where('id', $userBranchId)->pluck('id');
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
 
+        $canCreateGlobal = Auth::user()->can('purchase_orders.create_global') || $isSuperadmin;
+
         // Perbaiki referensi variabel $filters yang tak terdefinisi
         $items = Item::with(['unit', 'branch'])
             ->orderBy('name')
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($branches) {
+            ->when(!$canCreateGlobal, function ($query) use ($branches) {
                 return $query->whereIn('items.branch_id', $branches);
             })
             ->get();
@@ -183,9 +189,10 @@ class PurchaseOrderController extends Controller
         $employees = Employee::query()->select('id', 'name')->orderBy('name')->get();
 
         $isSuperadmin = $user->hasRole('Superadmin');
+        $canCreateGlobal = $user->can('purchase_orders.create_global');
 
-        // Get branches - all for superadmin or branch_id 2, only user's branch for others
-        $branches = ($isSuperadmin || $user->employee->branch_id == 2)
+        // Get branches - all for superadmin/global creators, only user's branch for others
+        $branches = ($isSuperadmin || $canCreateGlobal)
             ? Branch::query()->select('id', 'name')->orderBy('name')->get()
             : Branch::where('id', $user->employee->branch_id)->select('id', 'name')->get();
 
@@ -217,8 +224,10 @@ class PurchaseOrderController extends Controller
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        // For non-superadmin (except branch_id 2), ensure branch_id matches user's branch
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2 && $data['branch_id'] != $userBranchId) {
+        $canCreateGlobal = Auth::user()->can('purchase_orders.create_global');
+
+        // For non-superadmin/non-global, ensure branch_id matches user's branch
+        if (!$isSuperadmin && !$canCreateGlobal && $userBranchId && $data['branch_id'] != $userBranchId) {
             return back()->withInput()->with('error', 'Anda tidak memiliki akses untuk membuat Purchase Order untuk cabang ini.');
         }
 
@@ -286,7 +295,8 @@ class PurchaseOrderController extends Controller
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
         $userBranchId = Auth::user()->employee?->branch_id;
 
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2 && $purchaseOrder->branch_id != $userBranchId) {
+        $canEditGlobal = Auth::user()->can('purchase_orders.create_global');
+        if (!$isSuperadmin && !$canEditGlobal && $userBranchId && $purchaseOrder->branch_id != $userBranchId) {
             abort(403, 'Anda tidak memiliki akses untuk melihat Purchase Order dari cabang ini.');
         }
 
@@ -350,7 +360,8 @@ class PurchaseOrderController extends Controller
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
         $userBranchId = Auth::user()->employee?->branch_id;
 
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2 && $purchaseOrder->branch_id != $userBranchId) {
+        $canEditGlobal = Auth::user()->can('purchase_orders.create_global');
+        if (!$isSuperadmin && !$canEditGlobal && $userBranchId && $purchaseOrder->branch_id != $userBranchId) {
             abort(403, 'Anda tidak memiliki akses untuk mengubah Purchase Order dari cabang ini.');
         }
 
@@ -359,8 +370,9 @@ class PurchaseOrderController extends Controller
         $items = Item::with(['unit'])->orderBy('name')->get();
         $employees = Employee::query()->select('id', 'name')->orderBy('name')->get();
 
-        // Get branches - all for superadmin or branch_id 2, only user's branch for others
-        $branches = ($isSuperadmin || $userBranchId == 2)
+        $canCreateGlobal = Auth::user()->can('purchase_orders.create_global');
+        // Get branches - all for superadmin or global creators, only user's branch for others
+        $branches = ($isSuperadmin || $canCreateGlobal)
             ? Branch::query()->select('id', 'name')->orderBy('name')->get()
             : Branch::where('id', $userBranchId)->select('id', 'name')->get();
 
@@ -417,8 +429,9 @@ class PurchaseOrderController extends Controller
             'amount_paid' => ['required', 'numeric', 'min:0'],
         ]);
 
-        // For non-superadmin (except branch_id 2), ensure branch_id matches user's branch
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2 && $data['branch_id'] != $userBranchId) {
+        $canEditGlobal = Auth::user()->can('purchase_orders.create_global');
+        // For non-superadmin (except global), ensure branch_id matches user's branch
+        if (!$isSuperadmin && !$canEditGlobal && $userBranchId && $data['branch_id'] != $userBranchId) {
             return back()->withInput()->with('error', 'Anda tidak memiliki akses untuk mengubah Purchase Order ke cabang ini.');
         }
 
@@ -661,7 +674,21 @@ class PurchaseOrderController extends Controller
                             'note' => 'Pembelian barang ' . $purchaseOrder->order_no . ' berhasil diterima oleh ' . Auth::user()->employee?->name,
                         ];
 
-                        app(UpdateStockItem::class)->execute($stockInData, $item->item);
+                        $originalItem = clone $item->item;
+                        $receiverBranchId = Auth::user()->employee?->branch_id;
+                        $targetItem = $item->item;
+
+                        if ($receiverBranchId && $receiverBranchId != $originalItem->branch_id) {
+                            $itemInReceiverBranch = Item::where('name', $originalItem->name)
+                                ->where('branch_id', $receiverBranchId)
+                                ->first();
+                            if ($itemInReceiverBranch) {
+                                $targetItem = $itemInReceiverBranch;
+                                $stockInData['item_id'] = $targetItem->id;
+                            }
+                        }
+
+                        app(UpdateStockItem::class)->execute($stockInData, $targetItem);
                     }
                 }
 

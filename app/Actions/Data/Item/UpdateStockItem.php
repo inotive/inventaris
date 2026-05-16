@@ -19,8 +19,8 @@ class UpdateStockItem
         $type = strtolower($data['type'] ?? 'in');
         $qty  = (float) ($data['amount'] ?? $data['quantity'] ?? 0);
 
-        if (! in_array($type, ['in','out','transfer_in','transfer_out'], true)) {
-            throw new InvalidArgumentException('Tipe stok tidak valid');
+        if (! in_array($type, ['in','out','transfer_in','transfer_out', 'adjust_in', 'adjust_out'], true)) {
+            throw new InvalidArgumentException('Tipe stok tidak valid: ' . $type);
         }
         if ($qty <= 0) {
             throw new InvalidArgumentException('Jumlah/amount harus > 0');
@@ -31,8 +31,8 @@ class UpdateStockItem
         $initial = $last?->last_stock ?? 0.0;
 
         $lastStock = match ($type) {
-            'in','transfer_in'     => $initial + $qty,
-            'out','transfer_out'   => $initial - $qty,
+            'in','transfer_in','adjust_in'     => $initial + $qty,
+            'out','transfer_out','adjust_out'  => $initial - $qty,
         };
 
         $payload = [

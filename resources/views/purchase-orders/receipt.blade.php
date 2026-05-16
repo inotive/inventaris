@@ -280,17 +280,19 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="company-row">
-                <div>
-                    <div class="company-name">{{ $po['branch']['name'] }}</div>
+            <div class="company-row" style="display: flex; align-items: center; justify-content: space-between;">
+                <div class="logo-col" style="flex: 0 0 100px; justify-content: flex-start;">
+                    <img src="{{ asset('images/logo-spb-hitam.png') }}" style="width: 100%; height: auto;" />
+                </div>
+                <div style="flex: 1; text-align: center;">
+                    <div class="company-name" style="font-size: 26px; text-transform: uppercase;">Sinergi Putra Borneo</div>
                     <div class="company-address">
+                        Cabang: {{ $po['branch']['name'] }}<br>
                         {{ $po['branch']['address'] }}<br>
                         Telp: {{ $po['branch']['phone'] }} &nbsp;|&nbsp; Email: {{ $po['branch']['email'] }}
                     </div>
                 </div>
-                <!-- Optionally add logo here on future revisions:
-                <div class="logo-col"><img src="/logo.png" style="height:55px;" /></div>
-                -->
+                <div style="flex: 0 0 100px;"></div>
             </div>
         </div>
 

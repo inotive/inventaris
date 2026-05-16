@@ -18,71 +18,48 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // Access control
             PermissionSeeder::class,
-            RoleSeeder::class,
+            // RoleSeeder::class,
 
             // Master data FIRST
             BranchSeeder::class,
-            DepartmentSeeder::class,
-            ShiftSeeder::class,
-            UnitSeeder::class,
-            ItemCategorySeeder::class,
-            VehicleTypeSeeder::class,
+            ItemWarehouseSeeder::class,
+            // DepartmentSeeder::class,
+            // ShiftSeeder::class,
+            // UnitSeeder::class,
+            // ItemCategorySeeder::class,
+            // VehicleTypeSeeder::class,
 
             // Users and Employees (depend on roles and masters)
-            UserSeeder::class,
-            EmployeeSeeder::class,
+            RoleAndUserWarehouseSeeder::class,
+            // UserSeeder::class,
+            // EmployeeSeeder::class,
 
             // Inventory and operations
-            ItemSeeder::class,
-            VehicleSeeder::class,
-            VehicleServiceSeeder::class,
+            // ItemSeeder::class,
+            // VehicleSeeder::class,
+            // VehicleServiceSeeder::class,
 
             // Checklists and questions
-            ChecklistCategorySeeder::class,
-            ChecklistSeeder::class,
-            QuestionCategorySeeder::class,
-            QuestionSeeder::class,
-            QuestionOptionSeeder::class,
-            // ChecklistHarianSpvSeeder::class,
-            // AnswerSeeder::class,
-            // ChecklistSignerSeeder::class,
+            // ChecklistCategorySeeder::class,
+            // ChecklistSeeder::class,
+            // QuestionCategorySeeder::class,
+            // QuestionSeeder::class,
+            // QuestionOptionSeeder::class,
 
             // Finance and logistics
-            MaterialRequestSeeder::class,
-            PurchaseRequestSeeder::class,
-            PurchaseOrderSeeder::class,
-            GoodTransferSeeder::class,
-            GoodReceiptSeeder::class,
-            GoodIssueSeeder::class,
-            ItemStockSeeder::class,
+            // MaterialRequestSeeder::class,
+            // PurchaseRequestSeeder::class,
+            // PurchaseOrderSeeder::class,
+            // GoodTransferSeeder::class,
+            // GoodReceiptSeeder::class,
+            // GoodIssueSeeder::class,
+            // ItemStockSeeder::class,
 
             // Attendance and leaves
-            LeaveTypeSeeder::class,
-            EmployeeLeaveBalanceSeeder::class,
-            // EmployeeLeaveRequestSeeder::class,
-            // EmployeeOvertimeSeeder::class,
-            // EmployeeDayOffSeeder::class,
-            // AttendanceShiftWorkSeeder::class,
-            // AttendanceHistorySeeder::class,
-            // WorkPrincipleSeeder::class,
-            // SalarySlipSeeder::class,
-            // AnnouncementSeeder::class,
-            // ComplianceSeeder::class,
-            // DailyReportSeeder::class,
-
-
-            // SubmissionSeeder::class,
-            // EmployeeOvertimeSeeder::class,
-
-            // Demo/fixtures
-            // ItemMovementSeeder::class,
-            // InspectionSeeder::class,
-            // NotificationSeeder::class,
-            // VehicleHistoryOdometerSeeder::class,
-            // ReimbursementSeeder::class,
-
-            HKMSBranchDepartmentSeeder::class,
-            EmployeePhotoSeeder::class
+            // LeaveTypeSeeder::class,
+            // EmployeeLeaveBalanceSeeder::class,
+            // HKMSBranchDepartmentSeeder::class,
+            // EmployeePhotoSeeder::class
         ]);
     }
 }

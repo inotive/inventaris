@@ -46,10 +46,11 @@ class GoodTransferController extends Controller
 
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
+        $canViewGlobal = Auth::user()->can('good_transfers.view_global') || $isSuperadmin;
 
         $query = GoodTransfer::query()
             ->with(['fromBranch:id,name', 'toBranch:id,name', 'sentBy:id,name', 'receivedBy:id,name'])
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($userBranchId) {
+            ->when(!$canViewGlobal, function ($query) use ($userBranchId) {
                 return $query->where(function($q) use ($userBranchId) {
                     $q->where('from_branch', $userBranchId)->orWhere('to_branch', $userBranchId);
                 });
@@ -75,8 +76,8 @@ class GoodTransferController extends Controller
         $validSortColumns = ['transfer_no', 'from_branch', 'to_branch', 'transferred_at', 'status', 'created_at'];
         $query->orderBy(in_array($sortBy, $validSortColumns) ? $sortBy : 'created_at', $sortDirection);
 
-        // Dropdown cabang (dibatasi jika bukan superadmin dan bukan branch central)
-        $branches = Branch::when(!$isSuperadmin && $userBranchId != 2, function ($q) use ($userBranchId) {
+        // Dropdown cabang (dibatasi jika tidak memiliki akses global)
+        $branches = Branch::when(!$canViewGlobal, function ($q) use ($userBranchId) {
             return $q->where('id', $userBranchId);
         })->select('id', 'name')->orderBy('name')->get();
 
@@ -124,10 +125,11 @@ class GoodTransferController extends Controller
         $employees = Employee::orderBy('name')->get();
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
+        $canCreateGlobal = Auth::user()->can('good_transfers.create_global') || $isSuperadmin;
 
         $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
             ->orderBy('name')
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($userBranchId) {
+            ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
                 return $query->where('items.branch_id', $userBranchId);
             })->get();
 
@@ -157,6 +159,14 @@ class GoodTransferController extends Controller
             'items.*.quantity_transferred' => ['required_with:items', 'integer', 'min:1'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $canCreateGlobal = Auth::user()->can('good_transfers.create_global') || Auth::user()->hasRole('Superadmin');
+
+        // Validasi: user hanya bisa memindahkan barang dari cabangnya sendiri, KECUALI dia punya akses global
+        if (!$canCreateGlobal && $data['from_branch_id'] != $userBranchId) {
+            return back()->withInput()->withErrors(['from_branch_id' => 'Anda hanya dapat memindahkan barang dari gudang/cabang Anda sendiri.']);
+        }
 
         try {
             DB::transaction(function () use ($data) {
@@ -343,6 +353,14 @@ class GoodTransferController extends Controller
             'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $canCreateGlobal = Auth::user()->can('good_transfers.create_global') || Auth::user()->hasRole('Superadmin');
+
+        // Validasi
+        if (!$canCreateGlobal && $data['from_branch_id'] != $userBranchId) {
+            return back()->withInput()->withErrors(['from_branch_id' => 'Anda hanya dapat memindahkan barang dari gudang/cabang Anda sendiri.']);
+        }
 
         try {
             DB::transaction(function () use ($data, $goodTransfer) {

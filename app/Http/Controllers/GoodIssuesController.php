@@ -77,11 +77,12 @@ class GoodIssuesController extends Controller
 
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
         $departments = Department::where('branch_id', Auth::user()->employee->branch_id)->pluck('id');
+        $canViewGlobal = Auth::user()->can('good_issues.view_global') || $isSuperadmin;
 
         $query = GoodIssue::query()
             ->with(['department:id,name', 'request:id,request_no', 'requestBy:id,name'])
             ->withCount('items')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) use ($departments) {
+            ->when(!$canViewGlobal, function ($query) use ($departments) {
                 return $query->whereIn('department_id', $departments);
             });
 
@@ -162,17 +163,22 @@ class GoodIssuesController extends Controller
         $departments = Department::with(['branch'])->orderBy('name')->get();
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
+        $canCreateGlobal = Auth::user()->can('good_issues.create_global') || $isSuperadmin;
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
-        $materialRequests = MaterialRequest::doesntHave('goodIssues')
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
+
+        $materialRequests = MaterialRequest::where('status', 'approved')
+            ->when(!$canCreateGlobal, function ($query) use ($departmentIds) {
                 return $query->whereIn('department_id', $departmentIds);
             })
             ->orderBy('request_no', 'desc')
             ->get();
 
-        $items = Item::with(['unit'])->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($userBranchId) {
-            return $query->where('branch_id', $userBranchId);
-        })->orderBy('name')->get();
+        $items = Item::with(['unit'])
+            ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
+                return $query->where('branch_id', $userBranchId);
+            })
+            ->orderBy('name')
+            ->get();
 
         $user = Auth::user();
         if ($user->employee) {
@@ -199,6 +205,14 @@ class GoodIssuesController extends Controller
             'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $canCreateGlobal = Auth::user()->can('good_issues.create_global') || Auth::user()->hasRole('Superadmin');
+        $department = Department::find($data['department_id']);
+
+        if (!$canCreateGlobal && $department && $department->branch_id != $userBranchId) {
+            return back()->withInput()->withErrors(['department_id' => 'Anda hanya dapat menginput pemakaian untuk departemen di cabang Anda sendiri.']);
+        }
 
         try {
             DB::transaction(function () use ($data) {
@@ -383,6 +397,14 @@ class GoodIssuesController extends Controller
             'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $canCreateGlobal = Auth::user()->can('good_issues.create_global') || Auth::user()->hasRole('Superadmin');
+        $department = Department::find($data['department_id']);
+
+        if (!$canCreateGlobal && $department && $department->branch_id != $userBranchId) {
+            return back()->withInput()->withErrors(['department_id' => 'Anda hanya dapat menginput pemakaian untuk departemen di cabang Anda sendiri.']);
+        }
 
         try {
             DB::transaction(function () use ($data, $goodIssue) {

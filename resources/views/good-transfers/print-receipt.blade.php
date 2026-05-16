@@ -247,13 +247,20 @@
     <button class="print-button" onclick="window.print()">🖨️ Cetak</button>
 
     <div class="container">
-        <div class="header">
-            <div class="company-name">{{ $goodTransfer->fromBranch->name }}</div>
-            <div class="company-address">
-                {{ $goodTransfer->fromBranch->address }}<br>
-                Telp: {{ $goodTransfer->fromBranch->phone }} | Email: {{ $goodTransfer->fromBranch->email }}
+        <div class="header" style="display: flex; align-items: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px;">
+            <div style="flex: 0 0 100px;">
+                <img src="{{ asset('images/logo-spb-hitam.png') }}" alt="Sinergi Putra Borneo" style="width: 100%; height: auto;">
             </div>
-            <div class="receipt-title">NOTA PEMINDAHAN BARANG</div>
+            <div style="flex: 1; text-align: center;">
+                <div class="company-name">SINERGI PUTRA BORNEO</div>
+                <div class="company-address">
+                    Cabang: {{ $goodTransfer->fromBranch->name }}<br>
+                    {{ $goodTransfer->fromBranch->address }}<br>
+                    Telp: {{ $goodTransfer->fromBranch->phone }} | Email: {{ $goodTransfer->fromBranch->email }}
+                </div>
+                <div class="receipt-title" style="margin-top: 10px;">NOTA PEMINDAHAN BARANG</div>
+            </div>
+            <div style="flex: 0 0 100px;"></div>
         </div>
 
         <div class="receipt-info">

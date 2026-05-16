@@ -114,10 +114,11 @@ class PurchaseRequestController extends Controller
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
+        $canViewGlobal = Auth::user()->can('purchase_requests.view_global') || $isSuperadmin;
 
         $query = PurchaseRequest::query()
             ->with(['request:id,request_no', 'department:id,name', 'requester:id,name', 'approver:id,name'])
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
+            ->when(!$canViewGlobal, function ($query) use ($departmentIds) {
                 return $query->whereIn('department_id', $departmentIds);
             });
 
@@ -200,13 +201,12 @@ class PurchaseRequestController extends Controller
         $canEdit = Auth::user()->can('purchase_requests.edit');
         $canDelete = Auth::user()->can('purchase_requests.delete');
         $canView = Auth::user()->can('purchase_requests.view');
-        $canCreate = Auth::user()->can('purchase_requests.create');
+        $canViewGlobal = Auth::user()->can('purchase_requests.view_global') || $isSuperadmin;
 
-
-        $departments = Department::query()->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
+        $departments = Department::query()->when(!$canViewGlobal, function ($query) use ($departmentIds) {
             return $query->whereIn('id', $departmentIds);
         })->select('id', 'name')->orderBy('name')->get();
-        $employees = Employee::query()->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
+        $employees = Employee::query()->when(!$canViewGlobal, function ($query) use ($departmentIds) {
             return $query->whereIn('department_id', $departmentIds);
         })->select('id', 'name')->orderBy('name')->get();
 
@@ -239,7 +239,7 @@ class PurchaseRequestController extends Controller
             'can_edit' => $canEdit,
             'can_delete' => $canDelete,
             'can_view' => $canView,
-            'can_create' => $canCreate,
+            'can_create' => Auth::user()->can('purchase_requests.create'),
         ]);
     }
 
@@ -255,9 +255,11 @@ class PurchaseRequestController extends Controller
         $branches = Branch::where('id', $userBranchId)->pluck('id');
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
 
+        $canCreateGlobal = Auth::user()->can('purchase_requests.create_global') || $isSuperadmin;
+
         $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
             ->orderBy('name')
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($userBranchId) {
+            ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
                 return $query->where('items.branch_id', $userBranchId);
             })->get();
 
@@ -265,7 +267,7 @@ class PurchaseRequestController extends Controller
 
         $materialRequests = MaterialRequest::with(['items.item.unit'])
             ->orderByDesc('request_no')
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
+            ->when(!$canCreateGlobal, function ($query) use ($departmentIds) {
                 return $query->whereIn('material_requests.department_id', $departmentIds);
             })
             ->get()
@@ -382,10 +384,13 @@ class PurchaseRequestController extends Controller
                 ];
             });
 
+        $canCreatePO = Auth::user()->can('purchase_orders.create') || Auth::user()->can('purchase_orders.create_global') || Auth::user()->hasRole('Superadmin');
+
         return Inertia::render('Admin/PurchaseRequests/Show', [
             'pr' => $pr,
             'activities' => $activities,
             'can_approve' => $canApprove,
+            'can_create_po' => $canCreatePO,
         ]);
     }
 

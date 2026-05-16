@@ -165,9 +165,9 @@
                                             <span v-if="row.item.branch" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">{{ row.item.branch.name }}</span>
                                             <span v-else class="italic text-gray-400">—</span>
                                         </td>
-                                        <td class="p-3 text-center">{{ row.initial_stock }} {{ row.item.unit?.name }}</td>
-                                        <td class="p-3 font-semibold text-center text-green-400">+ {{ row.amount }} {{ row.item.unit?.name }}</td>
-                                        <td class="p-3 text-center">{{ row.last_stock }} {{ row.item.unit?.name }}</td>
+                                        <td class="p-3 text-center">{{ row.initial_stock }} {{ row.item.unit?.short_name || row.item.unit?.name }}</td>
+                                        <td class="p-3 font-semibold text-center text-green-400">+ {{ row.amount }} {{ row.item.unit?.short_name || row.item.unit?.name }}</td>
+                                        <td class="p-3 text-center">{{ row.last_stock }} {{ row.item.unit?.short_name || row.item.unit?.name }}</td>
                                         <td class="p-3 text-center whitespace-nowrap">{{ row.created_at }}</td>
 
                                         <!-- Catatan -->
@@ -212,9 +212,9 @@
                                     <span v-if="row.item.branch" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">{{ row.item.branch.name }}</span>
                                     <span v-else class="italic text-gray-400">—</span>
                                 </td>
-                                <td class="p-3 text-center">{{ row.initial_stock }} {{ row.item.unit?.name }}</td>
-                                <td class="p-3 font-semibold text-center text-green-400">+ {{ row.amount }} {{ row.item.unit?.name }}</td>
-                                <td class="p-3 text-center">{{ row.last_stock }} {{ row.item.unit?.name }}</td>
+                                <td class="p-3 text-center">{{ row.initial_stock }} {{ row.item.unit?.short_name || row.item.unit?.name }}</td>
+                                <td class="p-3 font-semibold text-center text-green-400">+ {{ row.amount }} {{ row.item.unit?.short_name || row.item.unit?.name }}</td>
+                                <td class="p-3 text-center">{{ row.last_stock }} {{ row.item.unit?.short_name || row.item.unit?.name }}</td>
                                 <td class="p-3 text-center whitespace-nowrap">{{ row.created_at }}</td>
 
                                 <!-- Catatan -->

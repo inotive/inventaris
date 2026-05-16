@@ -43,6 +43,7 @@ class GoodReceiptController extends Controller
         $isSuperadmin = $user->hasRole('Superadmin');
         $branchId = $user->employee->branch_id;
         $departmentIds = Department::where('branch_id', $branchId)->pluck('id');
+        $canViewGlobal = $user->can('good_receipts.view_global') || $isSuperadmin;
 
         // Query builder
         $query = GoodReceipt::query()
@@ -54,7 +55,7 @@ class GoodReceiptController extends Controller
                 'transfer.toBranch:id,name'
             ])
             ->when(
-                !$isSuperadmin && $branchId != 2,
+                !$canViewGlobal,
                 function ($q) use ($branchId) {
                     $q->where(function ($subQ) use ($branchId) {
                         $subQ->whereHas('order.applicant', function ($qr) use ($branchId) {
@@ -135,7 +136,7 @@ class GoodReceiptController extends Controller
         $canView = Auth::user()->can('good_receipts.view');
         $canCreate = Auth::user()->can('good_receipts.create');
 
-        $employees = Employee::query()->select('id', 'name')->when(!$isSuperadmin && $branchId != 2, function ($query) use ($departmentIds) {
+        $employees = Employee::query()->select('id', 'name')->when(!$canViewGlobal, function ($query) use ($departmentIds) {
             return $query->whereIn('department_id', $departmentIds);
         })->orderBy('name')->get();
 
@@ -179,13 +180,14 @@ class GoodReceiptController extends Controller
             $employees = Auth::user()->employee()->get();
         }
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
+        $canCreateGlobal = Auth::user()->can('good_receipts.create_global') || $isSuperadmin;
         $departementIds = Department::query()->select('id')->orderBy('name')->get()->pluck('id');
 
         $order = PurchaseOrder::query()
             ->with(['applicant:id,name'])
             ->select('id', 'order_no', 'vendor', 'ordered_by')
             ->where('status_delivered', 'pending')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) use ($departementIds) {
+            ->when(!$canCreateGlobal, function ($query) {
                 return $query->where('branch_id', Auth::user()->employee->branch_id);
             })
             ->orderBy('order_no')
@@ -195,7 +197,7 @@ class GoodReceiptController extends Controller
             ->with(['fromBranch', 'toBranch', 'sentBy:id,name'])
             ->select('id', 'transfer_no', 'from_branch', 'to_branch', 'sent_by')
             ->where('status', 'Shipped')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) use ($departementIds) {
+            ->when(!$canCreateGlobal, function ($query) {
                 return $query->where('to_branch', Auth::user()->employee->branch_id);
             })
             ->orderBy('transfer_no')
@@ -228,11 +230,12 @@ class GoodReceiptController extends Controller
     public function loadItems(Request $request, $id)
     {
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
+        $canCreateGlobal = Auth::user()->can('good_receipts.create_global') || $isSuperadmin;
         if ($request->type === 'pembelian') {
 
             $order = PurchaseOrder::with(['items.item.unit'])
                 ->where('status_delivered', 'pending')
-                ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) {
+                ->when(!$canCreateGlobal, function ($query) {
                     return $query->where('branch_id', Auth::user()->employee->branch_id);
                 })
                 ->find($id);
@@ -260,12 +263,9 @@ class GoodReceiptController extends Controller
                 return response()->json(['error' => 'Good transfer not found'], 404);
             }
 
-            $items = $transfer->items->map(function ($item) use ($isSuperadmin) {
-                $itemId = $item->item_id;
-
-                if (!$isSuperadmin) {
-                    $itemId = Item::where('code', $item->item->code)->where('branch_id', Auth::user()->employee->branch_id)->first()->id;
-                }
+            $items = $transfer->items->map(function ($item) use ($transfer) {
+                $toBranchItem = Item::where('code', $item->item->code)->where('branch_id', $transfer->to_branch)->first();
+                $itemId = $toBranchItem ? $toBranchItem->id : $item->item_id;
 
                 return [
                     'id' => $item->id,
@@ -330,14 +330,15 @@ class GoodReceiptController extends Controller
 
             $items = $transfer->items->map(function ($item) use ($dataItem, $transfer) {
                 $toBranchItem = $transfer->toBranch->items()->where('code', $item->item->code)->first();
+                $targetItemId = $toBranchItem ? $toBranchItem->id : $item->item_id;
 
-                $data = $dataItem->where('item_id', $toBranchItem->id)->first();
+                $data = $dataItem->where('item_id', $targetItemId)->first();
 
                 return [
                     'item_id' => $item->id,
-                    'quantity_transferred' => $data['quantity_transferred'],
-                    'quantity_received' => $data['quantity_received'],
-                    'receive_note' => $data['note'],
+                    'quantity_transferred' => $data ? $data['quantity_transferred'] : 0,
+                    'quantity_received' => $data ? $data['quantity_received'] : 0,
+                    'receive_note' => $data ? $data['note'] : null,
                 ];
             });
 

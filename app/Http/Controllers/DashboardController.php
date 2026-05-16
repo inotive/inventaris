@@ -43,6 +43,49 @@ class DashboardController extends Controller
             return $this->redirectToFirstAccessiblePage($user);
         }
 
+        // Apply branch filters globally for this request
+        $userBranchId = $user->employee->branch_id ?? null;
+        $isGlobalView = $user->hasRole('Superadmin') || $user->can('dashboard.view_global');
+
+        if (!$isGlobalView && $userBranchId) {
+            \App\Models\Item::addGlobalScope('branch_filter', function (\Illuminate\Database\Eloquent\Builder $builder) use ($userBranchId) {
+                $builder->where('items.branch_id', $userBranchId);
+            });
+            \App\Models\ItemStock::addGlobalScope('branch_filter', function (\Illuminate\Database\Eloquent\Builder $builder) use ($userBranchId) {
+                $builder->whereHas('item', function($q) use ($userBranchId) {
+                    $q->where('items.branch_id', $userBranchId);
+                });
+            });
+            \App\Models\ItemMovement::addGlobalScope('branch_filter', function (\Illuminate\Database\Eloquent\Builder $builder) use ($userBranchId) {
+                $builder->whereHas('item', function($q) use ($userBranchId) {
+                    $q->where('items.branch_id', $userBranchId);
+                });
+            });
+            \App\Models\Employee::addGlobalScope('branch_filter', function (\Illuminate\Database\Eloquent\Builder $builder) use ($userBranchId) {
+                $builder->where('employees.branch_id', $userBranchId);
+            });
+            \App\Models\Department::addGlobalScope('branch_filter', function (\Illuminate\Database\Eloquent\Builder $builder) use ($userBranchId) {
+                $builder->where('departments.branch_id', $userBranchId);
+            });
+            if (class_exists(\App\Models\Attendance::class)) {
+                \App\Models\Attendance::addGlobalScope('branch_filter', function (\Illuminate\Database\Eloquent\Builder $builder) use ($userBranchId) {
+                    $builder->whereHas('employee', function($q) use ($userBranchId) {
+                        $q->where('employees.branch_id', $userBranchId);
+                    });
+                });
+            }
+            \App\Models\MaterialRequest::addGlobalScope('branch_filter', function (\Illuminate\Database\Eloquent\Builder $builder) use ($userBranchId) {
+                $builder->whereHas('department', function($q) use ($userBranchId) {
+                    $q->where('departments.branch_id', $userBranchId);
+                });
+            });
+            \App\Models\GoodReceipt::addGlobalScope('branch_filter', function (\Illuminate\Database\Eloquent\Builder $builder) use ($userBranchId) {
+                $builder->whereHas('receiver', function($q) use ($userBranchId) {
+                    $q->where('employees.branch_id', $userBranchId);
+                });
+            });
+        }
+
         // Get current date for filtering
         $today = Carbon::today();
         $currentMonth = Carbon::now()->month;

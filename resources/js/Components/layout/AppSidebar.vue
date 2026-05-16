@@ -13,32 +13,16 @@
         @mouseenter="!isExpanded && (isHovered = true)"
         @mouseleave="isHovered = false"
     >
-        <div class="flex justify-center py-4">
-            <Link href="/dashboard" v-if="!isMobileOpen">
-                <div
-                    class="flex gap-3 items-center"
-                    v-if="isExpanded || isHovered || isMobileOpen"
-                >
-                    <div
-                        class="flex justify-center items-center w-[45px] h-[45px] font-bold text-blue-600 bg-blue-50 rounded-xl"
-                    >
-                        SP
-                    </div>
-                    <div class="flex flex-col leading-tight">
-                        <div class="font-bold tracking-wider text-blue-600">
-                            Sinergi
-                        </div>
-                        <div class="text-sm italic text-sky-500">
-                            Putra Borneo
-                        </div>
-                    </div>
-                </div>
-                <div
-                    v-else
-                    class="flex justify-center items-center w-9 h-9 font-bold text-blue-600 bg-blue-50 rounded-xl"
-                >
-                    SP
-                </div>
+        <div class="flex justify-center items-center py-6 px-4">
+            <Link href="/dashboard" v-if="!isMobileOpen" class="flex items-center justify-center overflow-hidden">
+                <img 
+                    src="/images/logo-spb-hitam.png" 
+                    alt="Logo Sinergi Putra Borneo" 
+                    :class="[
+                        'transition-all duration-300 ease-in-out object-contain',
+                        isExpanded || isHovered || isMobileOpen ? 'w-48' : 'w-10'
+                    ]"
+                />
             </Link>
         </div>
         <div

@@ -191,7 +191,7 @@
                 class="inline-flex items-center rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">Setujui</button>
         </div>
 
-        <div v-if="pr.status === 'approved'"
+        <div v-if="pr.status === 'approved' && can_create_po"
         class="flex items-center justify-end gap-4">
             <button @click="openConvertToPO()"
                 class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
@@ -403,12 +403,14 @@ const props = defineProps({
     pr: { type: Object, required: true },
     activities: { type: Array, default: () => [] },
     can_approve: { type: Boolean, default: false },
+    can_create_po: { type: Boolean, default: false },
     vendors: { type: Array, default: () => [] },
 })
 
 const pr = props.pr
 const activities = props.activities
 const can_approve = props.can_approve
+const can_create_po = props.can_create_po
 const vendors = props.vendors
 
 const breadcrumbs = [

@@ -134,6 +134,15 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="filtersLocal.hide_empty" class="sr-only peer" @change="fetchRequests({})">
+                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                            <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Sembunyikan Stok 0</span>
+                        </label>
+                    </div>
+
                     <div class="relative py-2">
                         <div
                             class="absolute left-4 top-1/2 text-gray-400 -translate-y-1/2"
@@ -178,6 +187,7 @@
                         <col style="width: 140px" /> -->
                         <col style="width: 100px" />
                         <col style="width: 120px" />
+                        <col style="width: 80px" />
                     </colgroup>
                     <thead>
                         <tr>
@@ -271,9 +281,11 @@
                                     Total Persediaan
                                 </div>
                             </th>
-                            <!-- <th colspan="2" class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">Total Persediaan</div>
-                            </th> -->
+                            <th class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
+                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">
+                                    Aksi
+                                </div>
+                            </th>
                         </tr>
                         <tr>
                             <th
@@ -361,9 +373,9 @@
                             <th
                                 class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
                             ></th>
-                            <!-- <th class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">Transaksi (Rp)</div>
-                            </th> -->
+                            <th
+                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
+                            ></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -463,6 +475,13 @@
                                                 {{ row.ending.qty }}
                                             </button>
                                         </td>
+                                        <td class="px-3 py-3 text-center">
+                                            <button @click="openAdjustModal(row)" class="text-blue-500 hover:text-blue-700" title="Sesuaikan Stok">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                            </button>
+                                        </td>
                                     </tr>
                                 </template>
                             </template>
@@ -546,7 +565,13 @@
                                         {{ row.ending.qty }}
                                     </button>
                                 </td>
-                                <!-- <td class="px-3 py-3 text-right">{{ formatCurrencyIDR(row.ending.value) }}</td> -->
+                                <td class="px-3 py-3 text-center">
+                                    <button v-if="can.adjust" @click="openAdjustModal(row)" class="text-blue-500 hover:text-blue-700" title="Sesuaikan Stok">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -1030,11 +1055,84 @@
                 </div>
             </div>
         </div>
+        <!-- Modal Penyesuaian Stok -->
+        <div
+            v-if="showAdjustModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            @click.self="showAdjustModal = false"
+        >
+            <div
+                class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Penyesuaian Stok (Opname)
+                    </h3>
+                    <button @click="showAdjustModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <form @submit.prevent="submitAdjustment">
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Barang</p>
+                            <p class="font-medium text-gray-900 dark:text-white">{{ selectedRow?.item?.name }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Stok Saat Ini (Sistem)</p>
+                            <p class="font-medium text-gray-900 dark:text-white">{{ selectedRow?.ending?.qty }}</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Stok Aktual (Fisik) <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                v-model="adjustForm.actual_stock"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                placeholder="Masukkan jumlah stok aktual di gudang"
+                            />
+                            <p v-if="adjustForm.errors.actual_stock" class="mt-1 text-sm text-red-500">{{ adjustForm.errors.actual_stock }}</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan</label>
+                            <textarea
+                                v-model="adjustForm.note"
+                                rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                placeholder="Cth: Hasil opname bulanan"
+                            ></textarea>
+                            <p v-if="adjustForm.errors.note" class="mt-1 text-sm text-red-500">{{ adjustForm.errors.note }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-lg">
+                        <button
+                            type="button"
+                            @click="showAdjustModal = false"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="adjustForm.processing"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {{ adjustForm.processing ? 'Menyimpan...' : 'Simpan Penyesuaian' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
     </div>
 </template>
 
 <script setup>
-import { Head, Link, router } from "@inertiajs/vue3";
+import { Head, Link, router, useForm } from "@inertiajs/vue3";
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import Pagination from "@/Components/common/Pagination.vue";
 import Breadcrumb from "@/Components/common/Breadcrumb.vue";
@@ -1051,6 +1149,7 @@ const props = defineProps({
     sortBy: { type: String, default: "date" },
     sortDirection: { type: String, default: "desc" },
     groupBy: { type: String, default: null },
+    can: { type: Object, default: () => ({}) },
 });
 
 // Temporary alias to reuse table/pagination variables without breaking
@@ -1074,6 +1173,7 @@ const filtersLocal = ref({
     unit_id: props.filters.unit_id ?? "",
     date_from: props.filters.date_from ?? "",
     date_to: props.filters.date_to ?? "",
+    hide_empty: props.filters.hide_empty === '1' || props.filters.hide_empty === true,
 });
 
 // Date filter dropdown state
@@ -1216,6 +1316,31 @@ function openTotalPersediaanModal(row) {
     fetchTransactionDetail(row.item.id, 'total_persediaan');
 }
 
+const showAdjustModal = ref(false);
+const adjustForm = useForm({
+    item_id: null,
+    actual_stock: null,
+    note: ''
+});
+
+function openAdjustModal(row) {
+    selectedRow.value = row;
+    adjustForm.item_id = row.item.id;
+    adjustForm.actual_stock = row.ending.qty;
+    adjustForm.note = 'Penyesuaian stok (Opname)';
+    showAdjustModal.value = true;
+}
+
+function submitAdjustment() {
+    adjustForm.post(route('stock-recap.adjust'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAdjustModal.value = false;
+            fetchRequests({});
+        }
+    });
+}
+
 const groupByLocal = ref(props.groupBy ?? "");
 const effectiveGroup = computed(
     () => groupByLocal.value || (props.groupBy ?? "")
@@ -1329,6 +1454,7 @@ function fetchRequests({
         unit_id: filtersLocal.value.unit_id ? Number(filtersLocal.value.unit_id) : null,
         date_from: filtersLocal.value.date_from || null,
         date_to: filtersLocal.value.date_to || null,
+        hide_empty: filtersLocal.value.hide_empty ? '1' : null,
         groupBy: effectiveGroup.value || null,
         sortBy,
         sortDirection,
