@@ -359,14 +359,45 @@ class UserController extends Controller
                 return redirect()->back()->with('error', 'Tidak dapat menghapus akun sendiri');
             }
 
-            // Cek apakah user memiliki relasi dengan employee
-            if ($user->employee()->exists()) {
-                return redirect()->back()->with('error', 'Data pengguna tidak dapat dihapus karena masih memiliki relasi dengan data karyawan');
+            // Cek apakah user memiliki relasi dengan employee, dan hapus jika ada
+            $employee = $user->employee;
+            if ($employee) {
+                // Cek relasi yang menghalangi penghapusan
+                $blockingRelationships = [];
+
+                if ($employee->attendances()->exists()) {
+                    $blockingRelationships[] = 'kehadiran';
+                }
+
+                if ($employee->vehicles()->exists()) {
+                    $blockingRelationships[] = 'kendaraan';
+                }
+
+                $inspectionCount = \App\Models\Inspection::where('model_type', 'App\Models\Employee')
+                    ->where('model_id', $employee->id)
+                    ->count();
+
+                if ($inspectionCount > 0) {
+                    $blockingRelationships[] = 'inspection';
+                }
+
+                if ($employee->answers()->whereNotNull('inspection_id')->exists()) {
+                    if (!in_array('inspection', $blockingRelationships)) {
+                        $blockingRelationships[] = 'inspection';
+                    }
+                }
+
+                if (!empty($blockingRelationships)) {
+                    return redirect()->back()->with('error', 'Data pengguna/karyawan tidak dapat dihapus karena masih memiliki relasi dengan data: ' . implode(', ', $blockingRelationships));
+                }
+
+                // Hapus data karyawan terlebih dahulu
+                $employee->delete();
             }
 
             $user->delete();
 
-            return redirect()->back()->with('success', 'Pengguna berhasil dihapus');
+            return redirect()->back()->with('success', 'Pengguna dan data karyawan terkait berhasil dihapus');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Terjadi kesalahan saat menghapus pengguna: ' . $e->getMessage());
         }
