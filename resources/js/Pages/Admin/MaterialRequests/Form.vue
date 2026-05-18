@@ -26,23 +26,9 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Permintaan oleh</label>
-                <Select v-model="form.employee_id" :items="localEmployees"
-                    :disabled="!isSuperadmin ||isLoadingEmployees" class="mt-2" />
-                <div v-if="!isLoadingEmployees && localEmployees.length === 0 && form.department_id"
-                    class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Tidak ada karyawan tersedia untuk cabang ini
-                </div>
-                <div v-if="isLoadingEmployees" class="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                    <svg class="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-                        </circle>
-                        <path class="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                        </path>
-                    </svg>
-                    Memuat data karyawan...
-                </div>
-                <p v-if="!isSuperadmin && form.employee_id && !isLoadingEmployees"
+                <Select v-model="form.employee_id" :items="employees"
+                    :disabled="!isSuperadmin" class="mt-2" />
+                <p v-if="!isSuperadmin && form.employee_id"
                     class="mt-1 text-xs text-blue-600 dark:text-blue-400">
                     <svg class="inline w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd"
@@ -50,9 +36,6 @@
                             clip-rule="evenodd" />
                     </svg>
                     Otomatis diisi berdasarkan data pengguna
-                </p>
-                <p v-if="employeeError" class="mt-1 text-xs text-rose-600">
-                    {{ employeeError }}
                 </p>
                 <p v-if="form.errors.employee_id" class="mt-1 text-xs text-rose-600">
                     {{ form.errors.employee_id[0] }}
@@ -89,8 +72,7 @@
 <script setup>
 import Input from "@/Components/form/Input.vue";
 import Select from "@/Components/form/SelectPemakaian.vue";
-import { watch, onMounted, ref, computed } from "vue";
-import axios from "axios";
+import { watch, onMounted, computed } from "vue";
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -118,57 +100,6 @@ const branchesAsDepartments = computed(() => {
 // Check if user is Superadmin
 const isSuperadmin = props.user?.roles?.[0]?.name === 'Superadmin';
 
-// Local state for employees
-const localEmployees = ref([...props.employees]);
-const isLoadingEmployees = ref(false);
-const employeeError = ref('');
-
-// Function to fetch employees by department
-const fetchEmployeesByDepartment = async (departmentId, keepSelected = false) => {
-    console.log(departmentId)
-    if (!departmentId) {
-        localEmployees.value = ''
-        employeeError.value = '';
-        return;
-    }
-
-    try {
-        isLoadingEmployees.value = true;
-        employeeError.value = '';
-        const response = await axios.get(route('departments.employees', departmentId), {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-
-        // Handle the web route response format
-        if (response.data && Array.isArray(response.data)) {
-            localEmployees.value = response.data.map(employee => ({
-                id: employee.id,
-                name: employee.name,
-                email: employee.user?.email || '',
-            }));
-        } else {
-            localEmployees.value = [];
-            employeeError.value = 'Tidak ada karyawan ditemukan untuk cabang ini';
-        }
-
-        // Clear employee selection when department changes, unless keepSelected is true
-        if (!keepSelected) {
-            props.form.employee_id = null;
-        } else if (!isSuperadmin && props.user?.employee?.id) {
-            props.form.employee_id = props.isEdit ? props.form.employee_id : props.user.employee.id;
-        }
-    } catch (error) {
-        console.error('Error fetching employees:', error);
-        localEmployees.value = [];
-        employeeError.value = 'Gagal memuat data karyawan. Silakan coba lagi.';
-    } finally {
-        isLoadingEmployees.value = false;
-    }
-};
-
 // Auto-populate department and employee for non-Superadmin users
 onMounted(() => {
     console.log('Form mounted - User data:', props.user);
@@ -178,13 +109,13 @@ onMounted(() => {
     if (!isSuperadmin && props.user?.employee) {
         console.log('Auto-populating fields for non-Superadmin user');
         // Set department from user's employee data
-        if (props.user.employee.department_id) {
+        if (props.user.employee.department_id && !props.form.department_id) {
             props.form.department_id = props.isEdit ? props.form.department_id : props.user.employee.department_id;
             console.log('Set department_id to:', props.form.department_id);
         }
 
         // Set employee from user's employee data
-        if (props.user.employee.id) {
+        if (props.user.employee.id && !props.form.employee_id) {
             props.form.employee_id = props.isEdit ? props.form.employee_id : props.user.employee.id;
             console.log('Set employee_id to:', props.form.employee_id);
         }
@@ -199,9 +130,6 @@ watch(() => props.user, (newUser) => {
         if (newUser.employee.department_id && !props.form.department_id) {
             props.form.department_id = newUser.employee.department_id;
             console.log('Updated department_id to:', props.form.department_id);
-
-            // Fetch employees for this department
-            fetchEmployeesByDepartment(newUser.employee.department_id, true);
         }
 
         if (newUser.employee.id && !props.form.employee_id) {
@@ -211,15 +139,11 @@ watch(() => props.user, (newUser) => {
     }
 }, { deep: true });
 
-// Watch for department changes and fetch employees
+// Watch for department changes
 watch(() => props.form.department_id, (newDepartmentId, oldDepartmentId) => {
     if (newDepartmentId !== oldDepartmentId) {
         console.log('Department changed to:', newDepartmentId);
         
-        // Keep selection on initial mount / watcher trigger, or if non-superadmin
-        const keepSelected = !oldDepartmentId || !isSuperadmin;
-        fetchEmployeesByDepartment(newDepartmentId, keepSelected);
-
         // Emit department change event to parent component
         emit('department-changed', newDepartmentId);
     }
