@@ -463,13 +463,13 @@ function validateForm() {
 
     // department_id: required, exists:departments,id
     if (!form.department_id) {
-        form.errors.department_id = "Departemen harus dipilih.";
+        form.errors.department_id = "Sumber Cabang harus dipilih.";
         valid = false;
     } else if (
         props.departments &&
         !props.departments.some((d) => d.id == form.department_id)
     ) {
-        form.errors.department_id = "Departemen tidak valid.";
+        form.errors.department_id = "Sumber Cabang tidak valid.";
         valid = false;
     }
 

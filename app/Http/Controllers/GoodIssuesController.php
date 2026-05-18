@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\GoodIssue;
 use App\Models\ItemStock;
 use App\Models\Department;
+use App\Models\Branch;
 use App\Models\GoodIssueActivity;
 use Illuminate\Http\Request;
 use App\Models\MaterialRequest;
@@ -80,7 +81,7 @@ class GoodIssuesController extends Controller
         $canViewGlobal = Auth::user()->can('good_issues.view_global') || $isSuperadmin;
 
         $query = GoodIssue::query()
-            ->with(['department:id,name', 'request:id,request_no', 'requestBy:id,name'])
+            ->with(['department.branch', 'request:id,request_no', 'requestBy:id,name'])
             ->withCount('items')
             ->when(!$canViewGlobal, function ($query) use ($departments) {
                 return $query->whereIn('department_id', $departments);
@@ -136,7 +137,7 @@ class GoodIssuesController extends Controller
                     'id' => $gi->id,
                     'number' => $gi->number,
                     'request' => $gi->request?->request_no,
-                    'department' => $gi->department?->name,
+                    'department' => $gi->department?->branch?->name ?? $gi->department?->name,
                     'created_by' => $gi->requestBy?->name,
                     'date' => $gi->created_at->locale('id')->translatedFormat('d F Y'),
                     'note' => $gi->note,
@@ -144,7 +145,16 @@ class GoodIssuesController extends Controller
                     'items_count' => $gi->items_count,
                 ];
             }),
-            'departments' => Department::query()->select('id', 'name')->orderBy('name')->get(),
+            'departments' => Branch::all()->map(function ($b) {
+                $gudangDept = Department::firstOrCreate(
+                    ['branch_id' => $b->id, 'name' => 'Gudang'],
+                    ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+                );
+                return [
+                    'id' => $gudangDept->id,
+                    'name' => $b->name,
+                ];
+            })->sortBy('name')->values(),
             'filters' => array_merge($filters, ['status' => $effectiveStatus]),
             'sortBy' => $sortBy,
             'sortDirection' => $sortDirection,
@@ -160,7 +170,17 @@ class GoodIssuesController extends Controller
     {
         abort_unless(Gate::allows('good_issues.create'), 403, 'Anda tidak memiliki akses untuk menambah pemakaian barang');
 
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
         $canCreateGlobal = Auth::user()->can('good_issues.create_global') || $isSuperadmin;
@@ -252,7 +272,7 @@ class GoodIssuesController extends Controller
         abort_unless(Gate::allows('good_issues.view'), 403, 'Anda tidak memiliki akses untuk melihat pemakaian barang');
 
         $goodIssue->load([
-            'department',
+            'department.branch',
             'requestBy',
             'approvedBy',
             'request.department',
@@ -270,7 +290,7 @@ class GoodIssuesController extends Controller
                 'id' => $goodIssue->id,
                 'request_no' => $goodIssue->kode_usage ?? '',
                 'number' => $goodIssue->kode_usage ?? '',
-                'department' => $goodIssue->department?->name ?? '',
+                'department' => $goodIssue->department?->branch?->name ?? $goodIssue->department?->name ?? '',
                 'requested_by' => $goodIssue->requestBy?->name ?? '',
                 'approved_by' => $goodIssue->approvedBy?->name ?? '',
                 'approved_at' => $goodIssue->approved_at ? Carbon::parse($goodIssue->approved_at)->format('Y-m-d H:i:s') : '',
@@ -344,7 +364,17 @@ class GoodIssuesController extends Controller
             abort(404, 'Good Issue not found');
         }
 
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $materialRequests = MaterialRequest::doesntHave('goodIssues')
             ->orderBy('request_no', 'desc')
             ->get();

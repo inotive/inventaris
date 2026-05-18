@@ -32,7 +32,7 @@
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ mr.request_no }}</div>
                 </div>
                 <div>
-                    <div class="text-xs text-gray-500">Departemen</div>
+                    <div class="text-xs text-gray-500">Sumber Cabang</div>
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ mr.department }}</div>
                 </div>
                 <div>

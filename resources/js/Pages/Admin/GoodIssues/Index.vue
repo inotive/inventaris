@@ -34,7 +34,7 @@
                     >
                         <option value="all">Kelompokan Berdasarkan</option>
                         <option value="date">Group: Tanggal</option>
-                        <option value="department">Group: Departemen</option>
+                        <option value="department">Group: Sumber Cabang</option>
                         <option value="status">Group: Status</option>
                     </select>
                 </div>
@@ -93,7 +93,7 @@
                                     @click="changeSort('department')"
                                     class="w-full px-3 font-medium text-left text-gray-600 dark:text-gray-300"
                                 >
-                                    Departemen
+                                    Sumber Cabang
                                     <SortIcon
                                         :active="sortBy === 'department'"
                                         :direction="sortDirection"
@@ -502,7 +502,7 @@ const groupedData = computed(() => {
 function keyOf(row) {
     switch (effectiveGroup.value) {
         case "department":
-            return row.department ?? "Tanpa Departemen";
+            return row.department ?? "Tanpa Sumber Cabang";
         case "date":
             return row.date;
         case "status":
@@ -515,7 +515,7 @@ function keyOf(row) {
 function groupLabel(key) {
     switch (effectiveGroup.value) {
         case "department":
-            return `Departemen: ${key}`;
+            return `Sumber Cabang: ${key}`;
         case "date":
             return `Tanggal: ${key}`;
         case "status":
