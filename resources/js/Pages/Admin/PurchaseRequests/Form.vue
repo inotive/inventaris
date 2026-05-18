@@ -80,7 +80,6 @@
                     :label-key="'name'"
                     label="Pilih Untuk Cabang"
                     class="mt-2"
-                    :disabled="!isSuperadmin"
                 />
                 <p
                     v-if="form.errors.department_id"
