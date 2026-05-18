@@ -295,13 +295,14 @@ console.log("activities", props.activities)
 console.log("user", props.user.employee)
 console.log("isSuperadmin", props.isSuperadmin)
 
-//jika user superadmin atau branch_id sama dengan to_branch_id maka true
+//jika user superadmin, punya hak akses approve, atau branch_id sama dengan to_branch_id maka true
 const isReceived = computed(() => {
-    return props.isSuperadmin || props.user.employee?.branch_id == props.goodTransfer.to_branch_id
+    return props.isSuperadmin || props.canApprove || props.user.employee?.branch_id == props.goodTransfer.to_branch_id
 })
 
 const isCancelable = computed(() => {
-    return props.isSuperadmin || props.user.employee?.branch_id == props.goodTransfer.from_branch_id && props.goodTransfer.status == 'Shipped'
+    if (props.goodTransfer.status !== 'Shipped') return false
+    return props.isSuperadmin || props.canApprove || props.user.employee?.branch_id == props.goodTransfer.from_branch_id
 })
 
 

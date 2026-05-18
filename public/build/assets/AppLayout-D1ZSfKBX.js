@@ -1,0 +1,1 @@
+import{_ as t}from"./FlashMessage-DnsPJam4.js";import{_ as e,a as o,b as r}from"./LayoutShell-DdtugJCl.js";import{aB as l,a1 as n,bc as a,a7 as _,aK as c}from"./app-CmIgYd53.js";const d={__name:"AppLayout",setup(f){return(s,m)=>(l(),n(r,null,{default:a(()=>[_(e,null,{default:a(()=>[_(o,null,{default:a(()=>[_(t),c(s.$slots,"default")]),_:3})]),_:3})]),_:3}))}};export{d as _};
