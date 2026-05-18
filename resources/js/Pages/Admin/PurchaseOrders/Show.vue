@@ -7,7 +7,7 @@
             <Breadcrumb :items="breadcrumbs" />
             <div class="flex items-center gap-2">
                 <!-- Show Update Payment button for unpaid orders -->
-                <button v-if="po.status_invoice === 'belum_dibayar' || po.status_invoice === 'belum_lunas'" @click="onUpdatePayment"
+                <button v-if="canUpdate && (po.status_invoice === 'belum_dibayar' || po.status_invoice === 'belum_lunas')" @click="onUpdatePayment"
                     class="inline-flex items-center rounded bg-orange-600 px-3 py-2 text-sm font-medium text-white hover:bg-orange-700">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
@@ -16,7 +16,7 @@
                 </button>
 
                 <!-- Show Barang Diterima button when status is pending -->
-                <button v-if="po.status_delivered === 'pending'" @click="onReceive"
+                <button v-if="canUpdate && po.status_delivered === 'pending'" @click="onReceive"
                     class="inline-flex items-center rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -25,7 +25,7 @@
                 </button>
 
                 <!-- Show Update Barang Diterima button when status is partial -->
-                <button v-if="po.status_delivered === 'partial'" @click="onReceive"
+                <button v-if="canUpdate && po.status_delivered === 'partial'" @click="onReceive"
                     class="inline-flex items-center rounded bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -460,6 +460,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 const props = defineProps({
     po: { type: Object, required: true },
     activities: { type: Array, default: () => [] },
+    canUpdate: { type: Boolean, default: false },
 })
 
 const po = props.po

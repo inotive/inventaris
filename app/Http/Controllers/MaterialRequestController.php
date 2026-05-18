@@ -299,6 +299,7 @@ class MaterialRequestController extends Controller
                 'requirement' => $materialRequest->requirement,
                 'note' => $materialRequest->note,
                 'status' => $materialRequest->status,
+                'purchase_requests' => $materialRequest->purchaseRequest()->pluck('request_no')->toArray(),
             ],
             'items' => $materialRequest->items->map(function ($item) {
                 return [

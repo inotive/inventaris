@@ -45,7 +45,7 @@
         $approverSignatureUrl = $approverSignatureUrl ?? null;
     @endphp
     <div class="header">
-        <div class="logo">SINERGI PUTRA BORNEO</div>
+        <div class="logo">PT. SINERGI PUTRA BORNEO</div>
         <div class="subtitle">BackOffice Website</div>
     </div>
 

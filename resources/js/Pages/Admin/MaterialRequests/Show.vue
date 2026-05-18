@@ -372,10 +372,11 @@
 
     <ConfirmModal
         :show="showConfirmPR"
-        :question="`Buat Pengajuan Pembelian dari ${mr.request_no}?`"
-        :selected="`${mr.request_no}`"
-        title="Proses ke Pengajuan Pembelian"
-        confirmText="Ya, Buat Pengajuan"
+        :title="mr.purchase_requests && mr.purchase_requests.length > 0 ? 'Peringatan: Pengajuan Sudah Ada' : 'Proses ke Pengajuan Pembelian'"
+        :question="mr.purchase_requests && mr.purchase_requests.length > 0 ? `Peringatan: Permintaan ini sudah pernah diproses menjadi Pengajuan Pembelian (${mr.purchase_requests.join(', ')}). Apakah Anda yakin ingin tetap membuat pengajuan pembelian baru` : `Buat Pengajuan Pembelian dari ${mr.request_no}`"
+        selected=""
+        :confirmText="mr.purchase_requests && mr.purchase_requests.length > 0 ? 'Lanjutkan Kirim' : 'Ya, Buat Pengajuan'"
+        :cancelText="mr.purchase_requests && mr.purchase_requests.length > 0 ? 'Batalkan' : 'Batal'"
         maxWidth="md"
         @close="closeProcessPR"
         @confirm="submitProcessPR"

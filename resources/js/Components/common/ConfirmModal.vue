@@ -88,12 +88,22 @@
                     </div>
 
                     <!-- Actions -->
-                    <button
-                        @click="confirm"
-                        class="bg-orange-400 hover:bg-orange-500 w-full flex items-center justify-center gap-2 rounded-lg py-2.5 text-white font-semibold transition"
-                    >
-                        {{ confirmText }}
-                    </button>
+                    <div class="flex gap-3 w-full">
+                        <button
+                            v-if="cancelText"
+                            @click="close"
+                            class="border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 w-1/2 flex items-center justify-center gap-2 rounded-lg py-2.5 text-gray-700 dark:text-gray-300 font-semibold transition"
+                        >
+                            {{ cancelText }}
+                        </button>
+                        <button
+                            @click="confirm"
+                            :class="cancelText ? 'w-1/2' : 'w-full'"
+                            class="bg-orange-400 hover:bg-orange-500 flex items-center justify-center gap-2 rounded-lg py-2.5 text-white font-semibold transition"
+                        >
+                            {{ confirmText }}
+                        </button>
+                    </div>
                 </div>
             </transition>
         </div>
@@ -120,6 +130,7 @@ const props = defineProps({
     question: { type: String, default: "Anda yakin ingin melanjutkan?" },
     selected: { type: String, default: "" },
     confirmText: { type: String, default: "OK" },
+    cancelText: { type: String, default: "" },
 });
 
 const emit = defineEmits(["close", "confirm"]);

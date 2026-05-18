@@ -349,6 +349,7 @@ class PurchaseOrderController extends Controller
                 }),
             ],
             'activities' => $activities,
+            'canUpdate' => Auth::user()->can('purchase_orders.edit'),
         ]);
     }
 

@@ -285,7 +285,7 @@
                     <img src="{{ asset('images/logo-spb-hitam.png') }}" style="width: 100%; height: auto;" />
                 </div>
                 <div style="flex: 1; text-align: center;">
-                    <div class="company-name" style="font-size: 26px; text-transform: uppercase;">Sinergi Putra Borneo</div>
+                    <div class="company-name" style="font-size: 26px; text-transform: uppercase;">PT. Sinergi Putra Borneo</div>
                     <div class="company-address">
                         Cabang: {{ $po['branch']['name'] }}<br>
                         {{ $po['branch']['address'] }}<br>

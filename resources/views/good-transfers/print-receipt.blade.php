@@ -252,7 +252,7 @@
                 <img src="{{ asset('images/logo-spb-hitam.png') }}" alt="Sinergi Putra Borneo" style="width: 100%; height: auto;">
             </div>
             <div style="flex: 1; text-align: center;">
-                <div class="company-name">SINERGI PUTRA BORNEO</div>
+                <div class="company-name">PT. SINERGI PUTRA BORNEO</div>
                 <div class="company-address">
                     Cabang: {{ $goodTransfer->fromBranch->name }}<br>
                     {{ $goodTransfer->fromBranch->address }}<br>

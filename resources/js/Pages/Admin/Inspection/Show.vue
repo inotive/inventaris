@@ -1372,7 +1372,7 @@ function printInspection() {
         </head>
         <body>
             <div class="header">
-                <div class="logo">SINERGI PUTRA BORNEO</div>
+                <div class="logo">PT. SINERGI PUTRA BORNEO</div>
                 <div class="subtitle">BackOffice Website</div>
             </div>
 
@@ -1476,7 +1476,7 @@ function exportInspection() {
         <body>
             <div class="container">
                 <div class="header">
-                    <div class="logo">SINERGI PUTRA BORNEO</div>
+                    <div class="logo">PT. SINERGI PUTRA BORNEO</div>
                     <div class="subtitle">BackOffice Website</div>
                 </div>
 
