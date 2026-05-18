@@ -16,10 +16,14 @@ class GoodReceipt extends Model
         'source',
         'note',
         'received_at',
+        'attachment_path',
+        'attachment_name',
     ];
 
     protected $casts = [
         'received_at' => 'datetime',
+        'attachment_path' => 'array',
+        'attachment_name' => 'array',
     ];
 
     public function receiver()
@@ -45,6 +49,12 @@ class GoodReceipt extends Model
     public function activities()
     {
         return $this->hasMany(GoodReceiptActivity::class);
+    }
+
+    public function disposals()
+    {
+        return $this->hasMany(ItemDisposal::class, 'source_id')
+            ->where('source_type', self::class);
     }
 
     public static function generateRequestNo()

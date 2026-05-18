@@ -548,28 +548,55 @@ class PurchaseOrderController extends Controller
     {
         abort_unless(Gate::allows('purchase_orders.edit'), 403, 'Anda tidak memiliki akses untuk memproses penerimaan pembelian');
 
-        $data = $request->validate([
+        $validated = $request->validate([
+            'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
             'quantities' => ['required', 'array'],
             'quantities.*.item_id' => ['required', 'exists:purchase_order_items,id'],
             'quantities.*.quantity_received' => ['required', 'integer', 'min:0'],
             'quantities.*.receive_note' => ['nullable', 'string', 'max:500'],
+            'quantities.*.shortage_reason' => ['nullable', 'string', 'in:rusak,hilang'],
+            'quantities.*.shortage_quantity' => ['nullable', 'integer', 'min:1'],
+            'quantities.*.shortage_description' => ['nullable', 'string', 'max:500'],
+            'quantities.*.shortages' => ['nullable', 'array'],
+            'quantities.*.shortages.*.reason' => ['required', 'string', 'in:rusak,hilang'],
+            'quantities.*.shortages.*.quantity' => ['required', 'integer', 'min:1'],
+            'quantities.*.shortages.*.description' => ['nullable', 'string', 'max:500'],
         ]);
 
         try {
-            DB::transaction(function () use ($id, $data) {
+            DB::transaction(function () use ($id, $validated, $request) {
                 $purchaseOrder = PurchaseOrder::findOrFail($id);
 
                 $statusDelivered = PurchaseOrder::STATUS_DELIVERED_PENDING;
                 $totalReceived = 0;
+                $itemsMapped = [];
 
-                foreach ($data['quantities'] as $quantityData) {
+                foreach ($validated['quantities'] as $quantityData) {
                     $totalReceived += $quantityData['quantity_received'];
-                    $purchaseOrder->items()
+                    
+                    $poItem = $purchaseOrder->items()
                         ->where('id', $quantityData['item_id'])
-                        ->update([
+                        ->first();
+
+                    if ($poItem) {
+                        $poItem->update([
                             'quantity_received' => $quantityData['quantity_received'],
                             'note_received' => $quantityData['receive_note'] ?? null
                         ]);
+
+                        $itemsMapped[] = [
+                            'item_id' => $poItem->item_id,
+                            'quantity_transferred' => $poItem->quantity_ordered,
+                            'quantity_received' => $quantityData['quantity_received'],
+                            'note' => $quantityData['receive_note'] ?? null,
+                            'shortage_reason' => $quantityData['shortage_reason'] ?? null,
+                            'shortage_quantity' => $quantityData['shortage_quantity'] ?? null,
+                            'shortage_description' => $quantityData['shortage_description'] ?? null,
+                            'shortages' => $quantityData['shortages'] ?? null,
+                        ];
+                    }
                 }
 
                 if ($totalReceived == $purchaseOrder->items->sum('quantity_ordered')) {
@@ -580,26 +607,18 @@ class PurchaseOrderController extends Controller
 
                 $purchaseOrder->update(['status_delivered' => $statusDelivered]);
 
-                $data = [
+                $receiptData = [
                     'employee_id' => Auth::user()->employee?->id,
                     'order_id' => $purchaseOrder->id,
                     'source' => 'Pembelian',
                     'note' => 'Pembelian barang ' . $purchaseOrder->order_no . ' berhasil diterima oleh ' . Auth::user()->employee?->name,
                     'received_at' => now(),
+                    'attachment' => $request->file('attachment'),
+                    'attachments' => $request->file('attachments'),
+                    'items' => $itemsMapped,
                 ];
 
-                $data['items'] = $purchaseOrder->items->map(function ($item) use ($purchaseOrder) {
-                    return [
-                        'item_id' => $item->item_id,
-                        'quantity_transferred' => $item->quantity_ordered,
-                        'quantity_received' => $item->quantity_received,
-                        'note' => $item->note_received,
-                        'source' => PurchaseOrder::class,
-                        'source_id' => $purchaseOrder->id,
-                    ];
-                });
-
-                app(CreateGoodReceipt::class)->execute($data);
+                app(CreateGoodReceipt::class)->execute($receiptData);
 
                 $statusText = $statusDelivered === PurchaseOrder::STATUS_DELIVERED ? 'Barang Diterima Lengkap' : 'Barang Diterima Sebagian';
                 app(CreatePurchaseOrderLogActivities::class)->execute($purchaseOrder->id, $statusText, 'Barang diterima dengan total ' . $totalReceived . ' item. Status: ' . $statusText);
@@ -608,14 +627,13 @@ class PurchaseOrderController extends Controller
             Log::info('Purchase Order received successfully', ['po_id' => $id]);
             return back()->with('success', 'Barang berhasil diterima dan status Purchase Order diperbarui!');
         } catch (Exception $e) {
-            dd($e->getMessage());
             Log::error('Failed to receive purchase order', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'po_id' => $id,
-                'data' => $data
+                'data' => $validated
             ]);
-            return back()->with('error', 'Terjadi kesalahan saat menyimpan data penerimaan barang. Silakan coba lagi.');
+            return back()->with('error', 'Terjadi kesalahan saat menyimpan data penerimaan barang: ' . $e->getMessage());
         }
     }
 
@@ -701,13 +719,16 @@ class PurchaseOrderController extends Controller
                 $purchaseOrder->items->each(function ($item) use ($purchaseOrder) {
                     $goodReceipt = GoodReceipt::where('order_id', $purchaseOrder->id)->first();
 
-                    $itemGoodReceipt = $goodReceipt->items()->where('item_id', $item->item_id)->first();
+                    if ($goodReceipt) {
+                        $itemGoodReceipt = $goodReceipt->items()->where('item_id', $item->item_id)->first();
 
-                    if ($itemGoodReceipt) {
-                        $itemGoodReceipt->update([
-                            'quantity_received' => $item->quantity_received,
-                            'note_received' => $item->note_received,
-                        ]);
+                        if ($itemGoodReceipt) {
+                            $itemGoodReceipt->update([
+                                'quantity_transferred' => $item->quantity_ordered,
+                                'quantity_received' => $item->quantity_received,
+                                'note' => $item->note_received,
+                            ]);
+                        }
                     }
                 });
             });

@@ -19,10 +19,14 @@ class GoodTransfer extends Model
         'purpose',
         'status',
         'transferred_at',
+        'attachment_path',
+        'attachment_name',
     ];
 
     protected $casts = [
         'transferred_at' => 'datetime',
+        'attachment_path' => 'array',
+        'attachment_name' => 'array',
     ];
 
     public function fromBranch()

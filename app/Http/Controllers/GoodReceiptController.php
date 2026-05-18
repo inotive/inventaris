@@ -288,10 +288,20 @@ class GoodReceiptController extends Controller
             $item['note'] = $item['received_note'];
             $item['quantity_transferred'] = $item['quantity_received'];
             $item['quantity_received'] = $item['quantity_actually_received'];
+            // shortage fields passed through
             return $item;
         })->toArray();
 
         $request->merge(['items' => $items]);
+
+        // Collect all data including attachment file
+        $allData = $request->all();
+        if ($request->hasFile('attachment')) {
+            $allData['attachment'] = $request->file('attachment');
+        }
+        if ($request->hasFile('attachments')) {
+            $allData['attachments'] = $request->file('attachments');
+        }
 
 
         if ($request->source === 'Pembelian') {
@@ -322,29 +332,39 @@ class GoodReceiptController extends Controller
 
             $statusMessage = $statusDelivered === PurchaseOrder::STATUS_DELIVERED ? 'Barang Diterima Lengkap' : 'Barang Diterima Sebagian';
             app(CreatePurchaseOrderLogActivities::class)->execute($order->id, 'Barang Diterima', 'Barang diterima dengan total ' . $totalReceived . ' item. Status: ' . $statusMessage);
-            app(CreateGoodReceipt::class)->execute($request->all());
+            app(CreateGoodReceipt::class)->execute($allData);
         } else {
             $transfer = GoodTransfer::with('items')->find($request->transfer_id);
 
             $dataItem = collect($items);
 
-            $items = $transfer->items->map(function ($item) use ($dataItem, $transfer) {
+            $quantities = $transfer->items->map(function ($item) use ($dataItem, $transfer) {
                 $toBranchItem = $transfer->toBranch->items()->where('code', $item->item->code)->first();
                 $targetItemId = $toBranchItem ? $toBranchItem->id : $item->item_id;
 
                 $data = $dataItem->where('item_id', $targetItemId)->first();
 
                 return [
-                    'item_id' => $item->id,
+                    'item_id'              => $item->id,
                     'quantity_transferred' => $data ? $data['quantity_transferred'] : 0,
-                    'quantity_received' => $data ? $data['quantity_received'] : 0,
-                    'receive_note' => $data ? $data['note'] : null,
+                    'quantity_received'    => $data ? $data['quantity_received'] : 0,
+                    'receive_note'         => $data ? $data['note'] : null,
+                    'shortage_quantity'    => $data ? ($data['shortage_quantity'] ?? 0) : 0,
+                    'shortage_reason'      => $data ? ($data['shortage_reason'] ?? null) : null,
+                    'shortage_description' => $data ? ($data['shortage_description'] ?? null) : null,
+                    'shortages'            => $data ? ($data['shortages'] ?? null) : null,
                 ];
             });
 
-            $request = ['quantities' => $items];
+            $receiveData = ['quantities' => $quantities];
+            if (isset($allData['attachment'])) {
+                $receiveData['attachment'] = $allData['attachment'];
+            }
+            if (isset($allData['attachments'])) {
+                $receiveData['attachments'] = $allData['attachments'];
+            }
 
-            app(ReceiveGoodTranfer::class)->execute($transfer, $request);
+            app(ReceiveGoodTranfer::class)->execute($transfer, $receiveData);
         }
 
         return redirect()->route('good-receipts.index');

@@ -150,15 +150,35 @@ class GoodTransferController extends Controller
 
         $data = $request->validate([
             'from_branch_id' => ['required', 'exists:branches,id'],
-            'to_branch_id' => ['required', 'exists:branches,id'],
-            'employee_id' => ['required', 'exists:employees,id'],
+            'to_branch_id'   => ['required', 'exists:branches,id'],
+            'employee_id'    => ['required', 'exists:employees,id'],
             'transferred_at' => ['required', 'date'],
-            'purpose' => ['nullable', 'string'],
-            'items' => ['required', 'array'],
-            'items.*.item_id' => ['required_with:items', 'exists:items,id'],
+            'purpose'        => ['nullable', 'string'],
+            'attachment'     => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'attachments'    => ['nullable', 'array'],
+            'attachments.*'  => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'items'          => ['required', 'array'],
+            'items.*.item_id'              => ['required_with:items', 'exists:items,id'],
             'items.*.quantity_transferred' => ['required_with:items', 'integer', 'min:1'],
-            'items.*.note' => ['nullable', 'string', 'max:225'],
+            'items.*.note'                 => ['nullable', 'string', 'max:225'],
         ]);
+
+        // Handle multiple attachment uploads
+        $attachmentPaths = [];
+        $attachmentNames = [];
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $attachmentNames[] = $file->getClientOriginalName();
+                $attachmentPaths[] = $file->store('good-transfers/attachments', 'public');
+            }
+        }
+
+        // Fallback for single attachment
+        if ($request->hasFile('attachment')) {
+            $attachmentNames[] = $request->file('attachment')->getClientOriginalName();
+            $attachmentPaths[] = $request->file('attachment')->store('good-transfers/attachments', 'public');
+        }
 
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $canCreateGlobal = Auth::user()->can('good_transfers.create_global') || Auth::user()->hasRole('Superadmin');
@@ -169,15 +189,17 @@ class GoodTransferController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($data) {
+            DB::transaction(function () use ($data, $attachmentPaths, $attachmentNames) {
 
                 $goodTransfer = GoodTransfer::create([
-                    'from_branch' => $data['from_branch_id'],
-                    'to_branch' => $data['to_branch_id'],
-                    'sent_by' => $data['employee_id'],
-                    'transferred_at' => $data['transferred_at'],
-                    'purpose' => $data['purpose'] ?? null,
-                    'status' => 'Shipped',
+                    'from_branch'     => $data['from_branch_id'],
+                    'to_branch'       => $data['to_branch_id'],
+                    'sent_by'         => $data['employee_id'],
+                    'transferred_at'  => $data['transferred_at'],
+                    'purpose'         => $data['purpose'] ?? null,
+                    'status'          => 'Shipped',
+                    'attachment_path' => !empty($attachmentPaths) ? $attachmentPaths : null,
+                    'attachment_name' => !empty($attachmentNames) ? $attachmentNames : null,
                 ]);
 
                 if ($data['items']) {
@@ -224,7 +246,7 @@ class GoodTransferController extends Controller
     {
         abort_unless(Gate::allows('good_transfers.view'), 403, 'Anda tidak memiliki akses untuk melihat detail perpindahan barang');
 
-        $goodTransfer->load(['fromBranch', 'toBranch', 'sentBy', 'receivedBy', 'items.item.unit', 'activities.createdBy']);
+        $goodTransfer->load(['fromBranch', 'toBranch', 'sentBy', 'receivedBy', 'items.item.unit', 'activities.createdBy', 'goodReceipt']);
         $user = Auth::user()->load('employee', 'roles');
 
         return Inertia::render('Admin/GoodTransfers/Show', [
@@ -246,6 +268,10 @@ class GoodTransferController extends Controller
                 'transferred_at' => $goodTransfer->transferred_at->locale('id')->translatedFormat('d F Y'),
                 'created_at' => $goodTransfer->created_at->locale('id')->translatedFormat('d F Y H:i'),
                 'updated_at' => $goodTransfer->updated_at->locale('id')->translatedFormat('d F Y H:i'),
+                'attachment_path' => $goodTransfer->attachment_path,
+                'attachment_name' => $goodTransfer->attachment_name,
+                'receipt_attachment_path' => $goodTransfer->goodReceipt?->attachment_path,
+                'receipt_attachment_name' => $goodTransfer->goodReceipt?->attachment_name,
             ],
             'items' => $goodTransfer->items->map(function ($item) {
                 return [
@@ -461,7 +487,14 @@ class GoodTransferController extends Controller
         abort_unless(Gate::allows('good_transfers.approve') || Auth::user()->hasRole('Superadmin'), 403, 'Anda tidak memiliki akses untuk memproses perpindahan barang');
 
         try {
-            app(ReceiveGoodTranfer::class)->execute($goodTransfer, $request->all());
+            $requestData = $request->all();
+            if ($request->hasFile('attachment')) {
+                $requestData['attachment'] = $request->file('attachment');
+            }
+            if ($request->hasFile('attachments')) {
+                $requestData['attachments'] = $request->file('attachments');
+            }
+            app(ReceiveGoodTranfer::class)->execute($goodTransfer, $requestData);
 
             return redirect()->route('good-transfers.index')
                  ->with('success', 'Pemindahan barang berhasil ditandai sebagai diterima!');

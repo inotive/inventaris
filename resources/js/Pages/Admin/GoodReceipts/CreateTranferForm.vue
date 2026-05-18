@@ -95,6 +95,40 @@
                     {{ form.errors.note[0] }}
                 </p>
             </div>
+
+            <!-- Lampiran -->
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Lampiran <span class="text-gray-400 text-xs">(PDF, Gambar, Word - max 10MB)</span>
+                </label>
+                <div class="space-y-2">
+                    <label class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Tambah Lampiran</span>
+                        <input
+                            type="file"
+                            class="hidden"
+                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                            multiple
+                            @change="handleAttachmentChange"
+                        />
+                    </label>
+                    
+                    <div v-if="attachmentFiles.length > 0" class="flex flex-col gap-1.5 mt-2">
+                        <div v-for="(file, idx) in attachmentFiles" :key="idx" class="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2 bg-gray-50 dark:bg-gray-800 p-1.5 px-3 rounded-md border border-gray-200 dark:border-gray-700 w-fit">
+                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {{ file.name }}
+                            <button type="button" @click="removeAttachment(idx)" class="text-red-400 hover:text-red-600 ml-2 font-bold">×</button>
+                        </div>
+                    </div>
+                    <span v-else class="text-sm text-gray-400 block">Belum ada lampiran terpilih.</span>
+                </div>
+                <p v-if="form.errors.attachment" class="text-sm text-red-500">{{ form.errors.attachment }}</p>
+            </div>
         </form>
     </div>
 </template>
@@ -112,13 +146,25 @@ const props = defineProps({
     isSuperadmin: { type: Boolean, required: true },
 });
 
-const emit = defineEmits(['items-loaded']);
+const emit = defineEmits(['items-loaded', 'attachments-changed']);
 
 const loading = ref(false);
 const selectedTransferEmployee = props.user?.employee?.name;
+const attachmentFiles = ref([]);
 
 // Set source value for pemindahan
 props.form.source = 'Pemindahan';
+
+function handleAttachmentChange(event) {
+    const files = Array.from(event.target.files);
+    attachmentFiles.value.push(...files);
+    emit('attachments-changed', attachmentFiles.value);
+}
+
+function removeAttachment(index) {
+    attachmentFiles.value.splice(index, 1);
+    emit('attachments-changed', attachmentFiles.value);
+}
 
 // Watch for transfer_id changes to load items and employee
 watch(

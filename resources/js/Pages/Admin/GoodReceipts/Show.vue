@@ -106,6 +106,20 @@
                         {{ goodReceipt.note || '-' }}
                     </div>
                 </div>
+
+                <div class="space-y-2 md:col-span-2 lg:col-span-3" v-if="attachmentsList.length > 0">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Lampiran Penerimaan
+                    </label>
+                    <div class="flex flex-wrap gap-2">
+                        <a v-for="(file, idx) in attachmentsList" :key="idx" :href="file.url" @click.prevent="triggerPreview(file.url, file.name)" class="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-md text-sm text-blue-700 dark:bg-blue-950/20 dark:border-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-950/45 transition-colors cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span class="max-w-[200px] truncate" :title="file.name">{{ file.name }}</span>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -396,6 +410,34 @@
             </div>
         </div>
     </div>
+
+    <!-- Reusable Preview Modal -->
+    <div v-if="previewOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
+        <div class="relative max-w-5xl w-full bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate">{{ previewFileName }}</span>
+                <div class="flex items-center gap-2">
+                    <a :href="previewUrl" target="_blank" class="px-3 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded font-medium transition">Buka di Tab Baru</a>
+                    <button @click="closePreview" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold px-2 line-height-1">&times;</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-auto flex items-center justify-center p-6 min-h-[300px]">
+                <!-- Image Preview -->
+                <img v-if="isPreviewImage" :src="previewUrl" class="max-w-full max-h-[60vh] object-contain rounded shadow" />
+                
+                <!-- PDF Preview -->
+                <iframe v-else-if="isPreviewPdf" :src="previewUrl" class="w-full h-[65vh] border-0 rounded" />
+                
+                <!-- Fallback Info -->
+                <div v-else class="text-center py-10 space-y-3">
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Pratinjau tidak tersedia untuk jenis file ini.</p>
+                    <a :href="previewUrl" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition shadow">
+                        Unduh File
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup>
@@ -425,10 +467,58 @@ const props = defineProps({
 
 const activeTab = ref('items');
 
+// Computed property to format array attachments or fallback to single string attachment
+const attachmentsList = computed(() => {
+    const paths = props.goodReceipt.attachment_path;
+    const names = props.goodReceipt.attachment_name;
+    if (!paths) return [];
+
+    if (Array.isArray(paths)) {
+        return paths.map((path, index) => {
+            const name = (Array.isArray(names) && names[index]) ? names[index] : `Lampiran ${index + 1}`;
+            return { path, name, url: `/storage/${path}` };
+        });
+    }
+
+    if (typeof paths === 'string') {
+        const name = typeof names === 'string' ? names : 'Lampiran';
+        return [{ path: paths, name, url: `/storage/${paths}` }];
+    }
+
+    return [];
+});
+
 // Modal state
 const showReceiveModal = ref(false);
 const receivedQuantities = ref([]);
 const itemNotes = ref([]);
+
+// Preview Modal State
+const previewOpen = ref(false)
+const previewUrl = ref('')
+const previewFileName = ref('')
+
+const isPreviewImage = computed(() => {
+    if (!previewFileName.value) return false
+    return /\.(jpg|jpeg|png|webp|gif)$/i.test(previewFileName.value) || (previewUrl.value && previewUrl.value.startsWith('data:image/'))
+})
+
+const isPreviewPdf = computed(() => {
+    if (!previewFileName.value) return false
+    return /\.pdf$/i.test(previewFileName.value)
+})
+
+function triggerPreview(url, name) {
+    previewUrl.value = url
+    previewFileName.value = name
+    previewOpen.value = true
+}
+
+function closePreview() {
+    previewOpen.value = false
+    previewUrl.value = ''
+    previewFileName.value = ''
+}
 
 // Check if there are items with partial receipt and good receipt has order_id (source = Pembelian)
 const hasPartialReceipt = computed(() => {
@@ -584,17 +674,5 @@ function confirmReceive() {
         console.error('Error:', error);
         alert(error.message || 'Terjadi kesalahan saat memproses data');
     }
-
-    // Submit the data - using purchase-orders.update-receive route
-    router.post(route('purchase-orders.update-receive', orderId), receiveData, {
-        onSuccess: () => {
-            closeReceiveModal();
-            window.location.reload();
-        },
-        onError: (errors) => {
-            console.error('Error receiving goods:', errors);
-            alert('Terjadi kesalahan saat menyimpan data');
-        }
-    });
 }
 </script>

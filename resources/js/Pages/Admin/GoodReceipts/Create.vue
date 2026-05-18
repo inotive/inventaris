@@ -43,6 +43,7 @@
                         :employees="employees"
                         :user="user"
                         @items-loaded="handleItemsLoaded"
+                        @attachments-changed="handleAttachmentsChanged"
                         :isSuperadmin="isSuperadmin"
                         :isEdit="false"
                     />
@@ -54,6 +55,7 @@
                         :employees="employees"
                         :user="user"
                         @items-loaded="handleItemsLoaded"
+                        @attachments-changed="handleAttachmentsChanged"
                         :isSuperadmin="isSuperadmin"
                         :isEdit="false"
                     />
@@ -81,13 +83,16 @@
                                 Nama Barang
                             </th>
                             <th class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-center font-medium text-gray-500 whitespace-nowrap dark:text-gray-400">
-                                Jumlah Barang
+                                Jml Dikirim
                             </th>
                             <th class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-center font-medium text-gray-500 whitespace-nowrap dark:text-gray-400">
-                                Jumlah Diterima
+                                Jml Diterima
                             </th>
                             <th class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-center font-medium text-gray-500 whitespace-nowrap dark:text-gray-400">
                                 Catatan Diterima
+                            </th>
+                            <th class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-center font-medium text-gray-500 whitespace-nowrap dark:text-gray-400">
+                                Kekurangan
                             </th>
                             <th class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-center font-medium text-gray-500 whitespace-nowrap dark:text-gray-400 w-16">
                                 Aksi
@@ -160,6 +165,40 @@
                                         *
                                     </span>
                                 </div>
+                            </td>
+                            <!-- Kekurangan: muncul jika qty diterima < qty dikirim -->
+                            <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 align-middle min-w-[220px]">
+                                <div v-if="hasShortage(r)" class="space-y-1">
+                                    <select
+                                        v-model="r.shortage_reason"
+                                        class="w-full h-8 px-2 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                    >
+                                        <option value="">-- Pilih Status --</option>
+                                        <option value="rusak">Rusak / Cacat</option>
+                                        <option value="hilang">Hilang</option>
+                                    </select>
+                                    <div v-if="r.shortage_reason" class="space-y-1">
+                                        <div class="flex items-center gap-1">
+                                            <span class="text-xs text-gray-500">Jml:</span>
+                                            <input
+                                                v-model="r.shortage_quantity"
+                                                type="number" min="1"
+                                                :max="getShortageMax(r)"
+                                                class="w-16 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
+                                            />
+                                        </div>
+                                        <input
+                                            v-model="r.shortage_description"
+                                            type="text"
+                                            placeholder="Keterangan"
+                                            class="w-full h-7 px-2 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                        />
+                                        <span :class="r.shortage_reason === 'rusak' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium">
+                                            {{ r.shortage_reason === 'rusak' ? '⚠️ Disposal Rusak' : '🔴 Disposal Hilang' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <span v-else class="text-xs text-gray-400">-</span>
                             </td>
                             <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 text-center align-middle">
                                 <button @click="removeRequest(i)" class="hover:bg-red-50 dark:hover:bg-red-900 p-1 rounded transition-colors">
@@ -378,6 +417,21 @@ function bindWatcher(row) {
 }
 
 const requests = ref([]);
+const attachmentFiles = ref([]);
+
+function handleAttachmentsChanged(files) {
+    attachmentFiles.value = files;
+}
+
+const hasShortage = (r) => {
+    const qty = Number(r.quantity_actually_received);
+    const sent = Number(r.quantity_received);
+    return qty < sent;
+};
+
+const getShortageMax = (r) => {
+    return Number(r.quantity_received) - Number(r.quantity_actually_received);
+};
 
 const addRequest = () => {
     const newRow = reactive({
@@ -390,6 +444,9 @@ const addRequest = () => {
         unit: {},
         note: "",
         received_note: "",
+        shortage_reason: "",
+        shortage_quantity: null,
+        shortage_description: "",
         is_preloaded: false,
     });
     bindWatcher(newRow);
@@ -427,9 +484,12 @@ function handleItemsLoaded(items) {
             name: item.name,
             unit: item.unit,
             quantity_received: item.quantity_requested,
-            quantity_actually_received: item.quantity_requested, // Default to requested quantity
+            quantity_actually_received: item.quantity_requested,
             note: item.note,
             received_note: "",
+            shortage_reason: "",
+            shortage_quantity: null,
+            shortage_description: "",
             is_preloaded: true,
         });
         bindWatcher(row);
@@ -476,7 +536,6 @@ function closeConfirmModal() {
 }
 
 function confirmSave() {
-    // Validate form before submission
     if (!isFormValid()) {
         alert('Catatan penerimaan wajib diisi untuk item yang jumlah diterimanya berbeda dengan jumlah barang.');
         return;
@@ -489,22 +548,28 @@ function confirmSave() {
         quantity_actually_received: r.quantity_actually_received,
         note: r.note ?? null,
         received_note: r.received_note ?? null,
+        shortage_reason: hasShortage(r) ? (r.shortage_reason || null) : null,
+        shortage_quantity: hasShortage(r) ? (r.shortage_quantity || null) : null,
+        shortage_description: hasShortage(r) ? (r.shortage_description || null) : null,
     }));
 
-    // Clear the opposite ID based on selected type
     if (selectedType.value === 'pembelian') {
         form.transfer_id = null;
     } else {
         form.order_id = null;
     }
 
-    form.post(route("good-receipts.store"), {
-        onSuccess: () => {
-            closeConfirmModal();
-        },
-        onError: () => {
-            closeConfirmModal();
+    // Use forceFormData to send multiple file attachments
+    form.transform((data) => {
+        const payload = { ...data };
+        if (attachmentFiles.value.length > 0) {
+            payload.attachments = attachmentFiles.value;
         }
+        return payload;
+    }).post(route("good-receipts.store"), {
+        forceFormData: true,
+        onSuccess: () => { closeConfirmModal(); },
+        onError: () => { closeConfirmModal(); }
     });
 }
 

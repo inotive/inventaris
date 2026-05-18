@@ -1005,6 +1005,12 @@ const menuGroups = [
                 pathName: "stock-recap.index",
                 permission: "stock_recap.view",
             },
+            {
+                icon: DocsIcon,
+                name: "Data Disposal",
+                pathName: "item-disposals.index",
+                permission: "dashboard.view",
+            },
         ],
     },
     {

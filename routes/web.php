@@ -22,6 +22,7 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\GoodIssuesController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\StockRecapController;
+use App\Http\Controllers\ItemDisposalController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\AbsenceAreaController;
 use App\Http\Controllers\GoodReceiptController;
@@ -155,6 +156,7 @@ Route::middleware([
     Route::resource('/items', ItemController::class);
     Route::resource('/stock-in', StockInController::class);
     Route::resource('/stock-out', StockOutController::class);
+    Route::get('/item-disposals', [ItemDisposalController::class, 'index'])->name('item-disposals.index');
 
     // Announcements (Pengumuman)
     Route::resource('/announcements', \App\Http\Controllers\AnnouncementController::class)

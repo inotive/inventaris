@@ -39,7 +39,8 @@
             </div>
 
             <Form :form="form" :branches="branches" :employees="employees" :user="user" :roles="roles"
-                @cancel="goBack" />
+                @cancel="goBack"
+                @attachments-changed="handleAttachmentsChanged" />
         </div>
 
         <div
@@ -417,6 +418,11 @@ const options = ref(
 
 // Modal state
 const showConfirmationModal = ref(false);
+const attachmentFiles = ref([]);
+
+function handleAttachmentsChanged(files) {
+    attachmentFiles.value = files;
+}
 
 // Computed property to get available options for each row (excluding already selected items and mismatched branch)
 const getAvailableOptions = (currentRowIndex) => {
@@ -551,63 +557,41 @@ watch(
     }
 );
 
-function saveLog() {
-    // Clear previous errors
-    form.clearErrors();
+function confirmSend() {
+    showConfirmationModal.value = false;
+    saveLog();
+}
 
-    // Validate that there's at least one item
+function saveLog() {
+    form.clearErrors();
     if (!items.value || items.value.length === 0) {
         form.setError('items', 'Minimal harus ada satu item pemindahan');
         return;
     }
-
-    // Check for duplicate items
     const itemIds = items.value.map(r => r.item_id?.id).filter(Boolean);
     const duplicateItems = itemIds.filter((id, index) => itemIds.indexOf(id) !== index);
-
-    if (duplicateItems.length > 0) {
-        form.setError('items', 'Tidak boleh ada item yang duplikat');
-        return;
-    }
-
-    // Validate that all items have required fields
+    if (duplicateItems.length > 0) { form.setError('items', 'Tidak boleh ada item yang duplikat'); return; }
     const hasInvalidItems = items.value.some((r, i) => {
-        if (!r.item_id || !r.item_id.id) {
-            form.setError(`items.${i}.item_id`, 'Pilih barang yang akan dipindahkan');
-            return true;
-        }
-        if (!r.quantity_transferred || r.quantity_transferred <= 0) {
-            form.setError(`items.${i}.quantity_transferred`, 'Jumlah pengiriman harus lebih dari 0');
-            return true;
-        }
-        if (r.quantity_transferred > r.stock) {
-            form.setError(`items.${i}.quantity_transferred`, `Jumlah pengiriman tidak boleh melebihi stok tersedia (${r.stock} ${r.unit?.short_name || ''})`);
-            return true;
-        }
-        if (r.note && r.note.length > 225) {
-            form.setError(`items.${i}.note`, 'Catatan tidak boleh lebih dari 225 karakter');
-            return true;
-        }
+        if (!r.item_id || !r.item_id.id) { form.setError(`items.${i}.item_id`, 'Pilih barang yang akan dipindahkan'); return true; }
+        if (!r.quantity_transferred || r.quantity_transferred <= 0) { form.setError(`items.${i}.quantity_transferred`, 'Jumlah pengiriman harus lebih dari 0'); return true; }
+        if (r.quantity_transferred > r.stock) { form.setError(`items.${i}.quantity_transferred`, `Jumlah pengiriman tidak boleh melebihi stok tersedia (${r.stock} ${r.unit?.short_name || ''})`); return true; }
+        if (r.note && r.note.length > 225) { form.setError(`items.${i}.note`, 'Catatan tidak boleh lebih dari 225 karakter'); return true; }
         return false;
     });
-
-    if (hasInvalidItems) {
-        return;
-    }
-
+    if (hasInvalidItems) return;
     form.items = items.value.map((r) => ({
         uid: r.uid,
-        item_id: r.item_id?.id ?? null, // karena Select pakai object
+        item_id: r.item_id?.id ?? null,
         quantity_transferred: r.quantity_transferred,
         note: r.note ?? null,
     }));
-
-    form.post(route("good-transfers.store"));
-}
-
-function confirmSend() {
-    showConfirmationModal.value = false;
-    saveLog();
+    form.transform((data) => {
+        const payload = { ...data };
+        if (attachmentFiles.value.length > 0) {
+            payload.attachments = attachmentFiles.value;
+        }
+        return payload;
+    }).post(route("good-transfers.store"), { forceFormData: true });
 }
 
 function goBack() {
