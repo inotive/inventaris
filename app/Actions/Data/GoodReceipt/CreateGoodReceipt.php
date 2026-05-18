@@ -65,7 +65,7 @@ class CreateGoodReceipt
 
             // Find matching item in receiver's branch
             $targetItem = $originalItem;
-            if ($receiverBranchId && $receiverBranchId != $originalItem->branch_id) {
+            if ($data['source'] !== GoodTransfer::class && $receiverBranchId && $receiverBranchId != $originalItem->branch_id) {
                 $itemInReceiverBranch = Item::where('name', $originalItem->name)
                     ->where('branch_id', $receiverBranchId)
                     ->first();

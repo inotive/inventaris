@@ -49,6 +49,22 @@ class ReceiveGoodTranfer
             $goodTransferItem = $goodTransfer->items()->find($quantity['item_id']);
             $toBranchItem = $goodTransfer->toBranch->items()->where('code', $goodTransferItem->item->code)->first();
 
+            if (!$toBranchItem) {
+                $toBranchItem = $goodTransfer->toBranch->items()->where('name', $goodTransferItem->item->name)->first();
+            }
+
+            if (!$toBranchItem) {
+                $toBranchItem = Item::create([
+                    'branch_id' => $goodTransfer->to_branch,
+                    'unit_id' => $goodTransferItem->item->unit_id,
+                    'category_id' => $goodTransferItem->item->category_id,
+                    'name' => $goodTransferItem->item->name,
+                    'code' => $goodTransferItem->item->code,
+                    'description' => $goodTransferItem->item->description,
+                    'min_stock' => $goodTransferItem->item->min_stock,
+                ]);
+            }
+
             if ($toBranchItem) {
                 $receiptItems[] = [
                     'item_id' => $toBranchItem->id,
