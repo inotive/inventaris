@@ -408,22 +408,29 @@
                                     v-model.number="paymentForm.additional_amount"
                                     type="number"
                                     min="0"
-                                    :max="(po.total || 0) - (po.paid_amount || 0)"
+                                    :max="Number(po.total || 0) - Number(po.paid_amount || 0)"
                                     step="0.01"
                                     :class="[
                                         'w-full px-3 py-2 rounded border focus:ring-2 focus:ring-orange-500 focus:border-orange-500',
-                                        paymentForm.additional_amount > ((po.total || 0) - (po.paid_amount || 0)) ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                        paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0)) ? 'border-red-500 bg-red-50' : 'border-gray-300'
                                     ]"
                                     placeholder="Masukkan jumlah pembayaran tambahan"
                                     required
-                                />
-                                <div v-if="paymentForm.additional_amount > 0" class="text-xs mt-1" :class="paymentForm.additional_amount > ((po.total || 0) - (po.paid_amount || 0)) ? 'text-red-600' : 'text-gray-500'">
-                                    <span v-if="paymentForm.additional_amount > ((po.total || 0) - (po.paid_amount || 0))" class="font-medium">
+                                  />
+                                <div v-if="paymentForm.additional_amount > 0" class="text-xs mt-2" :class="paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0)) ? 'text-red-600' : 'text-gray-600'">
+                                    <span v-if="paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0))" class="font-medium">
                                         Jumlah pembayaran melebihi sisa yang harus dibayar!
                                     </span>
-                                    <span v-else>
-                                        Total setelah pembayaran: {{ formatCurrency((po.paid_amount || 0) + paymentForm.additional_amount) }}
-                                    </span>
+                                    <div v-else class="bg-gray-50 p-2.5 rounded-lg border border-gray-200/60 space-y-1">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Total setelah pembayaran:</span>
+                                            <span class="font-semibold text-gray-800">{{ formatCurrency(Number(po.paid_amount || 0) + Number(paymentForm.additional_amount || 0)) }}</span>
+                                        </div>
+                                        <div class="flex justify-between border-t border-gray-200/60 pt-1">
+                                            <span class="text-gray-500">Sisa pembayaran baru:</span>
+                                            <span class="font-semibold text-gray-800">{{ formatCurrency(Number(po.total || 0) - (Number(po.paid_amount || 0) + Number(paymentForm.additional_amount || 0))) }}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -433,7 +440,7 @@
                     <button
                         @click="confirmPayment"
                         type="button"
-                        :disabled="!paymentForm.additional_amount || paymentForm.additional_amount <= 0 || paymentForm.additional_amount > ((po.total || 0) - (po.paid_amount || 0))"
+                        :disabled="!paymentForm.additional_amount || paymentForm.additional_amount <= 0 || paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0))"
                         class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Update Pembayaran
@@ -612,7 +619,7 @@ function confirmPayment() {
         return
     }
 
-    if (paymentForm.value.additional_amount > ((po.total || 0) - (po.paid_amount || 0))) {
+    if (paymentForm.value.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0))) {
         alert('Jumlah pembayaran tidak boleh melebihi sisa yang harus dibayar')
         return
     }
