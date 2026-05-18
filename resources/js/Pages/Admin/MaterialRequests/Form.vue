@@ -128,7 +128,7 @@ const isLoadingEmployees = ref(false);
 const employeeError = ref('');
 
 // Function to fetch employees by department
-const fetchEmployeesByDepartment = async (departmentId) => {
+const fetchEmployeesByDepartment = async (departmentId, keepSelected = false) => {
     console.log(departmentId)
     if (!departmentId) {
         localEmployees.value = ''
@@ -158,8 +158,12 @@ const fetchEmployeesByDepartment = async (departmentId) => {
             employeeError.value = 'Tidak ada karyawan ditemukan untuk departemen ini';
         }
 
-        // Clear employee selection when department changes
-        props.form.employee_id = null;
+        // Clear employee selection when department changes, unless keepSelected is true
+        if (!keepSelected) {
+            props.form.employee_id = null;
+        } else if (!isSuperadmin && props.user?.employee?.id) {
+            props.form.employee_id = props.isEdit ? props.form.employee_id : props.user.employee.id;
+        }
     } catch (error) {
         console.error('Error fetching employees:', error);
         localEmployees.value = [];
@@ -181,9 +185,6 @@ onMounted(() => {
         if (props.user.employee.department_id) {
             props.form.department_id = props.isEdit ? props.form.department_id : props.user.employee.department_id;
             console.log('Set department_id to:', props.form.department_id);
-
-            // Fetch employees for this department
-            // fetchEmployeesByDepartment(props.user.employee.department_id);
         }
 
         // Set employee from user's employee data
@@ -204,7 +205,7 @@ watch(() => props.user, (newUser) => {
             console.log('Updated department_id to:', props.form.department_id);
 
             // Fetch employees for this department
-            fetchEmployeesByDepartment(newUser.employee.department_id);
+            fetchEmployeesByDepartment(newUser.employee.department_id, true);
         }
 
         if (newUser.employee.id && !props.form.employee_id) {
@@ -218,7 +219,10 @@ watch(() => props.user, (newUser) => {
 watch(() => props.form.department_id, (newDepartmentId, oldDepartmentId) => {
     if (newDepartmentId !== oldDepartmentId) {
         console.log('Department changed to:', newDepartmentId);
-        fetchEmployeesByDepartment(newDepartmentId);
+        
+        // Keep selection on initial mount / watcher trigger, or if non-superadmin
+        const keepSelected = !oldDepartmentId || !isSuperadmin;
+        fetchEmployeesByDepartment(newDepartmentId, keepSelected);
 
         // Emit department change event to parent component
         emit('department-changed', newDepartmentId);
