@@ -8,6 +8,7 @@ use App\Models\Item;
 use Inertia\Inertia;
 use App\Models\Employee;
 use App\Models\Department;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use App\Models\MaterialRequest;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +43,7 @@ class MaterialRequestController extends Controller
         $departments = Department::where('branch_id', $userBranchId)->pluck('id');
 
         $query = MaterialRequest::query()
-            ->with(['department:id,name', 'requester:id,name', 'approver:id,name'])
+            ->with(['department.branch', 'requester:id,name', 'approver:id,name'])
             ->when(!$canViewGlobal, function ($query) use ($departments) {
                 return $query->whereIn('department_id', $departments);
             });
@@ -132,9 +133,17 @@ class MaterialRequestController extends Controller
         $canCreate = Auth::user()->can('material_requests.create');
         $canViewGlobal = Auth::user()->can('material_requests.view_global') || $isSuperadmin;
 
-        $departments = Department::query()->when(!$canViewGlobal, function ($query) use ($departments) {
-            return $query->whereIn('id', $departments);
-        })->select('id', 'name')->orderBy('name')->get();
+        $departments = Department::where('name', 'Gudang')->with('branch')
+            ->when(!$canViewGlobal, function ($query) use ($departments) {
+                return $query->whereIn('id', $departments);
+            })
+            ->get()
+            ->map(function ($d) {
+                return [
+                    'id' => $d->id,
+                    'name' => $d->branch ? $d->branch->name : $d->name,
+                ];
+            })->sortBy('name')->values();
 
         $employees = Employee::query()->when(!$canViewGlobal, function ($query) use ($departments) {
             return $query->whereIn('department_id', $departments);
@@ -149,7 +158,7 @@ class MaterialRequestController extends Controller
                 return [
                     'id' => $mr->id,
                     'request_no' => $mr->request_no,
-                    'department' => $mr->department?->name,
+                    'department' => $mr->department?->branch?->name ?? $mr->department?->name,
                     'requested_by' => $mr->requester?->name,
                     'requested_at' => Carbon::parse($mr->requested_at)->locale('id')->translatedFormat('d F Y'),
                     'status' => $mr->status,
@@ -172,7 +181,17 @@ class MaterialRequestController extends Controller
     public function create()
     {
         $requestNo = MaterialRequest::generateRequestNo();
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $employees = Employee::orderBy('name')->get();
 
         // Get user's department branch to filter items
@@ -264,7 +283,7 @@ class MaterialRequestController extends Controller
     public function show(MaterialRequest $materialRequest)
     {
         $materialRequest->load([
-            'department:id,name',
+            'department.branch',
             'requester:id,name',
             'approver:id,name',
             'items.item.unit:id,name,short_name',
@@ -291,7 +310,7 @@ class MaterialRequestController extends Controller
             'mr' => [
                 'id' => $materialRequest->id,
                 'request_no' => $materialRequest->request_no,
-                'department' => $materialRequest->department?->name,
+                'department' => $materialRequest->department?->branch?->name ?? $materialRequest->department?->name,
                 'requested_by' => $materialRequest->requester?->name,
                 'requested_at' => $materialRequest->requested_at ? $materialRequest->requested_at->locale('id')->translatedFormat('d F Y') : null,
                 'approved_by' => $materialRequest->approver?->name,
@@ -359,7 +378,17 @@ class MaterialRequestController extends Controller
                     'unit' => $item->unit,
                 ];
             }),
-            'departments' => Department::query()->select('id', 'name')->orderBy('name')->get(),
+            'departments' => Branch::all()->map(function ($b) {
+                $gudangDept = Department::firstOrCreate(
+                    ['branch_id' => $b->id, 'name' => 'Gudang'],
+                    ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+                );
+                return [
+                    'id' => $gudangDept->id,
+                    'name' => 'Gudang',
+                    'branch' => $b,
+                ];
+            })->sortBy(fn($d) => $d['branch']->name)->values(),
             'employees' => Employee::query()->select('id', 'name')->orderBy('name')->get(),
             'statusOptions' => [
                 ['value' => 'on_progress', 'label' => 'Menunggu Persetujuan'],

@@ -71,24 +71,17 @@
             <div>
                 <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >Departemen</label
+                    >Untuk Cabang</label
                 >
                 <Select
                     v-model="form.department_id"
-                    :items="departments"
+                    :items="branchesAsDepartments"
                     :search-key="'name'"
                     :label-key="'name'"
-                    label="Pilih departemen"
+                    label="Pilih Untuk Cabang"
                     class="mt-2"
                     :disabled="!isSuperadmin"
-                >
-                    <template #item="{ item }">
-                        <span>
-                            {{ item.name
-                            }}{{ item.branch ? " - " + item.branch.name : "" }}
-                        </span>
-                    </template>
-                </Select>
+                />
                 <p
                     v-if="form.errors.department_id"
                     class="mt-1 text-xs text-rose-600"
@@ -121,6 +114,7 @@
 <script setup>
 import Input from "@/Components/form/Input.vue";
 import Select from "@/Components/form/SelectPemakaian.vue";
+import { computed } from "vue";
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -129,6 +123,16 @@ const props = defineProps({
     employees: { type: Array, required: true },
     user: { type: Object, default: null },
     isSuperadmin: { type: Boolean, required: true },
+});
+
+const branchesAsDepartments = computed(() => {
+    const list = props.departments || [];
+    return list.map(item => {
+        return {
+            id: item.id,
+            name: item.branch ? item.branch.name : item.name,
+        };
+    });
 });
 
 console.log('form:', props.form);

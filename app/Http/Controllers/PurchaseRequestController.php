@@ -117,7 +117,7 @@ class PurchaseRequestController extends Controller
         $canViewGlobal = Auth::user()->can('purchase_requests.view_global') || $isSuperadmin;
 
         $query = PurchaseRequest::query()
-            ->with(['request:id,request_no', 'department:id,name', 'requester:id,name', 'approver:id,name'])
+            ->with(['request:id,request_no', 'department.branch', 'requester:id,name', 'approver:id,name'])
             ->when(!$canViewGlobal, function ($query) use ($departmentIds) {
                 return $query->whereIn('department_id', $departmentIds);
             });
@@ -203,9 +203,17 @@ class PurchaseRequestController extends Controller
         $canView = Auth::user()->can('purchase_requests.view');
         $canViewGlobal = Auth::user()->can('purchase_requests.view_global') || $isSuperadmin;
 
-        $departments = Department::query()->when(!$canViewGlobal, function ($query) use ($departmentIds) {
-            return $query->whereIn('id', $departmentIds);
-        })->select('id', 'name')->orderBy('name')->get();
+        $departments = Department::where('name', 'Gudang')->with('branch')
+            ->when(!$canViewGlobal, function ($query) use ($departmentIds) {
+                return $query->whereIn('id', $departmentIds);
+            })
+            ->get()
+            ->map(function ($d) {
+                return [
+                    'id' => $d->id,
+                    'name' => $d->branch ? $d->branch->name : $d->name,
+                ];
+            })->sortBy('name')->values();
         $employees = Employee::query()->when(!$canViewGlobal, function ($query) use ($departmentIds) {
             return $query->whereIn('department_id', $departmentIds);
         })->select('id', 'name')->orderBy('name')->get();
@@ -219,7 +227,7 @@ class PurchaseRequestController extends Controller
                     'id' => $mr->id,
                     'request_no' => $mr->request_no,
                     'mr_no' => $mr->request?->request_no,
-                    'department' => $mr->department?->name,
+                    'department' => $mr->department?->branch?->name ?? $mr->department?->name,
                     'requested_by' => $mr->requester?->name,
                     'requested_at' => $mr->requested_at->locale('id')->translatedFormat('d F Y'),
                     'status' => $mr->status,
@@ -246,7 +254,17 @@ class PurchaseRequestController extends Controller
     public function create()
     {
         $requestNo = PurchaseRequest::generateRequestNo();
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $employees = Employee::orderBy('name')->get();
 
         $user = Auth::user()->load(['employee', 'employee.department']);
@@ -335,7 +353,7 @@ class PurchaseRequestController extends Controller
     {
         $purchaseRequest = PurchaseRequest::with([
             'items.item.unit',
-            'department',
+            'department.branch',
             'requester',
             'request'
         ])->findOrFail($id);
@@ -396,7 +414,17 @@ class PurchaseRequestController extends Controller
 
     public function edit($id)
     {
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $employees = Employee::orderBy('name')->get();
         $items = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->get();
         $materialRequests = MaterialRequest::with(['items.item.unit'])

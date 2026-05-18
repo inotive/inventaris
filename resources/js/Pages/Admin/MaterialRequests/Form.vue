@@ -18,14 +18,8 @@
                 </p>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Departemen</label>
-                <Select v-model="form.department_id" :items="departments" :disabled="!isSuperadmin" class="mt-2">
-                    <template #item="{ item }">
-                        <span>
-                            {{ item.name }}{{ item.branch ? " - " + item.branch.name : "" }}
-                        </span>
-                    </template>
-                </Select>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Untuk Cabang</label>
+                <Select v-model="form.department_id" :items="branchesAsDepartments" :disabled="!isSuperadmin" class="mt-2" />
                 <p v-if="!isSuperadmin && form.department_id" class="mt-1 text-xs text-blue-600 dark:text-blue-400">
                     <svg class="inline w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd"
@@ -44,7 +38,7 @@
                     :disabled="!isSuperadmin ||isLoadingEmployees" class="mt-2" />
                 <div v-if="!isLoadingEmployees && localEmployees.length === 0 && form.department_id"
                     class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Tidak ada karyawan tersedia untuk departemen ini
+                    Tidak ada karyawan tersedia untuk cabang ini
                 </div>
                 <div v-if="isLoadingEmployees" class="mt-1 text-xs text-blue-600 dark:text-blue-400">
                     <svg class="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -103,7 +97,7 @@
 <script setup>
 import Input from "@/Components/form/Input.vue";
 import Select from "@/Components/form/SelectPemakaian.vue";
-import { watch, onMounted, ref } from "vue";
+import { watch, onMounted, ref, computed } from "vue";
 import axios from "axios";
 
 const props = defineProps({
@@ -117,6 +111,16 @@ const props = defineProps({
 const emit = defineEmits(['submit', 'cancel', 'department-changed']);
 
 console.log("form department_id:", props.form.department_id);
+
+const branchesAsDepartments = computed(() => {
+    const list = props.departments || [];
+    return list.map(item => {
+        return {
+            id: item.id,
+            name: item.branch ? item.branch.name : item.name,
+        };
+    });
+});
 
 
 // Check if user is Superadmin
@@ -155,7 +159,7 @@ const fetchEmployeesByDepartment = async (departmentId, keepSelected = false) =>
             }));
         } else {
             localEmployees.value = [];
-            employeeError.value = 'Tidak ada karyawan ditemukan untuk departemen ini';
+            employeeError.value = 'Tidak ada karyawan ditemukan untuk cabang ini';
         }
 
         // Clear employee selection when department changes, unless keepSelected is true
