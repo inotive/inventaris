@@ -1,1 +1,0 @@
-import{aB as t,a1 as e,bc as o,a0 as r,aZ as s,ap as n}from"./app-BA-kmsMy.js";const p={__name:"AuthenticationCardLogo",setup(i){return(c,a)=>(t(),e(s(n),{href:"/"},{default:o(()=>[...a[0]||(a[0]=[r("img",{src:"/images/logo-spb-hitam.png",alt:"Logo Sinergi Putra Borneo",class:"w-64 object-contain"},null,-1)])]),_:1}))}};export{p as _};

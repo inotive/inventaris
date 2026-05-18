@@ -347,7 +347,7 @@ class PurchaseRequestController extends Controller
         $pr = [
             'id' => $purchaseRequest->id,
             'request_no' => $purchaseRequest->request_no,
-            'requested_at' => Carbon::parse($purchaseRequest->requested_at)->format('Y-m-d'),
+            'requested_at' => Carbon::parse($purchaseRequest->requested_at)->locale('id')->translatedFormat('d F Y'),
             'department_id' => $purchaseRequest->department_id,
             'employee_id' => $purchaseRequest->requested_by,
             'request_id' => $purchaseRequest->request_id,

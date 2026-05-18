@@ -240,7 +240,7 @@
                     </table>
                 </div>
                 <div class="px-4 py-3 border-t flex justify-end gap-2">
-                    <button @click="showApprove" class="px-3 h-9 rounded border">Batal</button>
+                    <button @click="showApprove = false" class="px-3 h-9 rounded border">Batal</button>
                     <button @click="submitApprove" class="px-3 h-9 rounded bg-emerald-600 text-white">Simpan &
                         Setujui</button>
                 </div>
