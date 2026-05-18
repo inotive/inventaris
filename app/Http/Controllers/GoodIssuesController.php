@@ -182,8 +182,8 @@ class GoodIssuesController extends Controller
             ];
         })->sortBy(fn($d) => $d['branch']->name)->values();
         $userBranchId = Auth::user()->employee->branch_id ?? null;
-        $isSuperadmin = Auth::user()->hasRole('Superadmin');
-        $canCreateGlobal = Auth::user()->can('good_issues.create_global') || $isSuperadmin;
+        $isSuperadmin = Auth::user()->hasRole('Superadmin') || Auth::user()->can('good_issues.create_global');
+        $canCreateGlobal = $isSuperadmin;
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
 
         $materialRequests = MaterialRequest::where('status', 'approved')
@@ -379,7 +379,7 @@ class GoodIssuesController extends Controller
             ->orderBy('request_no', 'desc')
             ->get();
 
-        $isSuperadmin = Auth::user()->hasRole('Superadmin');
+        $isSuperadmin = Auth::user()->hasRole('Superadmin') || Auth::user()->can('good_issues.edit_global');
 
         return Inertia::render('Admin/GoodIssues/Edit', [
             'mr' => [
