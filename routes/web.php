@@ -113,6 +113,7 @@ Route::middleware([
     Route::resource('/absence-areas', AbsenceAreaController::class);
 
     // Specific routes must be defined BEFORE the resource route
+    Route::get('/items/stock-breakdown', [MaterialRequestController::class, 'getItemStockBreakdown'])->name('items.stock-breakdown');
     Route::get('/material-requests/requests', [MaterialRequestController::class, 'getMaterialRequests'])->name('material-requests.requests');
     Route::get('/material-requests/items/by-department', [MaterialRequestController::class, 'getItemsByDepartment'])->name('material-requests.items.by-department');
     Route::get('/material-requests/items/by-request', [MaterialRequestController::class, 'getItemsByRequest'])->name('material-requests.items.by-request');

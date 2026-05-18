@@ -555,6 +555,72 @@ class MaterialRequestController extends Controller
         return response()->json(['items' => $items]);
     }
 
+    public function getItemStockBreakdown(Request $request)
+    {
+        $itemId = $request->integer('item_id');
+
+        if (!$itemId) {
+            return response()->json([
+                'item_name' => '',
+                'item_code' => '',
+                'total_stock' => 0,
+                'breakdown' => []
+            ]);
+        }
+
+        $item = Item::find($itemId);
+
+        if (!$item) {
+            return response()->json([
+                'item_name' => '',
+                'item_code' => '',
+                'total_stock' => 0,
+                'breakdown' => []
+            ]);
+        }
+
+        $code = $item->code;
+        $name = $item->name;
+
+        // Query all branches
+        $branches = \App\Models\Branch::orderBy('name', 'asc')->get();
+
+        // Query all items with the same code or name
+        $items = Item::with(['branch', 'stock'])
+            ->where(function ($query) use ($code, $name) {
+                if (!empty($code) && $code !== '-') {
+                    $query->where('code', $code);
+                } else {
+                    $query->where('name', $name);
+                }
+            })
+            ->get();
+
+        // Create a lookup map of branch_id => stock
+        $itemStocksByBranch = [];
+        foreach ($items as $it) {
+            $itemStocksByBranch[$it->branch_id] = (float) ($it->stock?->last_stock ?? 0);
+        }
+
+        // Build the breakdown for ALL branches to be transparent and clear
+        $breakdown = $branches->map(function ($branch) use ($itemStocksByBranch) {
+            return [
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->name,
+                'stock' => $itemStocksByBranch[$branch->id] ?? 0.0,
+            ];
+        })->values();
+
+        $totalStock = $breakdown->sum('stock');
+
+        return response()->json([
+            'item_name' => $name,
+            'item_code' => $code,
+            'total_stock' => $totalStock,
+            'breakdown' => $breakdown,
+        ]);
+    }
+
     private function logActivity($materialRequestId, $title, $description)
     {
         try {

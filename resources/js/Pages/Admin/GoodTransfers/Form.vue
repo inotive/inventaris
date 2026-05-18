@@ -77,7 +77,8 @@
                 <Select
                     v-model="form.to_branch_id"
                     label="Pilih cabang"
-                    :items="branches"
+                    :items="toBranches"
+                    :disabled="isFromGudangPusat"
                 >
                     <template #item="{ item }">
                         <span>
@@ -117,6 +118,7 @@
 <script setup>
 import Input from "@/Components/form/Input.vue";
 import Select from "@/Components/form/SelectPemakaian.vue";
+import { computed, watch } from "vue";
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -125,6 +127,41 @@ const props = defineProps({
     user: { type: String, required: true },
     roles: { type: String, required: true },
 });
+
+// Find the branch object of From Branch
+const fromBranchObj = computed(() => {
+    return props.branches.find(b => b.id == props.form.from_branch_id);
+});
+
+// Check if From Branch is Gudang Pusat
+const isFromGudangPusat = computed(() => {
+    return fromBranchObj.value?.name?.toLowerCase() === 'gudang pusat';
+});
+
+// Find Gudang Utama Cabang Sangatta ID
+const gudangSangattaId = computed(() => {
+    const sangatta = props.branches.find(b => b.name?.toLowerCase() === 'gudang utama cabang sangatta');
+    return sangatta?.id ?? null;
+});
+
+// Filter to-branches to exclude same branch, and enforce Sangatta only if source is Gudang Pusat
+const toBranches = computed(() => {
+    if (isFromGudangPusat.value) {
+        return props.branches.filter(b => b.name?.toLowerCase() === 'gudang utama cabang sangatta');
+    }
+    return props.branches.filter(b => b.id != props.form.from_branch_id);
+});
+
+// Lock and watch to automatically populate when from_branch_id becomes Gudang Pusat
+watch(
+    () => props.form.from_branch_id,
+    (newVal) => {
+        if (isFromGudangPusat.value && gudangSangattaId.value) {
+            props.form.to_branch_id = gudangSangattaId.value;
+        }
+    },
+    { immediate: true }
+);
 
 console.log(props.form)
 </script>
