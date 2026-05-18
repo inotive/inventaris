@@ -585,11 +585,19 @@ class MaterialRequestController extends Controller
         // Query all branches
         $branches = \App\Models\Branch::orderBy('name', 'asc')->get();
 
-        // Query all items with the same code or name
+        // Query all items with the same code (ignoring branch suffix) or name
         $items = Item::with(['branch', 'stock'])
             ->where(function ($query) use ($code, $name) {
-                if (!empty($code) && $code !== '-') {
-                    $query->where('code', $code);
+                // Strip branch suffix like -B1, -B12 to get the base code prefix
+                $baseCode = $code;
+                if (preg_match('/^(.*?)-B\d+$/i', $code, $matches)) {
+                    $baseCode = $matches[1];
+                }
+
+                if (!empty($baseCode) && $baseCode !== '-') {
+                    $query->where('code', 'like', $baseCode . '-%')
+                          ->orWhere('code', $baseCode)
+                          ->orWhere('name', $name);
                 } else {
                     $query->where('name', $name);
                 }
