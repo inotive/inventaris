@@ -229,7 +229,8 @@ class GoodTransferController extends Controller
 
         return Inertia::render('Admin/GoodTransfers/Show', [
             'isSuperadmin' => Auth::user()->hasRole("Superadmin"),
-            'canApprove' => Auth::user()->can('good_transfers.approve') || Auth::user()->can('good_transfers.edit') || Auth::user()->hasRole('Superadmin'),
+            'canApprove' => Auth::user()->can('good_transfers.approve') || Auth::user()->hasRole('Superadmin'),
+            'canCancel' => Auth::user()->can('good_transfers.edit') || Auth::user()->can('good_transfers.approve') || Auth::user()->hasRole('Superadmin'),
             'goodTransfer' => [
                 'id' => $goodTransfer->id,
                 'transfer_no' => $goodTransfer->transfer_no,
@@ -457,13 +458,13 @@ class GoodTransferController extends Controller
      */
     public function receive(Request $request, GoodTransfer $goodTransfer)
     {
-        abort_unless(Gate::allows('good_transfers.edit') || Gate::allows('good_transfers.approve'), 403, 'Anda tidak memiliki akses untuk memproses perpindahan barang');
+        abort_unless(Gate::allows('good_transfers.approve') || Auth::user()->hasRole('Superadmin'), 403, 'Anda tidak memiliki akses untuk memproses perpindahan barang');
 
         try {
             app(ReceiveGoodTranfer::class)->execute($goodTransfer, $request->all());
 
             return redirect()->route('good-transfers.index')
-                ->with('success', 'Pemindahan barang berhasil ditandai sebagai diterima!');
+                 ->with('success', 'Pemindahan barang berhasil ditandai sebagai diterima!');
         } catch (Exception $e) {
             Log::error('Terjadi kesalahan saat menandai pemindahan barang sebagai diterima', [
                 'error' => $e->getMessage(),
@@ -479,7 +480,7 @@ class GoodTransferController extends Controller
      */
     public function cancel(Request $request, GoodTransfer $goodTransfer)
     {
-        abort_unless(Gate::allows('good_transfers.edit') || Gate::allows('good_transfers.approve'), 403, 'Anda tidak memiliki akses untuk membatalkan perpindahan barang');
+        abort_unless(Gate::allows('good_transfers.edit') || Gate::allows('good_transfers.approve') || Auth::user()->hasRole('Superadmin'), 403, 'Anda tidak memiliki akses untuk membatalkan perpindahan barang');
 
         // Prevent canceling if already received or canceled
         if (in_array($goodTransfer->status, ['Received', 'Canceled'])) {
