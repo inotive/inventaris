@@ -22,6 +22,11 @@ class MaterialRequest extends Model
         'status',
     ];
 
+    protected $casts = [
+        'requested_at' => 'datetime',
+        'approved_at' => 'datetime',
+    ];
+
     public function department()
     {
         return $this->belongsTo(Department::class);
