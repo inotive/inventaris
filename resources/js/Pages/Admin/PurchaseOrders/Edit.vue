@@ -365,17 +365,25 @@ const form = useForm({
     ordered_by: props.po.ordered_by,
     note: props.po.note || '',
     branch_id: props.po.branch_id || null,
-    items: props.po.items.map(item => ({
-        id: item.id,
-        item_id: item.item_id,
-        selectedItem: props.items.find(i => i.id === item.item_id) || null,
-        quantity_ordered: item.quantity_ordered,
-        cost: item.cost,
-        note: item.note || '',
-        unit: item.unit,
-        code: item.item_code || '',
-        name: item.item_name || '',
-    })),
+    items: props.po.items.map(item => {
+        const itemData = props.items.find(i => i.id == item.item_id);
+        return {
+            id: item.id,
+            item_id: item.item_id,
+            selectedItem: itemData || {
+                id: item.item_id,
+                name: item.item_name || '',
+                code: item.item_code || '',
+                unit: { short_name: item.unit || '' }
+            },
+            quantity_ordered: item.quantity_ordered,
+            cost: item.cost,
+            note: item.note || '',
+            unit: item.unit,
+            code: item.item_code || '',
+            name: item.item_name || '',
+        };
+    }),
     employee_id: props.po.ordered_by,
     amount_paid: props.po.amount_paid || 0,
 });

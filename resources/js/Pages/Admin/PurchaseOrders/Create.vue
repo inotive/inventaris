@@ -613,21 +613,26 @@ watch(
             return;
         }
 
-        const pr = props.purchaseRequests.find((p) => p.id === newVal);
+        const pr = props.purchaseRequests.find((p) => p.id == newVal);
         if (pr && pr.items) {
             // Clear existing items first
             form.items = [];
 
             // Add items from selected Purchase Request
             form.items = pr.items.map((item) => {
-                const itemData = props.items.find(i => i.id === item.item_id);
+                const itemData = props.items.find(i => i.id == item.item_id);
                 return {
                     item_id: item.item_id,
-                    selectedItem: itemData || null,
+                    selectedItem: itemData || {
+                        id: item.item_id,
+                        name: item.name || '',
+                        code: item.code || '',
+                        unit: { short_name: item.unit || '' }
+                    },
                     quantity_ordered: item.quantity_requested || 1,
                     cost: 0, // Default cost, user can fill manually
                     note: item.note || '',
-                    unit: itemData?.unit?.short_name || item.unit?.short_name || '',
+                    unit: itemData?.unit?.short_name || item.unit || '',
                     code: itemData?.code || item.code || '',
                     name: itemData?.name || item.name || '',
                 };
