@@ -107,6 +107,13 @@ const selectedItem = computed(() => {
 
 const selectedLabel = computed(() => {
     if (selectedItem.value) return selectedItem.value[props.labelKey];
+    if (
+        props.modelValue &&
+        typeof props.modelValue === "object" &&
+        props.labelKey in props.modelValue
+    ) {
+        return props.modelValue[props.labelKey];
+    }
     if (typeof props.modelValue === "string" && props.modelValue && isNaN(Number(props.modelValue)))
         return props.modelValue;
     return props.label;

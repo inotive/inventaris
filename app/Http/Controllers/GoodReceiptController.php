@@ -185,7 +185,7 @@ class GoodReceiptController extends Controller
 
         $order = PurchaseOrder::query()
             ->with(['applicant:id,name'])
-            ->select('id', 'order_no', 'vendor', 'ordered_by')
+            ->select('id', 'order_no', 'vendor', 'ordered_by', 'branch_id')
             ->where('status_delivered', 'pending')
             ->when(!$canCreateGlobal, function ($query) {
                 return $query->where('branch_id', Auth::user()->employee->branch_id);
@@ -208,13 +208,14 @@ class GoodReceiptController extends Controller
                     'transfer_no' => $t->transfer_no,
                     'from_branch' => $t->fromBranch?->name,
                     'to_branch' => $t->toBranch?->name,
+                    'to_branch_id' => $t->to_branch,
                     'sent_by' => $t->sent_by,
                     'sentBy' => $t->sentBy,
                 ];
             });
 
         // Load all items for the multiselect
-        $items = \App\Models\Item::with('unit')->select('id', 'name', 'code', 'unit_id')->get();
+        $items = \App\Models\Item::with('unit')->select('id', 'name', 'code', 'unit_id', 'branch_id')->get();
 
         return Inertia::render('Admin/GoodReceipts/Create', [
             'departments' => $departments,
@@ -456,7 +457,7 @@ class GoodReceiptController extends Controller
 
         $order = PurchaseOrder::query()
             ->with(['applicant:id,name'])
-            ->select('id', 'order_no', 'vendor', 'ordered_by')
+            ->select('id', 'order_no', 'vendor', 'ordered_by', 'branch_id')
             ->where('status_delivered', 'pending')
             ->when(!$isSuperadmin, function ($query) use ($departementIds) {
                 return $query->where('branch_id', Auth::user()->employee->branch_id);
@@ -479,13 +480,14 @@ class GoodReceiptController extends Controller
                     'transfer_no' => $t->transfer_no,
                     'from_branch' => $t->fromBranch?->name,
                     'to_branch' => $t->toBranch?->name,
+                    'to_branch_id' => $t->to_branch,
                     'sent_by' => $t->sent_by,
                     'sentBy' => $t->sentBy,
                 ];
             });
 
         // Load all items for the multiselect
-        $items = \App\Models\Item::with('unit')->select('id', 'name', 'code', 'unit_id')->get();
+        $items = \App\Models\Item::with('unit')->select('id', 'name', 'code', 'unit_id', 'branch_id')->get();
 
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
 

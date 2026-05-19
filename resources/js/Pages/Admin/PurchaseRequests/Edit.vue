@@ -439,7 +439,7 @@ const triggerUpdate = () => {
 };
 
 const selectedDepartment = computed(() =>
-    props.departments.find((d) => d.id === form.department_id)
+    props.departments.find((d) => d.id == form.department_id)
 );
 const selectedBranchId = computed(() => selectedDepartment.value?.branch_id ?? null);
 
@@ -447,6 +447,10 @@ const selectedBranchId = computed(() => selectedDepartment.value?.branch_id ?? n
 const getFilteredOptions = (currentRowIndex) => {
     // Use forceUpdate to ensure reactivity
     forceUpdate.value;
+
+    if (!selectedBranchId.value) {
+        return [];
+    }
 
     const selectedItemIds = requests.value
         .map((row, index) => {
@@ -460,7 +464,7 @@ const getFilteredOptions = (currentRowIndex) => {
 
     return options.value.filter(option => {
         const notSelected = !selectedItemIds.includes(option.id);
-        const branchMatch = selectedBranchId.value ? option.branch_id === selectedBranchId.value : true;
+        const branchMatch = option.branch_id === selectedBranchId.value;
         return notSelected && branchMatch;
     });
 };

@@ -205,7 +205,7 @@ import CreateTranferForm from "./CreateTranferForm.vue";
 import TrashIcon from "@/Components/icons/TrashIcon.vue";
 import SelectBarang from "@/Components/form/SelectBarang.vue";
 import { Head, router, useForm, Link } from "@inertiajs/vue3";
-import { ref, reactive, watch, onMounted } from "vue";
+import { ref, reactive, watch, onMounted, computed } from "vue";
 import { v4 as uuidv4 } from "uuid";
 
 defineOptions({
@@ -238,17 +238,36 @@ const options = ref(
         name: i.name,
         code: i.code,
         unit: i.unit,
+        branch_id: i.branch_id,
     }))
 );
 
-// Computed property to get available options (excluding already selected items)
+const targetBranchId = computed(() => {
+    if (selectedType.value === 'pembelian') {
+        const order = props.order.find(o => o.id == form.order_id);
+        return order ? order.branch_id : null;
+    } else {
+        const transfer = props.transfer.find(t => t.id == form.transfer_id);
+        return transfer ? transfer.to_branch_id : null;
+    }
+});
+
+// Computed property to get available options (excluding already selected items and mismatched branch)
 const getAvailableOptions = (currentRowIndex) => {
+    if (!targetBranchId.value) {
+        return [];
+    }
+
     const selectedItemIds = items.value
         .map((r, index) => index !== currentRowIndex ? r.item_id : null)
         .filter(item => item && typeof item === 'object' && item.id)
         .map(item => item.id);
 
-    return options.value.filter(option => !selectedItemIds.includes(option.id));
+    return options.value.filter(option => {
+        const notSelected = !selectedItemIds.includes(option.id);
+        const branchMatch = option.branch_id === targetBranchId.value;
+        return notSelected && branchMatch;
+    });
 };
 
 // Computed property to check if received note is required for each item

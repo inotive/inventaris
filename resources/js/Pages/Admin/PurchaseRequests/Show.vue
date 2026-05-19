@@ -54,7 +54,7 @@
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Tanggal Pengajuan</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatDate(pr.requested_at) }}</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ pr.requested_at }}</div>
                 </div>
                 <div v-if="pr.material_request">
                     <div class="text-xs text-gray-500">Referensi MR</div>
@@ -67,7 +67,7 @@
                 </div>
                 <div v-if="pr.approved_at">
                     <div class="text-xs text-gray-500">Waktu Persetujuan</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatDate(pr.approved_at) }}</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ pr.approved_at }}</div>
                 </div>
                 <div v-if="pr.status === 'rejected' && pr.reason">
                     <div class="text-xs text-gray-500">Alasan Penolakan</div>

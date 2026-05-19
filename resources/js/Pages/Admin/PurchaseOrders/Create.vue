@@ -477,14 +477,38 @@ const calculateSubtotal = (index) => {
 };
 
 const getAvailableItems = (currentIndex) => {
+    if (!form.branch_id) {
+        return [];
+    }
+
     // Get all currently selected item IDs except the current item
     const selectedItemIds = form.items
         .filter((item, index) => index !== currentIndex && item.item_id)
         .map(item => item.item_id);
 
-    // Filter out selected items from the available items
-    return props.items.filter(item => !selectedItemIds.includes(item.id));
+    // Filter out selected items from the available items and match branch_id
+    return props.items.filter(item => {
+        const notSelected = !selectedItemIds.includes(item.id);
+        const branchMatch = item.branch_id == form.branch_id;
+        return notSelected && branchMatch;
+    });
 };
+
+// Reset selected items when branch changes to enforce branch-based filtering
+watch(
+    () => form.branch_id,
+    () => {
+        form.items.forEach((row) => {
+            row.item_id = '';
+            row.selectedItem = null;
+            row.unit = '';
+            row.code = '';
+            row.name = '';
+        });
+        // Trigger reactivity to update available items in other selects
+        form.items = [...form.items];
+    }
+);
 
 const totalAmount = computed(() => {
     return form.items.reduce((total, item) => {

@@ -355,7 +355,8 @@ class PurchaseRequestController extends Controller
             'items.item.unit',
             'department.branch',
             'requester',
-            'request'
+            'request',
+            'approver'
         ])->findOrFail($id);
 
         $canApprove = Auth::user()->can('purchase_requests.approve', $purchaseRequest);
@@ -366,6 +367,8 @@ class PurchaseRequestController extends Controller
             'id' => $purchaseRequest->id,
             'request_no' => $purchaseRequest->request_no,
             'requested_at' => Carbon::parse($purchaseRequest->requested_at)->locale('id')->translatedFormat('d F Y'),
+            'approved_by' => $purchaseRequest->approver?->name,
+            'approved_at' => $purchaseRequest->approved_at ? Carbon::parse($purchaseRequest->approved_at)->locale('id')->translatedFormat('d F Y H:i') : null,
             'department_id' => $purchaseRequest->department_id,
             'employee_id' => $purchaseRequest->requested_by,
             'request_id' => $purchaseRequest->request_id,
