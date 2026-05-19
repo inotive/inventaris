@@ -56,7 +56,7 @@ class GoodTransfer extends Model
 
     public function goodReceipt()
     {
-        return $this->hasOne(GoodReceipt::class, 'good_transfer_id');
+        return $this->hasOne(GoodReceipt::class, 'transfer_id');
     }
 
     public function activities()

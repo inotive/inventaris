@@ -467,11 +467,25 @@ const props = defineProps({
 
 const activeTab = ref('items');
 
-// Computed property to format array attachments or fallback to single string attachment
 const attachmentsList = computed(() => {
-    const paths = props.goodReceipt.attachment_path;
-    const names = props.goodReceipt.attachment_name;
+    let paths = props.goodReceipt.attachment_path;
+    let names = props.goodReceipt.attachment_name;
     if (!paths) return [];
+
+    if (typeof paths === 'string') {
+        try {
+            if (paths.trim().startsWith('[') && paths.trim().endsWith(']')) {
+                paths = JSON.parse(paths);
+            }
+        } catch (e) {}
+    }
+    if (typeof names === 'string') {
+        try {
+            if (names.trim().startsWith('[') && names.trim().endsWith(']')) {
+                names = JSON.parse(names);
+            }
+        } catch (e) {}
+    }
 
     if (Array.isArray(paths)) {
         return paths.map((path, index) => {

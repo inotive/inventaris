@@ -37,6 +37,10 @@ class CreateGoodReceiptRequest extends FormRequest
             'items.*.shortage_reason' => 'nullable|in:rusak,hilang',
             'items.*.shortage_description' => 'nullable|string|max:500',
             'items.*.shortage_quantity' => 'nullable|integer|min:1',
+            'items.*.shortages' => 'nullable|array',
+            'items.*.shortages.*.reason' => 'required|in:rusak,hilang',
+            'items.*.shortages.*.quantity' => 'required|integer|min:1',
+            'items.*.shortages.*.description' => 'nullable|string|max:500',
         ];
     }
 }

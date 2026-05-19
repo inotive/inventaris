@@ -168,34 +168,39 @@
                             </td>
                             <!-- Kekurangan: muncul jika qty diterima < qty dikirim -->
                             <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-600 align-middle min-w-[220px]">
-                                <div v-if="hasShortage(r)" class="space-y-1">
-                                    <select
-                                        v-model="r.shortage_reason"
-                                        class="w-full h-8 px-2 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                    >
-                                        <option value="">-- Pilih Status --</option>
-                                        <option value="rusak">Rusak / Cacat</option>
-                                        <option value="hilang">Hilang</option>
-                                    </select>
-                                    <div v-if="r.shortage_reason" class="space-y-1">
-                                        <div class="flex items-center gap-1">
-                                            <span class="text-xs text-gray-500">Jml:</span>
-                                            <input
-                                                v-model="r.shortage_quantity"
-                                                type="number" min="1"
-                                                :max="getShortageMax(r)"
-                                                class="w-16 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
-                                            />
+                                <div v-if="hasShortage(r)" class="bg-amber-50/50 dark:bg-amber-950/10 border border-dashed border-amber-300 rounded-lg p-2 space-y-2">
+                                    <div class="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                        ⚠️ Rincian Kekurangan ({{ getShortageMax(r) }} {{ r.unit?.short_name || 'pcs' }})
+                                    </div>
+                                    <div class="flex flex-col gap-1.5">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Rusak / Cacat:</span>
+                                            <div class="flex items-center gap-1">
+                                                <input
+                                                    v-model.number="r.shortage_rusak"
+                                                    type="number"
+                                                    min="0"
+                                                    :max="getShortageMax(r)"
+                                                    @input="updateRusakShortage(r, r.shortage_rusak)"
+                                                    class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || 'pcs' }}</span>
+                                            </div>
                                         </div>
-                                        <input
-                                            v-model="r.shortage_description"
-                                            type="text"
-                                            placeholder="Keterangan"
-                                            class="w-full h-7 px-2 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                        />
-                                        <span :class="r.shortage_reason === 'rusak' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium">
-                                            {{ r.shortage_reason === 'rusak' ? '⚠️ Disposal Rusak' : '🔴 Disposal Hilang' }}
-                                        </span>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Hilang:</span>
+                                            <div class="flex items-center gap-1">
+                                                <input
+                                                    v-model.number="r.shortage_hilang"
+                                                    type="number"
+                                                    min="0"
+                                                    :max="getShortageMax(r)"
+                                                    @input="updateHilangShortage(r, r.shortage_hilang)"
+                                                    class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || 'pcs' }}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <span v-else class="text-xs text-gray-400">-</span>
@@ -227,7 +232,7 @@
                 v-if="!isFormValid()"
                 class="px-6 py-3 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20"
             >
-                ⚠️ Catatan penerimaan wajib diisi untuk item yang jumlah diterimanya berbeda dengan jumlah barang.
+                ⚠️ Catatan penerimaan wajib diisi untuk item yang jumlah diterimanya berbeda dengan jumlah barang, dan semua kekurangan barang harus dialokasikan ke 'Rusak' atau 'Hilang'.
             </div>
         </div>
 
@@ -389,7 +394,16 @@ const isReceiptNoteRequired = (item) => {
 const isFormValid = () => {
     return requests.value.every(item => {
         if (isReceiptNoteRequired(item)) {
-            return item.received_note && item.received_note.trim() !== '';
+            if (!item.received_note || item.received_note.trim() === '') {
+                return false;
+            }
+        }
+        if (hasShortage(item)) {
+            const total = getShortageMax(item);
+            const allocated = Number(item.shortage_rusak || 0) + Number(item.shortage_hilang || 0);
+            if (allocated !== total) {
+                return false;
+            }
         }
         return true;
     });
@@ -452,6 +466,51 @@ const getShortageMax = (r) => {
     return Number(r.quantity_received) - Number(r.quantity_actually_received);
 };
 
+const updateRusakShortage = (r, val) => {
+    const total = getShortageMax(r);
+    let valNum = Number(val) || 0;
+    if (valNum < 0) valNum = 0;
+    if (valNum > total) valNum = total;
+    
+    r.shortage_rusak = valNum;
+    r.shortage_hilang = total - valNum;
+};
+
+const updateHilangShortage = (r, val) => {
+    const total = getShortageMax(r);
+    let valNum = Number(val) || 0;
+    if (valNum < 0) valNum = 0;
+    if (valNum > total) valNum = total;
+    
+    r.shortage_hilang = valNum;
+    r.shortage_rusak = total - valNum;
+};
+
+// Deep watch on requests to auto-allocate shortages when quantity changes
+watch(
+    requests,
+    (newVal) => {
+        newVal.forEach((r) => {
+            if (hasShortage(r)) {
+                const total = getShortageMax(r);
+                if (r.shortage_rusak === undefined) r.shortage_rusak = 0;
+                if (r.shortage_hilang === undefined) r.shortage_hilang = 0;
+                
+                const allocated = Number(r.shortage_rusak || 0) + Number(r.shortage_hilang || 0);
+                if (allocated !== total) {
+                    // Default allocate everything to rusak
+                    r.shortage_rusak = total;
+                    r.shortage_hilang = 0;
+                }
+            } else {
+                r.shortage_rusak = 0;
+                r.shortage_hilang = 0;
+            }
+        });
+    },
+    { deep: true }
+);
+
 const addRequest = () => {
     const newRow = reactive({
         uid: uuidv4(),
@@ -463,9 +522,8 @@ const addRequest = () => {
         unit: {},
         note: "",
         received_note: "",
-        shortage_reason: "",
-        shortage_quantity: null,
-        shortage_description: "",
+        shortage_rusak: 0,
+        shortage_hilang: 0,
         is_preloaded: false,
     });
     bindWatcher(newRow);
@@ -506,9 +564,8 @@ function handleItemsLoaded(items) {
             quantity_actually_received: item.quantity_requested,
             note: item.note,
             received_note: "",
-            shortage_reason: "",
-            shortage_quantity: null,
-            shortage_description: "",
+            shortage_rusak: 0,
+            shortage_hilang: 0,
             is_preloaded: true,
         });
         bindWatcher(row);
@@ -560,17 +617,39 @@ function confirmSave() {
         return;
     }
 
-    form.items = requests.value.map((r) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null,
-        quantity_received: r.quantity_received,
-        quantity_actually_received: r.quantity_actually_received,
-        note: r.note ?? null,
-        received_note: r.received_note ?? null,
-        shortage_reason: hasShortage(r) ? (r.shortage_reason || null) : null,
-        shortage_quantity: hasShortage(r) ? (r.shortage_quantity || null) : null,
-        shortage_description: hasShortage(r) ? (r.shortage_description || null) : null,
-    }));
+    form.items = requests.value.map((r) => {
+        const itemPayload = {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null,
+            quantity_received: r.quantity_received,
+            quantity_actually_received: r.quantity_actually_received,
+            note: r.note ?? null,
+            received_note: r.received_note ?? null,
+        };
+
+        if (hasShortage(r)) {
+            const list = [];
+            if (Number(r.shortage_rusak || 0) > 0) {
+                list.push({
+                    reason: 'rusak',
+                    quantity: Number(r.shortage_rusak),
+                    description: r.received_note || ''
+                });
+            }
+            if (Number(r.shortage_hilang || 0) > 0) {
+                list.push({
+                    reason: 'hilang',
+                    quantity: Number(r.shortage_hilang),
+                    description: r.received_note || ''
+                });
+            }
+            itemPayload.shortages = list;
+        } else {
+            itemPayload.shortages = null;
+        }
+
+        return itemPayload;
+    });
 
     if (selectedType.value === 'pembelian') {
         form.transfer_id = null;
