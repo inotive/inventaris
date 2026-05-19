@@ -55,6 +55,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeePerformanceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SubmissionGeneralController;
+use App\Http\Controllers\AttachmentController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -318,6 +319,8 @@ Route::middleware([
     // Alias for sidebar: realtime-presences.index
     Route::get('/realtime-presences', [\App\Http\Controllers\PresenceController::class, 'index'])->name('realtime-presences.index');
     Route::get('/presences/get-information-employee', [\App\Http\Controllers\PresenceController::class, 'getInformationEmployee'])->name('presences.getInformationEmployee');
+
+    Route::get('/attachments/view', [AttachmentController::class, 'view'])->name('attachments.view');
 
     // Web logout for Inertia (used by router.post(route('logout')))
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

@@ -490,13 +490,13 @@ const attachmentsList = computed(() => {
     if (Array.isArray(paths)) {
         return paths.map((path, index) => {
             const name = (Array.isArray(names) && names[index]) ? names[index] : `Lampiran ${index + 1}`;
-            return { path, name, url: `/storage/${path}` };
+            return { path, name, url: `/attachments/view?path=${encodeURIComponent(path)}` };
         });
     }
 
     if (typeof paths === 'string') {
         const name = typeof names === 'string' ? names : 'Lampiran';
-        return [{ path: paths, name, url: `/storage/${paths}` }];
+        return [{ path: paths, name, url: `/attachments/view?path=${encodeURIComponent(paths)}` }];
     }
 
     return [];
