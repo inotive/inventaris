@@ -283,7 +283,7 @@ class PurchaseRequestController extends Controller
 
 
 
-        $materialRequests = MaterialRequest::with(['items.item.unit'])
+        $materialRequests = MaterialRequest::with(['items.item.unit', 'department.branch'])
             ->orderByDesc('request_no')
             ->when(!$canCreateGlobal, function ($query) use ($departmentIds) {
                 return $query->whereIn('material_requests.department_id', $departmentIds);
@@ -294,6 +294,7 @@ class PurchaseRequestController extends Controller
                     'id' => $mr->id,
                     'request_no' => $mr->request_no,
                     'department_id' => $mr->department_id,
+                    'branch_id' => $mr->department?->branch_id,
                     'requirement' => $mr->requirement,
                     'items' => $mr->items->map(function ($it) {
                         return [
@@ -430,7 +431,7 @@ class PurchaseRequestController extends Controller
         })->sortBy(fn($d) => $d['branch']->name)->values();
         $employees = Employee::orderBy('name')->get();
         $items = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->get();
-        $materialRequests = MaterialRequest::with(['items.item.unit'])
+        $materialRequests = MaterialRequest::with(['items.item.unit', 'department.branch'])
             ->orderByDesc('request_no')
             ->get()
             ->map(function ($mr) {
@@ -438,6 +439,7 @@ class PurchaseRequestController extends Controller
                     'id' => $mr->id,
                     'request_no' => $mr->request_no,
                     'department_id' => $mr->department_id,
+                    'branch_id' => $mr->department?->branch_id,
                     'requirement' => $mr->requirement,
                     'items' => $mr->items->map(function ($it) {
                         return [

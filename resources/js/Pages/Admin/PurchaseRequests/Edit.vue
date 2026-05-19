@@ -537,13 +537,19 @@ const requests = ref([]);
 // Initialize requests with existing data
 if (props.pr.items && props.pr.items.length > 0) {
     requests.value = props.pr.items.map((it) => {
+        const itemOption = options.value.find((o) => o.id == it.item_id);
         const row = reactive({
             uid: uuidv4(),
-            item_id: options.value.find((o) => o.id === it.item_id) ?? null,
+            item_id: itemOption || {
+                id: it.item_id,
+                name: it.name || '',
+                code: it.code || '',
+                unit: typeof it.unit === 'string' ? { short_name: it.unit } : (it.unit || {})
+            },
             code: it.code,
             name: it.name,
-            stock: it.stock ? it.stock.last_stock : 0,
-            unit: it.unit,
+            stock: typeof it.stock === 'number' ? it.stock : (it.stock?.last_stock || 0),
+            unit: typeof it.unit === 'string' ? { short_name: it.unit } : (it.unit || {}),
             request: it.quantity_requested,
             note: it.note,
             isLoadingStock: false,
@@ -595,20 +601,35 @@ watch(
             return;
         }
 
-        const mr = props.materialRequests.find((m) => m.id === newVal);
+        const mr = props.materialRequests.find((m) => m.id == newVal);
         if (mr) {
             isSettingFromMR.value = true;
-            form.department_id = mr.department_id ?? "";
+
+            // Cari department Gudang yang memiliki branch_id yang sama dengan branch_id dari MR
+            const matchingDept = props.departments.find(
+                (d) => d.branch?.id == mr.branch_id
+            );
+            if (matchingDept) {
+                form.department_id = matchingDept.id;
+            } else {
+                form.department_id = mr.department_id ?? "";
+            }
+
             form.requirement = mr.requirement ?? "";
             requests.value = mr.items.map((it) => {
+                const itemOption = options.value.find((o) => o.id == it.item_id);
                 const row = reactive({
                     uid: uuidv4(),
-                    item_id:
-                        options.value.find((o) => o.id === it.item_id) ?? null,
+                    item_id: itemOption || {
+                        id: it.item_id,
+                        name: it.name || '',
+                        code: it.code || '',
+                        unit: { short_name: it.unit || '' }
+                    },
                     code: it.code,
                     name: it.name,
-                    stock: it.stock ? it.stock.last_stock : 0,
-                    unit: it.unit,
+                    stock: typeof it.stock === 'number' ? it.stock : (it.stock?.last_stock || 0),
+                    unit: typeof it.unit === 'string' ? { short_name: it.unit } : (it.unit || {}),
                     request: it.quantity_requested,
                     note: it.note,
                 });
