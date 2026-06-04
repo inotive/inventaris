@@ -37,8 +37,9 @@ jobs:
           # Folder asal hasil kompilasi di server virtual GitHub
           local-dir: ./public/build/ 
           
-          # PERBAIKAN: Mundur dari folder 'sinergi' bawaan FTP cPanel, lalu masuk ke folder build asli
-          server-dir: ../public/build/ 
+          # SOLUSI: Karena akun FTP baru sudah dikunci langsung di dalam folder 'build',
+          # kita cukup menuliskan './' agar file langsung dituangkan di tempat robot berdiri.
+          server-dir: ./ 
           
-          # PERBAIKAN: Parameter valid untuk membersihkan berkas build lama secara total dan aman
+          # Menyapu bersih file build lama di Hostinger secara aman
           dangerous-clean-slate: true
