@@ -338,10 +338,14 @@ class PurchaseOrderController extends Controller
                     $goodReceipts = \App\Models\GoodReceipt::where('order_id', $purchaseOrder->id)->pluck('id');
                     $disposals = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
                         ->whereIn('source_id', $goodReceipts)
+                        ->with('item')
                         ->get();
 
                     return $purchaseOrder->items->map(function ($item) use ($disposals) {
-                        $itemDisposals = $disposals->where('item_id', $item->item_id);
+                        $itemName = $item->item?->name;
+                        $itemDisposals = $disposals->filter(function ($disposal) use ($itemName) {
+                            return optional($disposal->item)->name === $itemName;
+                        });
                         $qtyRusak = $itemDisposals->where('reason', 'rusak')->sum('quantity');
                         $qtyHilang = $itemDisposals->where('reason', 'hilang')->sum('quantity');
 
