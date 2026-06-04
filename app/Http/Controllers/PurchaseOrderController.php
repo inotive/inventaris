@@ -702,30 +702,29 @@ class PurchaseOrderController extends Controller
                         continue;
                     }
 
+                    $originalItem = clone $item->item;
+                    $receiverBranchId = Auth::user()->employee?->branch_id;
+                    $targetItem = $item->item;
+
+                    if ($receiverBranchId && $receiverBranchId != $originalItem->branch_id) {
+                        $itemInReceiverBranch = Item::where('name', $originalItem->name)
+                            ->where('branch_id', $receiverBranchId)
+                            ->first();
+                        if ($itemInReceiverBranch) {
+                            $targetItem = $itemInReceiverBranch;
+                        }
+                    }
+
                     if ($quantityData['additional_quantity'] > 0) {
                         $stockInData = [
                             'type' => 'in',
                             'amount' => $quantityData['additional_quantity'],
-                            'item_id' => $item->item_id,
+                            'item_id' => $targetItem->id,
                             'source_type' => PurchaseOrder::class,
                             'source_id' => $purchaseOrder->id,
                             'tanggal' => now()->toDateString(),
                             'note' => 'Pembelian barang ' . $purchaseOrder->order_no . ' berhasil diterima oleh ' . Auth::user()->employee?->name,
                         ];
-
-                        $originalItem = clone $item->item;
-                        $receiverBranchId = Auth::user()->employee?->branch_id;
-                        $targetItem = $item->item;
-
-                        if ($receiverBranchId && $receiverBranchId != $originalItem->branch_id) {
-                            $itemInReceiverBranch = Item::where('name', $originalItem->name)
-                                ->where('branch_id', $receiverBranchId)
-                                ->first();
-                            if ($itemInReceiverBranch) {
-                                $targetItem = $itemInReceiverBranch;
-                                $stockInData['item_id'] = $targetItem->id;
-                            }
-                        }
 
                         app(UpdateStockItem::class)->execute($stockInData, $targetItem);
 
@@ -735,7 +734,7 @@ class PurchaseOrderController extends Controller
                             $remainingToReduce = $quantityData['additional_quantity'];
                             $disposals = \App\Models\ItemDisposal::where('source_type', GoodReceipt::class)
                                 ->where('source_id', $goodReceipt->id)
-                                ->where('item_id', $item->item_id)
+                                ->where('item_id', $targetItem->id)
                                 ->orderBy('reason', 'asc') // 'hilang' dahulu (karena 'h' < 'r'), baru kemudian 'rusak'
                                 ->orderBy('id', 'asc')
                                 ->get();
@@ -761,7 +760,7 @@ class PurchaseOrderController extends Controller
                     if ($goodReceipt) {
                         \App\Models\ItemDisposal::where('source_type', GoodReceipt::class)
                             ->where('source_id', $goodReceipt->id)
-                            ->where('item_id', $item->item_id)
+                            ->where('item_id', $targetItem->id)
                             ->delete();
                     }
 
@@ -771,7 +770,7 @@ class PurchaseOrderController extends Controller
                             if ($shQty > 0 && !empty($sh['reason'])) {
                                 \App\Models\ItemDisposal::create([
                                     'disposal_no'   => \App\Models\ItemDisposal::generateDisposalNo(),
-                                    'item_id'       => $item->item_id, // Match original PO item_id as reverted by user
+                                    'item_id'       => $targetItem->id,
                                     'quantity'      => $shQty,
                                     'reason'        => $sh['reason'],
                                     'description'   => $sh['description'] ?? null,

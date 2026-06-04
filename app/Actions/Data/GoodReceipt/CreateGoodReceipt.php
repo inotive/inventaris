@@ -114,7 +114,7 @@ class CreateGoodReceipt
                     if ($shQty > 0 && !empty($sh['reason'])) {
                         ItemDisposal::create([
                             'disposal_no'   => ItemDisposal::generateDisposalNo(),
-                            'item_id'       => $item['item_id'],
+                            'item_id'       => $targetItem->id,
                             'quantity'      => $shQty,
                             'reason'        => $sh['reason'],
                             'description'   => $sh['description'] ?? null,
@@ -140,7 +140,7 @@ class CreateGoodReceipt
                 if ($shortageQty > 0 && !empty($item['shortage_reason'])) {
                     ItemDisposal::create([
                         'disposal_no'  => ItemDisposal::generateDisposalNo(),
-                        'item_id'      => $item['item_id'],
+                        'item_id'      => $targetItem->id,
                         'quantity'     => $shortageQty,
                         'reason'       => $item['shortage_reason'],
                         'description'  => $item['shortage_description'] ?? null,
