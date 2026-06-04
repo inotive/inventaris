@@ -383,57 +383,100 @@
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
-                                        <tr v-for="(item, index) in goodReceipt.items" :key="item.id">
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-sm font-medium text-gray-900">{{ item.item?.name || '-' }}</div>
-                                                <div class="text-sm text-gray-500">{{ item.item?.code || '-' }}</div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ item.quantity_transferred }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                <span class="font-medium">{{ item.quantity_received || 0 }}</span>
-                                                <span class="text-gray-400">/ {{ item.quantity_transferred }}</span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="flex items-center gap-2">
+                                        <template v-for="(item, index) in goodReceipt.items" :key="item.id">
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <div class="text-sm font-medium text-gray-900">{{ item.item?.name || '-' }}</div>
+                                                    <div class="text-sm text-gray-500">{{ item.item?.code || '-' }}</div>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {{ item.quantity_transferred }}
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    <span class="font-medium">{{ item.quantity_received || 0 }}</span>
+                                                    <span class="text-gray-400">/ {{ item.quantity_transferred }}</span>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <div class="flex items-center gap-2">
+                                                        <input
+                                                            v-model.number="receivedQuantities[index]"
+                                                            type="number"
+                                                            min="0"
+                                                            :max="item.quantity_transferred - (item.quantity_received || 0)"
+                                                            :class="[
+                                                                'w-24 px-3 py-1.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm',
+                                                                isNoteRequired(index) ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
+                                                            ]"
+                                                            placeholder="0"
+                                                        />
+                                                        <span v-if="isNoteRequired(index)" class="text-orange-500 text-xs" title="Catatan wajib diisi">
+                                                            ⚠️
+                                                        </span>
+                                                    </div>
+                                                    <div class="text-xs text-gray-500 mt-1">
+                                                        Sisa: {{ (item.quantity_transferred || 0) - (item.quantity_received || 0) }}
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {{ item.item?.unit?.short_name || '-' }}
+                                                </td>
+                                                <td class="px-6 py-4">
                                                     <input
-                                                        v-model.number="receivedQuantities[index]"
-                                                        type="number"
-                                                        min="0"
-                                                        :max="item.quantity_transferred - (item.quantity_received || 0)"
+                                                        v-model="itemNotes[index]"
+                                                        type="text"
                                                         :class="[
-                                                            'w-24 px-3 py-1.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm',
-                                                            isNoteRequired(index) ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
+                                                            'w-full px-3 py-1.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm',
+                                                            isNoteRequired(index) ? 'border-red-300 bg-red-50' : 'border-gray-300'
                                                         ]"
-                                                        placeholder="0"
+                                                        :placeholder="isNoteRequired(index) ? 'Catatan wajib diisi!' : 'Catatan item (opsional)'"
                                                     />
-                                                    <span v-if="isNoteRequired(index)" class="text-orange-500 text-xs" title="Catatan wajib diisi">
-                                                        ⚠️
-                                                    </span>
-                                                </div>
-                                                <div class="text-xs text-gray-500 mt-1">
-                                                    Sisa: {{ (item.quantity_transferred || 0) - (item.quantity_received || 0) }}
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ item.item?.unit?.short_name || '-' }}
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <input
-                                                    v-model="itemNotes[index]"
-                                                    type="text"
-                                                    :class="[
-                                                        'w-full px-3 py-1.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm',
-                                                        isNoteRequired(index) ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                                                    ]"
-                                                    :placeholder="isNoteRequired(index) ? 'Catatan wajib diisi!' : 'Catatan item (opsional)'"
-                                                />
-                                                <div v-if="isNoteRequired(index)" class="text-xs text-red-600 mt-1">
-                                                    * Wajib diisi karena jumlah tidak sesuai
-                                                </div>
-                                            </td>
-                                        </tr>
+                                                    <div v-if="isNoteRequired(index)" class="text-xs text-red-600 mt-1">
+                                                        * Wajib diisi karena jumlah tidak sesuai
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <!-- Expandable Shortage Allocation Section -->
+                                            <tr v-if="hasShortage(index)" class="bg-amber-50/20">
+                                                <td colspan="6" class="px-6 py-3 border-t border-gray-100">
+                                                    <div class="bg-white dark:bg-transparent border border-dashed border-amber-300 rounded-lg p-4 space-y-3">
+                                                        <div class="flex items-center gap-2 text-sm font-semibold text-amber-700">
+                                                            <span>⚠️ Rincian Kekurangan Barang</span>
+                                                            <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
+                                                                Kekurangan: {{ getShortageQty(index) }} {{ item.item?.unit?.short_name || 'pcs' }}
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        <!-- Direct Inputs for Rusak and Hilang -->
+                                                        <div class="flex flex-wrap items-center gap-6 mt-2">
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="text-xs text-gray-600 font-medium">Rusak / Cacat:</span>
+                                                                <input 
+                                                                    v-model.number="shortages[index].rusak" 
+                                                                    type="number" 
+                                                                    min="0" 
+                                                                    :max="getShortageQty(index)"
+                                                                    @input="updateRusakShortage(index, shortages[index].rusak)"
+                                                                    class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 
+                                                                />
+                                                                <span class="text-xs text-gray-500">{{ item.item?.unit?.short_name || 'pcs' }}</span>
+                                                            </div>
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="text-xs text-gray-600 font-medium">Hilang:</span>
+                                                                <input 
+                                                                    v-model.number="shortages[index].hilang" 
+                                                                    type="number" 
+                                                                    min="0" 
+                                                                    :max="getShortageQty(index)"
+                                                                    @input="updateHilangShortage(index, shortages[index].hilang)"
+                                                                    class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 
+                                                                />
+                                                                <span class="text-xs text-gray-500">{{ item.item?.unit?.short_name || 'pcs' }}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </template>
                                     </tbody>
                                 </table>
                             </div>
@@ -564,6 +607,7 @@ const attachmentsList = computed(() => {
 const showReceiveModal = ref(false);
 const receivedQuantities = ref([]);
 const itemNotes = ref([]);
+const shortages = ref([]);
 
 // Preview Modal State
 const previewOpen = ref(false)
@@ -606,9 +650,36 @@ const hasPartialReceipt = computed(() => {
     }) || false;
 });
 
-// Watch for quantity changes to update note requirements
-watch(receivedQuantities, () => {
-    // This will trigger reactivity for isNoteRequired function
+// Watch for quantity changes to update shortages and note requirements
+watch(receivedQuantities, (newVal) => {
+    newVal.forEach((qty, index) => {
+        const item = props.goodReceipt.items[index]
+        if (!item) return
+        const expected = Number(item.quantity_transferred || 0) - Number(item.quantity_received || 0)
+        const diff = expected - Number(qty || 0)
+        
+        if (diff > 0) {
+            if (!shortages.value[index] || (shortages.value[index].rusak === 0 && shortages.value[index].hilang === 0)) {
+                shortages.value[index] = {
+                    rusak: diff,
+                    hilang: 0
+                }
+            } else {
+                const totalAllocated = Number(shortages.value[index].rusak || 0) + Number(shortages.value[index].hilang || 0)
+                if (totalAllocated !== diff) {
+                    shortages.value[index] = {
+                        rusak: diff,
+                        hilang: 0
+                    }
+                }
+            }
+        } else {
+            shortages.value[index] = {
+                rusak: 0,
+                hilang: 0
+            }
+        }
+    })
 }, { deep: true });
 
 function formatDate(date) {
@@ -650,10 +721,69 @@ function onReceive() {
 
     // Reset item notes
     itemNotes.value = props.goodReceipt.items?.map(item => item.note || '') || [];
+
+    // Initialize shortages from existing disposals
+    shortages.value = props.goodReceipt.items?.map(item => {
+        const itemDisposals = props.goodReceipt.disposals || [];
+        const rusak = itemDisposals
+            .filter(d => d.item_id === item.item_id && d.reason === 'rusak')
+            .reduce((sum, d) => sum + Number(d.quantity), 0);
+        const hilang = itemDisposals
+            .filter(d => d.item_id === item.item_id && d.reason === 'hilang')
+            .reduce((sum, d) => sum + Number(d.quantity), 0);
+        return { rusak, hilang };
+    }) || [];
 }
 
 function closeReceiveModal() {
     showReceiveModal.value = false;
+    receivedQuantities.value = [];
+    itemNotes.value = [];
+    shortages.value = [];
+}
+
+const hasShortage = (index) => {
+    const item = props.goodReceipt.items[index]
+    if (!item) return false
+    const expected = Number(item.quantity_transferred || 0) - Number(item.quantity_received || 0)
+    const receivedQty = Number(receivedQuantities.value[index] || 0)
+    return receivedQty < expected
+}
+
+const getShortageQty = (index) => {
+    const item = props.goodReceipt.items[index]
+    if (!item) return 0
+    const expected = Number(item.quantity_transferred || 0) - Number(item.quantity_received || 0)
+    const receivedQty = Number(receivedQuantities.value[index] || 0)
+    return Math.max(0, expected - receivedQty)
+}
+
+const getRemainingShortageToAllocate = (index) => {
+    const totalShortage = getShortageQty(index)
+    if (totalShortage <= 0) return 0
+    const sh = shortages.value[index] || { rusak: 0, hilang: 0 }
+    const allocated = Number(sh.rusak || 0) + Number(sh.hilang || 0)
+    return totalShortage - allocated
+}
+
+const updateRusakShortage = (index, val) => {
+    const total = getShortageQty(index)
+    let r = Math.min(total, Math.max(0, Number(val) || 0))
+    if (!shortages.value[index]) {
+        shortages.value[index] = { rusak: 0, hilang: 0 }
+    }
+    shortages.value[index].rusak = r
+    shortages.value[index].hilang = total - r
+}
+
+const updateHilangShortage = (index, val) => {
+    const total = getShortageQty(index)
+    let h = Math.min(total, Math.max(0, Number(val) || 0))
+    if (!shortages.value[index]) {
+        shortages.value[index] = { rusak: 0, hilang: 0 }
+    }
+    shortages.value[index].hilang = h
+    shortages.value[index].rusak = total - h
 }
 
 function confirmReceive() {
@@ -669,6 +799,19 @@ function confirmReceive() {
 
     if (exceedsRemaining) {
         alert('Jumlah tambahan tidak boleh melebihi sisa yang belum diterima')
+        return;
+    }
+
+    // Validate that shortages are fully allocated
+    const unallocatedShortage = receivedQuantities.value.some((qty, index) => {
+        if (hasShortage(index)) {
+            return getRemainingShortageToAllocate(index) !== 0;
+        }
+        return false;
+    });
+
+    if (unallocatedShortage) {
+        alert('Mohon alokasikan semua kekurangan barang (rusak/cacat atau hilang) secara lengkap');
         return;
     }
 
@@ -723,11 +866,33 @@ function confirmReceive() {
                     throw new Error(`Item ${goodReceiptItem.item?.name || goodReceiptItem.item?.code} tidak ditemukan di Purchase Order`);
                 }
 
-                return {
+                const itemPayload = {
                     item_id: poItem.id, // purchase_order_item.id
                     additional_quantity: qty || 0,
                     receive_note: itemNotes.value[index] || ''
                 };
+
+                if (hasShortage(index) && shortages.value[index]) {
+                    const sh = shortages.value[index];
+                    const list = [];
+                    if (Number(sh.rusak || 0) > 0) {
+                        list.push({
+                            reason: 'rusak',
+                            quantity: Number(sh.rusak),
+                            description: itemNotes.value[index] || ''
+                        });
+                    }
+                    if (Number(sh.hilang || 0) > 0) {
+                        list.push({
+                            reason: 'hilang',
+                            quantity: Number(sh.hilang),
+                            description: itemNotes.value[index] || ''
+                        });
+                    }
+                    itemPayload.shortages = list;
+                }
+
+                return itemPayload;
             })
         };
 
