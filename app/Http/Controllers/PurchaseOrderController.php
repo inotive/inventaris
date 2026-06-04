@@ -383,9 +383,11 @@ class PurchaseOrderController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengubah Purchase Order dari cabang ini.');
         }
 
-        $purchaseOrder->load(['items.item.unit']);
+        $purchaseOrder->load(['request', 'items.item.unit']);
 
-        $items = Item::with(['unit'])->orderBy('name')->get();
+        $items = Item::with(['unit', 'branch'])
+            ->orderBy('name')
+            ->get();
         $employees = Employee::query()->select('id', 'name')->orderBy('name')->get();
 
         $canCreateGlobal = Auth::user()->can('purchase_orders.create_global');
@@ -393,6 +395,41 @@ class PurchaseOrderController extends Controller
         $branches = ($isSuperadmin || $canCreateGlobal)
             ? Branch::query()->select('id', 'name')->orderBy('name')->get()
             : Branch::where('id', $userBranchId)->select('id', 'name')->get();
+
+        $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
+        $purchaseRequests = PurchaseRequest::with(['items.item.unit'])
+            ->where(function($query) use ($purchaseOrder) {
+                $query->where('status', 'approved');
+                if ($purchaseOrder->request_id) {
+                    $query->orWhere('id', $purchaseOrder->request_id);
+                }
+            })
+            ->orderByDesc('request_no')
+            ->when(!$isSuperadmin, function ($query) use ($departmentIds) {
+                return $query->whereIn('purchase_requests.department_id', $departmentIds);
+            })
+            ->get()
+            ->map(function ($pr) {
+                return [
+                    'id' => $pr->id,
+                    'request_no' => $pr->request_no,
+                    'department_id' => $pr->department_id,
+                    'requirement' => $pr->requirement,
+                    'items' => $pr->items->map(function ($item) {
+                        return [
+                            'id' => $item->id,
+                            'item_id' => $item->item_id,
+                            'code' => $item->item?->code,
+                            'name' => $item->item?->name,
+                            'stock' => $item->item?->stock,
+                            'unit' => $item->item?->unit?->short_name,
+                            'quantity_requested' => $item->quantity_approved ?? $item->quantity_requested,
+                            'note' => $item->note,
+                            'branch' => $item->item?->branch?->name,
+                        ];
+                    }),
+                ];
+            });
 
         return Inertia::render('Admin/PurchaseOrders/Edit', [
             'po' => [
@@ -407,6 +444,7 @@ class PurchaseOrderController extends Controller
                 'status_invoice' => $purchaseOrder->status_invoice,
                 'status_delivered' => $purchaseOrder->status_delivered,
                 'amount_paid' => $purchaseOrder->paid_amount,
+                'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
                 'items' => $purchaseOrder->items->map(function ($item) {
                     return [
                         'id' => $item->id,
@@ -421,6 +459,7 @@ class PurchaseOrderController extends Controller
                 }),
             ],
             'items' => $items,
+            'purchaseRequests' => $purchaseRequests,
             'employees' => $employees,
             'branches' => $branches,
             'isSuperadmin' => $isSuperadmin,
