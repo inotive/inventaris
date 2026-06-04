@@ -509,11 +509,8 @@
                                     placeholder="Masukkan jumlah pembayaran tambahan"
                                     required
                                   />
-                                <div v-if="paymentForm.additional_amount > 0" class="text-xs mt-2" :class="paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0)) ? 'text-red-600' : 'text-gray-600'">
-                                    <span v-if="paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0))" class="font-medium">
-                                        Jumlah pembayaran melebihi sisa yang harus dibayar!
-                                    </span>
-                                    <div v-else class="bg-gray-50 p-2.5 rounded-lg border border-gray-200/60 space-y-1">
+                                <div class="text-xs mt-2 text-gray-600">
+                                    <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-200/60 space-y-1">
                                         <div class="flex justify-between">
                                             <span class="text-gray-500">Total setelah pembayaran:</span>
                                             <span class="font-semibold text-gray-800">{{ formatCurrency(Number(po.paid_amount || 0) + Number(paymentForm.additional_amount || 0)) }}</span>
@@ -522,6 +519,9 @@
                                             <span class="text-gray-500">Sisa pembayaran baru:</span>
                                             <span class="font-semibold text-gray-800">{{ formatCurrency(Number(po.total || 0) - (Number(po.paid_amount || 0) + Number(paymentForm.additional_amount || 0))) }}</span>
                                         </div>
+                                    </div>
+                                    <div v-if="paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0))" class="text-red-600 font-medium mt-1">
+                                        Jumlah pembayaran melebihi sisa yang harus dibayar!
                                     </div>
                                 </div>
                             </div>
