@@ -460,7 +460,7 @@ class MaterialRequestController extends Controller
         ]);
         $this->logActivity($materialRequest->id, 'Menolak Permintaan', 'Permintaan ditolak.');
         return redirect()
-            ->route('material-requests.index')
+            ->route('material-requests.show', $materialRequest->id)
             ->with('success', 'Penolakan permintaan berhasil.');
     }
 
@@ -469,7 +469,7 @@ class MaterialRequestController extends Controller
         app(ApproveMaterialRequest::class)->execute($materialRequest, $request->all());
 
         $this->logActivity($materialRequest->id, 'Menyetujui Permintaan', 'Permintaan disetujui beserta jumlah yang disetujui.');
-        return redirect()->route('material-requests.index')->with('success', 'Permintaan disetujui.');
+        return redirect()->route('material-requests.show', $materialRequest->id)->with('success', 'Permintaan disetujui.');
     }
 
     public function issue(MaterialRequest $materialRequest)
@@ -488,7 +488,7 @@ class MaterialRequestController extends Controller
             'status' => 'cancelled',
         ]);
         $this->logActivity($materialRequest->id, 'Membatalkan Permintaan', 'Permintaan dibatalkan.');
-        return redirect()->route('material-requests.index')->with('success', 'Permintaan dibatalkan.');
+        return redirect()->route('material-requests.show', $materialRequest->id)->with('success', 'Permintaan dibatalkan.');
     }
 
     public function getMaterialRequests(Request $request)

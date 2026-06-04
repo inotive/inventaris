@@ -335,7 +335,7 @@ import Form from "./Form.vue";
 import TrashIcon from "@/Components/icons/TrashIcon.vue";
 import SelectBarang from "@/Components/form/SelectBarang.vue";
 import { Head, router, useForm } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 defineOptions({
     layout: AppLayout,
