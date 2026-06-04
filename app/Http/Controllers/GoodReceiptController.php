@@ -447,7 +447,8 @@ class GoodReceiptController extends Controller
             'order:id,order_no,vendor',
             'transfer.fromBranch:id,name',
             'transfer.toBranch:id,name',
-            'items.item.unit'
+            'items.item.unit',
+            'disposals'
         ])->findOrFail($id);
 
         $departments = Department::query()->select('id', 'name')->orderBy('name')->get();

@@ -87,7 +87,10 @@
                                 Jumlah Diterima
                             </th>
                             <th class="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                Catatan Diterima
+                                Catatan Penerimaan
+                            </th>
+                            <th class="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                Kekurangan
                             </th>
                             <th class="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                 Aksi
@@ -121,7 +124,7 @@
                                         v-model="r.quantity_received"
                                         type="number"
                                         min="0"
-                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
                                         :readonly="r.is_preloaded"
                                         :disabled="r.is_preloaded"
                                     />
@@ -135,18 +138,69 @@
                                         type="number"
                                         min="0"
                                         placeholder="0"
-                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
                                     />
                                     <span class="text-gray-700 dark:text-gray-300">{{ r.unit?.short_name }}</span>
                                 </div>
                             </td>
-                            <td class="py-2.5 px-3 align-middle border-b border-gray-200 dark:border-gray-700">
-                                <input
-                                    v-model="r.note"
-                                    type="text"
-                                    placeholder="Masukkan catatan"
-                                    class="w-40 h-10 text-sm rounded placeholder:text-gray-600 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                />
+                            <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-700 align-middle min-w-[180px]">
+                                <div class="relative">
+                                    <input
+                                        v-model="r.received_note"
+                                        type="text"
+                                        :placeholder="isReceivedNoteRequired(r) ? 'Catatan penerimaan (wajib diisi)' : 'Catatan penerimaan'"
+                                        :class="[
+                                            'w-full h-10 px-2 text-sm rounded placeholder:text-gray-600 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90',
+                                            isReceivedNoteRequired(r) && (!r.received_note || r.received_note.trim() === '')
+                                                ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                                                : 'border-gray-300 dark:border-gray-700'
+                                        ]"
+                                    />
+                                    <span
+                                        v-if="isReceivedNoteRequired(r)"
+                                        class="absolute -top-1 -right-1 text-red-500 text-xs font-bold"
+                                    >
+                                        *
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-700 align-middle min-w-[220px]">
+                                <div v-if="hasShortage(r)" class="bg-amber-50/50 dark:bg-amber-950/10 border border-dashed border-amber-300 rounded-lg p-2 space-y-2">
+                                    <div class="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                        ⚠️ Rincian Kekurangan ({{ getShortageMax(r) }} {{ r.unit?.short_name || 'pcs' }})
+                                    </div>
+                                    <div class="flex flex-col gap-1.5">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Rusak / Cacat:</span>
+                                            <div class="flex items-center gap-1">
+                                                <input
+                                                    v-model.number="r.shortage_rusak"
+                                                    type="number"
+                                                    min="0"
+                                                    :max="getShortageMax(r)"
+                                                    @input="updateRusakShortage(r, r.shortage_rusak)"
+                                                    class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || 'pcs' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Hilang:</span>
+                                            <div class="flex items-center gap-1">
+                                                <input
+                                                    v-model.number="r.shortage_hilang"
+                                                    type="number"
+                                                    min="0"
+                                                    :max="getShortageMax(r)"
+                                                    @input="updateHilangShortage(r, r.shortage_hilang)"
+                                                    class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || 'pcs' }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span v-else class="text-xs text-gray-400">-</span>
                             </td>
                             <td class="py-2.5 px-3 text-center align-middle border-b border-gray-200 dark:border-gray-700">
                                 <button @click="removeItem(i)" class="focus:outline-none">
@@ -272,14 +326,72 @@ const getAvailableOptions = (currentRowIndex) => {
 
 // Computed property to check if received note is required for each item
 const isReceivedNoteRequired = (item) => {
-    return item.quantity_received !== item.quantity_actually_received;
+    return Number(item.quantity_received) !== Number(item.quantity_actually_received);
 };
+
+const hasShortage = (item) => {
+    const qty = Number(item.quantity_actually_received);
+    const sent = Number(item.quantity_received);
+    return qty < sent;
+};
+
+const getShortageMax = (item) => {
+    return Number(item.quantity_received) - Number(item.quantity_actually_received);
+};
+
+const updateRusakShortage = (item, val) => {
+    const total = getShortageMax(item);
+    let valNum = Number(val) || 0;
+    if (valNum < 0) valNum = 0;
+    if (valNum > total) valNum = total;
+    
+    item.shortage_rusak = valNum;
+    item.shortage_hilang = total - valNum;
+};
+
+const updateHilangShortage = (item, val) => {
+    const total = getShortageMax(item);
+    let valNum = Number(val) || 0;
+    if (valNum < 0) valNum = 0;
+    if (valNum > total) valNum = total;
+    
+    item.shortage_hilang = valNum;
+    item.shortage_rusak = total - valNum;
+};
+
+// Deep watch on items to auto-allocate shortages when quantity changes
+watch(
+    items,
+    (newVal) => {
+        newVal.forEach((item) => {
+            if (hasShortage(item)) {
+                const total = getShortageMax(item);
+                if (item.shortage_rusak === undefined) item.shortage_rusak = 0;
+                if (item.shortage_hilang === undefined) item.shortage_hilang = 0;
+                
+                const allocated = Number(item.shortage_rusak || 0) + Number(item.shortage_hilang || 0);
+                if (allocated !== total) {
+                    // Default allocate everything to rusak
+                    item.shortage_rusak = total;
+                    item.shortage_hilang = 0;
+                }
+            } else {
+                item.shortage_rusak = 0;
+                item.shortage_hilang = 0;
+            }
+        });
+    },
+    { deep: true }
+);
 
 // Computed property to check if all required fields are filled
 const isFormValid = () => {
     return items.value.every(item => {
         if (isReceivedNoteRequired(item)) {
-            return item.received_note && item.received_note.trim() !== '';
+            const hasNote = item.received_note && item.received_note.trim() !== '';
+            const allocated = Number(item.shortage_rusak || 0) + Number(item.shortage_hilang || 0);
+            const total = getShortageMax(item);
+            return hasNote && allocated === total;
         }
         return true;
     });
@@ -338,6 +450,8 @@ const addItem = () => {
         unit: {},
         note: "",
         received_note: "",
+        shortage_rusak: 0,
+        shortage_hilang: 0,
         is_preloaded: false,
     });
     bindWatcher(newRow);
@@ -359,13 +473,13 @@ const form = useForm({
 });
 
 // Handle items loaded from form components
-function handleItemsLoaded(items) {
-    if (!items || items.length === 0) {
+function handleItemsLoaded(itemsLoaded) {
+    if (!itemsLoaded || itemsLoaded.length === 0) {
         items.value = [];
         return;
     }
 
-    items.value = items.map((item) => {
+    items.value = itemsLoaded.map((item) => {
         const row = reactive({
             uid: uuidv4(),
             item_id:
@@ -378,6 +492,8 @@ function handleItemsLoaded(items) {
             quantity_actually_received: item.quantity_received, // Default to received quantity
             note: item.note,
             received_note: "",
+            shortage_rusak: 0,
+            shortage_hilang: 0,
             is_preloaded: true,
         });
         bindWatcher(row);
@@ -393,6 +509,14 @@ onMounted(() => {
     // Load existing items
     if (props.goodReceipt.items && props.goodReceipt.items.length > 0) {
         items.value = props.goodReceipt.items.map((item) => {
+            const itemDisposals = props.goodReceipt.disposals || [];
+            const rusak = itemDisposals
+                .filter(d => d.item_id === item.item_id && d.reason === 'rusak')
+                .reduce((sum, d) => sum + Number(d.quantity), 0);
+            const hilang = itemDisposals
+                .filter(d => d.item_id === item.item_id && d.reason === 'hilang')
+                .reduce((sum, d) => sum + Number(d.quantity), 0);
+
             const row = reactive({
                 uid: uuidv4(),
                 item_id: options.value.find((o) => o.id == item.item_id) ?? null,
@@ -403,6 +527,8 @@ onMounted(() => {
                 quantity_actually_received: item.quantity_actually_received || item.quantity_received,
                 note: item.note || '',
                 received_note: item.received_note || '',
+                shortage_rusak: rusak,
+                shortage_hilang: hilang,
                 is_preloaded: true,
             });
             bindWatcher(row);
@@ -449,14 +575,39 @@ function updateRequest() {
         }
     }
 
-    form.items = items.value.map((r) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null,
-        quantity_received: r.quantity_received,
-        quantity_actually_received: r.quantity_actually_received,
-        note: r.note ?? null,
-        received_note: r.received_note ?? null,
-    }));
+    form.items = items.value.map((r) => {
+        const itemPayload = {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null,
+            quantity_received: r.quantity_received,
+            quantity_actually_received: r.quantity_actually_received,
+            note: r.note ?? null,
+            received_note: r.received_note ?? null,
+        };
+
+        if (hasShortage(r)) {
+            const list = [];
+            if (Number(r.shortage_rusak || 0) > 0) {
+                list.push({
+                    reason: 'rusak',
+                    quantity: Number(r.shortage_rusak),
+                    description: r.received_note || ''
+                });
+            }
+            if (Number(r.shortage_hilang || 0) > 0) {
+                list.push({
+                    reason: 'hilang',
+                    quantity: Number(r.shortage_hilang),
+                    description: r.received_note || ''
+                });
+            }
+            itemPayload.shortages = list;
+        } else {
+            itemPayload.shortages = null;
+        }
+
+        return itemPayload;
+    });
 
     // Clear the opposite ID based on selected type
     if (selectedType.value === 'pembelian') {
