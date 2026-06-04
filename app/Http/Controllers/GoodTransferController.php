@@ -51,7 +51,7 @@ class GoodTransferController extends Controller
         $query = GoodTransfer::query()
             ->with(['fromBranch:id,name', 'toBranch:id,name', 'sentBy:id,name', 'receivedBy:id,name'])
             ->when(!$canViewGlobal, function ($query) use ($userBranchId) {
-                return $query->where(function($q) use ($userBranchId) {
+                return $query->where(function ($q) use ($userBranchId) {
                     $q->where('from_branch', $userBranchId)->orWhere('to_branch', $userBranchId);
                 });
             });
@@ -65,11 +65,16 @@ class GoodTransferController extends Controller
         }
 
         // Other filters
-        if ($filters['from_branch']) $query->where('from_branch', $filters['from_branch']);
-        if ($filters['to_branch']) $query->where('to_branch', $filters['to_branch']);
-        if ($filters['date_from']) $query->whereDate('transferred_at', '>=', $filters['date_from']);
-        if ($filters['date_to']) $query->whereDate('transferred_at', '<=', $filters['date_to']);
-        if ($filters['status']) $query->where('status', $filters['status']);
+        if ($filters['from_branch'])
+            $query->where('from_branch', $filters['from_branch']);
+        if ($filters['to_branch'])
+            $query->where('to_branch', $filters['to_branch']);
+        if ($filters['date_from'])
+            $query->whereDate('transferred_at', '>=', $filters['date_from']);
+        if ($filters['date_to'])
+            $query->whereDate('transferred_at', '<=', $filters['date_to']);
+        if ($filters['status'])
+            $query->where('status', $filters['status']);
 
         // Sorting
         $sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
@@ -137,7 +142,7 @@ class GoodTransferController extends Controller
 
         return Inertia::render(
             'Admin/GoodTransfers/Create',
-            compact('transfer_no',  'branches', 'employees', 'items', 'user', 'roles')
+            compact('transfer_no', 'branches', 'employees', 'items', 'user', 'roles')
         );
     }
 
@@ -150,17 +155,17 @@ class GoodTransferController extends Controller
 
         $data = $request->validate([
             'from_branch_id' => ['required', 'exists:branches,id'],
-            'to_branch_id'   => ['required', 'exists:branches,id'],
-            'employee_id'    => ['required', 'exists:employees,id'],
+            'to_branch_id' => ['required', 'exists:branches,id'],
+            'employee_id' => ['required', 'exists:employees,id'],
             'transferred_at' => ['required', 'date'],
-            'purpose'        => ['nullable', 'string'],
-            'attachment'     => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
-            'attachments'    => ['nullable', 'array'],
-            'attachments.*'  => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
-            'items'          => ['required', 'array'],
-            'items.*.item_id'              => ['required_with:items', 'exists:items,id'],
+            'purpose' => ['nullable', 'string'],
+            'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'items' => ['required', 'array'],
+            'items.*.item_id' => ['required_with:items', 'exists:items,id'],
             'items.*.quantity_transferred' => ['required_with:items', 'integer', 'min:1'],
-            'items.*.note'                 => ['nullable', 'string', 'max:225'],
+            'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 
         // Handle multiple attachment uploads
@@ -192,12 +197,12 @@ class GoodTransferController extends Controller
             DB::transaction(function () use ($data, $attachmentPaths, $attachmentNames) {
 
                 $goodTransfer = GoodTransfer::create([
-                    'from_branch'     => $data['from_branch_id'],
-                    'to_branch'       => $data['to_branch_id'],
-                    'sent_by'         => $data['employee_id'],
-                    'transferred_at'  => $data['transferred_at'],
-                    'purpose'         => $data['purpose'] ?? null,
-                    'status'          => 'Shipped',
+                    'from_branch' => $data['from_branch_id'],
+                    'to_branch' => $data['to_branch_id'],
+                    'sent_by' => $data['employee_id'],
+                    'transferred_at' => $data['transferred_at'],
+                    'purpose' => $data['purpose'] ?? null,
+                    'status' => 'Shipped',
                     'attachment_path' => !empty($attachmentPaths) ? $attachmentPaths : null,
                     'attachment_name' => !empty($attachmentNames) ? $attachmentNames : null,
                 ]);
@@ -273,28 +278,7 @@ class GoodTransferController extends Controller
                 'receipt_attachment_path' => $goodTransfer->goodReceipt?->attachment_path,
                 'receipt_attachment_name' => $goodTransfer->goodReceipt?->attachment_name,
             ],
-            'items' => $goodTransfer->items->map(function ($item) use ($goodTransfer) {
-                $goodReceipt = $goodTransfer->goodReceipt;
-                $rusak = 0;
-                $hilang = 0;
-                if ($goodReceipt) {
-                    $rusak = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
-                        ->where('source_id', $goodReceipt->id)
-                        ->whereHas('item', function ($query) use ($item) {
-                            $query->where('name', $item->item?->name);
-                        })
-                        ->where('reason', 'rusak')
-                        ->sum('quantity');
-
-                    $hilang = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
-                        ->where('source_id', $goodReceipt->id)
-                        ->whereHas('item', function ($query) use ($item) {
-                            $query->where('name', $item->item?->name);
-                        })
-                        ->where('reason', 'hilang')
-                        ->sum('quantity');
-                }
-
+            'items' => $goodTransfer->items->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_name' => $item->item?->name,
@@ -304,8 +288,6 @@ class GoodTransferController extends Controller
                     'unit' => $item->item?->unit?->short_name,
                     'note' => $item->note,
                     'note_received' => $item->note_received,
-                    'quantity_damaged' => (int) $rusak,
-                    'quantity_lost' => (int) $hilang,
                 ];
             }),
             'activities' => $goodTransfer->activities->map(function ($activity) {
@@ -520,7 +502,7 @@ class GoodTransferController extends Controller
             app(ReceiveGoodTranfer::class)->execute($goodTransfer, $requestData);
 
             return redirect()->route('good-transfers.index')
-                 ->with('success', 'Pemindahan barang berhasil ditandai sebagai diterima!');
+                ->with('success', 'Pemindahan barang berhasil ditandai sebagai diterima!');
         } catch (Exception $e) {
             Log::error('Terjadi kesalahan saat menandai pemindahan barang sebagai diterima', [
                 'error' => $e->getMessage(),

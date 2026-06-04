@@ -105,12 +105,10 @@
                     <colgroup>
                         <col style="width:60px" />
                         <col style="width:200px" />
-                        <col style="width:120px" />
+                        <col style="width:150px" />
                         <col style="width:100px" />
                         <col style="width:100px" />
-                        <col style="width:110px" />
                         <col style="width:100px" />
-                        <col style="width:80px" />
                         <col style="width:120px" />
                         <col />
                     </colgroup>
@@ -121,8 +119,6 @@
                             <th class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800"><div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Kode</div></th>
                             <th class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800"><div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Qty Dikirim</div></th>
                             <th class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800"><div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Qty Diterima</div></th>
-                            <th class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800"><div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Rusak / Cacat</div></th>
-                            <th class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800"><div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Hilang</div></th>
                             <th class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800"><div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Satuan</div></th>
                             <th class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800"><div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Catatan</div></th>
                             <th class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800"><div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Catatan Penerimaan</div></th>
@@ -130,7 +126,7 @@
                     </thead>
                     <tbody>
                         <tr v-if="!items || items.length === 0">
-                            <td colspan="10" class="text-center py-8 text-gray-500">Tidak ada item</td>
+                            <td colspan="8" class="text-center py-8 text-gray-500">Tidak ada item</td>
                         </tr>
                         <tr v-for="(it, idx) in items" :key="it.id" class="border-b border-gray-200 dark:border-gray-700">
                             <td class="px-3 py-2">{{ idx + 1 }}</td>
@@ -143,16 +139,6 @@
                                     {{ it.quantity_received || 0 }}
                                 </span>
                                 <span v-else class="text-gray-400">-</span>
-                            </td>
-                            <td class="px-3 py-2">
-                                <span :class="it.quantity_damaged > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_damaged || 0 }}
-                                </span>
-                            </td>
-                            <td class="px-3 py-2">
-                                <span :class="it.quantity_lost > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_lost || 0 }}
-                                </span>
                             </td>
                             <td class="px-3 py-2">{{ it.unit }}</td>
                             <td class="px-3 py-2">{{ it.note || '-' }}</td>
