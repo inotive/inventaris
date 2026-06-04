@@ -334,19 +334,32 @@ class PurchaseOrderController extends Controller
                 'branch' => $purchaseOrder->branch?->name ?? '-',
                 'branch_id' => $purchaseOrder->branch_id,
                 'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
-                'items' => $purchaseOrder->items->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'item_name' => $item->item?->name,
-                        'item_code' => $item->item?->code,
-                        'quantity_ordered' => $item->quantity_ordered,
-                        'quantity_received' => $item->quantity_received ?? 0,
-                        'cost' => $item->cost ?? 0,
-                        'unit' => $item->item?->unit?->short_name,
-                        'note' => $item->note,
-                        'note_received' => $item->note_received,
-                    ];
-                }),
+                'items' => (function () use ($purchaseOrder) {
+                    $goodReceipts = \App\Models\GoodReceipt::where('order_id', $purchaseOrder->id)->pluck('id');
+                    $disposals = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
+                        ->whereIn('source_id', $goodReceipts)
+                        ->get();
+
+                    return $purchaseOrder->items->map(function ($item) use ($disposals) {
+                        $itemDisposals = $disposals->where('item_id', $item->item_id);
+                        $qtyRusak = $itemDisposals->where('reason', 'rusak')->sum('quantity');
+                        $qtyHilang = $itemDisposals->where('reason', 'hilang')->sum('quantity');
+
+                        return [
+                            'id' => $item->id,
+                            'item_name' => $item->item?->name,
+                            'item_code' => $item->item?->code,
+                            'quantity_ordered' => $item->quantity_ordered,
+                            'quantity_received' => $item->quantity_received ?? 0,
+                            'cost' => $item->cost ?? 0,
+                            'unit' => $item->item?->unit?->short_name,
+                            'note' => $item->note,
+                            'note_received' => $item->note_received,
+                            'quantity_damaged' => $qtyRusak,
+                            'quantity_lost' => $qtyHilang,
+                        ];
+                    });
+                })(),
             ],
             'activities' => $activities,
             'canUpdate' => Auth::user()->can('purchase_orders.edit'),
@@ -646,6 +659,10 @@ class PurchaseOrderController extends Controller
             'quantities.*.item_id' => ['required', 'exists:purchase_order_items,id'],
             'quantities.*.additional_quantity' => ['required', 'integer', 'min:0'],
             'quantities.*.receive_note' => ['nullable', 'string', 'max:500'],
+            'quantities.*.shortages' => ['nullable', 'array'],
+            'quantities.*.shortages.*.reason' => ['required', 'string', 'in:rusak,hilang'],
+            'quantities.*.shortages.*.quantity' => ['required', 'integer', 'min:1'],
+            'quantities.*.shortages.*.description' => ['nullable', 'string', 'max:500'],
         ]);
 
         try {
@@ -680,9 +697,12 @@ class PurchaseOrderController extends Controller
                 $purchaseOrder->update(['status_delivered' => $statusDelivered]);
 
                 foreach ($data['quantities'] as $quantityData) {
-                    if ($quantityData['additional_quantity'] > 0) {
-                        $item = $purchaseOrder->items()->with('item')->where('id', $quantityData['item_id'])->first();
+                    $item = $purchaseOrder->items()->with('item')->where('id', $quantityData['item_id'])->first();
+                    if (!$item) {
+                        continue;
+                    }
 
+                    if ($quantityData['additional_quantity'] > 0) {
                         $stockInData = [
                             'type' => 'in',
                             'amount' => $quantityData['additional_quantity'],
@@ -732,6 +752,34 @@ class PurchaseOrderController extends Controller
                                     $disposal->decrement('quantity', $remainingToReduce);
                                     $remainingToReduce = 0;
                                 }
+                            }
+                        }
+                    }
+
+                    // Create disposal records for new shortages if present
+                    $goodReceipt = GoodReceipt::where('order_id', $purchaseOrder->id)->first();
+                    if ($goodReceipt) {
+                        \App\Models\ItemDisposal::where('source_type', GoodReceipt::class)
+                            ->where('source_id', $goodReceipt->id)
+                            ->where('item_id', $item->item_id)
+                            ->delete();
+                    }
+
+                    if (!empty($quantityData['shortages']) && is_array($quantityData['shortages'])) {
+                        foreach ($quantityData['shortages'] as $sh) {
+                            $shQty = (int)($sh['quantity'] ?? 0);
+                            if ($shQty > 0 && !empty($sh['reason'])) {
+                                \App\Models\ItemDisposal::create([
+                                    'disposal_no'   => \App\Models\ItemDisposal::generateDisposalNo(),
+                                    'item_id'       => $item->item_id, // Match original PO item_id as reverted by user
+                                    'quantity'      => $shQty,
+                                    'reason'        => $sh['reason'],
+                                    'description'   => $sh['description'] ?? null,
+                                    'source_type'   => GoodReceipt::class,
+                                    'source_id'     => $goodReceipt ? $goodReceipt->id : null,
+                                    'reported_by'   => Auth::user()->employee?->id,
+                                    'disposal_date' => now()->toDateString(),
+                                ]);
                             }
                         }
                     }

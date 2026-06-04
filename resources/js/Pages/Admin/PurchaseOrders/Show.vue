@@ -160,6 +160,16 @@
                             </th>
                             <th
                                 class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
+                                <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Rusak / Cacat
+                                </div>
+                            </th>
+                            <th
+                                class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
+                                <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Hilang
+                                </div>
+                            </th>
+                            <th
+                                class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
                                 <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Harga Satuan
                                 </div>
                             </th>
@@ -183,7 +193,7 @@
                     </thead>
                     <tbody>
                         <tr v-if="!po.items || po.items.length === 0">
-                            <td colspan="10" class="text-center py-8 text-gray-500">Tidak ada item</td>
+                            <td colspan="12" class="text-center py-8 text-gray-500">Tidak ada item</td>
                         </tr>
                         <tr v-for="(it, idx) in po.items" :key="it.id"
                             class="border-b border-gray-200 dark:border-gray-700">
@@ -194,6 +204,16 @@
                             <td class="px-3 py-2">
                                 <span :class="it.quantity_received > 0 ? 'text-green-600 font-semibold' : 'text-gray-500'">
                                     {{ it.quantity_received || 0 }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2">
+                                <span :class="it.quantity_damaged > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
+                                    {{ it.quantity_damaged || 0 }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2">
+                                <span :class="it.quantity_lost > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
+                                    {{ it.quantity_lost || 0 }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">{{ formatCurrency(it.cost) }}</td>
@@ -761,7 +781,10 @@ function onReceive() {
     }
 
     itemNotes.value = po.items?.map(item => item.note_received || '') || []
-    shortages.value = po.items?.map(() => ({ rusak: 0, hilang: 0 })) || []
+    shortages.value = po.items?.map(item => ({
+        rusak: item.quantity_damaged || 0,
+        hilang: item.quantity_lost || 0
+    })) || []
     receiveAttachmentFiles.value = []
 }
 

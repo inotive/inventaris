@@ -151,6 +151,10 @@ class PermissionSeeder extends Seeder
                 'key' => 'stock_recap',
                 'actions' => ['view', 'view_global', 'adjust'],
             ],
+            'Data Disposal' => [
+                'key' => 'item_disposals',
+                'actions' => ['view', 'view_global'],
+            ],
             'Daftar Cabang' => [
                 'key' => 'branches',
                 'actions' => ['view', 'create', 'edit', 'delete'],

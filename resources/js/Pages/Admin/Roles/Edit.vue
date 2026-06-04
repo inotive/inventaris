@@ -30,7 +30,7 @@
                             class="flex items-center justify-between text-lg font-bold dark:text-gray-100"
                         >
                             {{ groupName }}
-                            <label class="cursor-pointer">
+                            <label v-if="getFilteredPermissions(groupPermissions).length > 1" class="cursor-pointer">
                                 <input
                                     type="checkbox"
                                     :checked="isGroupChecked(groupPermissions)"
@@ -49,36 +49,53 @@
                             </label>
                         </h5>
 
-                        <div class="grid gap-">
+                        <div class="grid gap-1">
                             <!-- Permission -->
                             <div
-                                v-for="permission in groupPermissions"
+                                v-for="permission in getFilteredPermissions(groupPermissions)"
                                 :key="permission.id"
-                                class="flex items-center gap-3 p-2"
+                                class="flex flex-col gap-2 p-2"
                             >
-                                <label class="cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        v-model="
-                                            checkedPermissions[permission.id]
-                                        "
-                                        :checked="hasPermission(permission.id)"
+                                <div class="flex items-center gap-3">
+                                    <label class="cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            v-model="
+                                                checkedPermissions[permission.id]
+                                            "
+                                            :checked="hasPermission(permission.id)"
+                                            :disabled="!can('roles.edit')"
+                                            @change="
+                                                isViewPermission(permission) && hasViewAndGlobal(groupPermissions)
+                                                    ? handleViewToggle(permission, groupPermissions, $event.target.checked)
+                                                    : togglePermission(
+                                                        permission.id,
+                                                        $event.target.checked
+                                                    )
+                                            "
+                                            class="sr-only peer"
+                                        />
+                                        <div
+                                            class="relative w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-sky-300 dark:peer-focus:ring-sky-500 dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-sky-500 dark:peer-checked:bg-sky-600"
+                                        ></div>
+                                    </label>
+                                    <span class="dark:text-gray-200">
+                                        {{ permission.display_name }}
+                                    </span>
+                                </div>
+
+                                <!-- Dropdown if view is enabled and group has view and global -->
+                                <div v-if="isViewPermission(permission) && hasViewAndGlobal(groupPermissions) && checkedPermissions[permission.id]" class="mt-1 pl-[56px]">
+                                    <select
+                                        :value="checkedPermissions[getAssociatedGlobalPermission(permission, groupPermissions)?.id] ? 'all' : 'self'"
+                                        @change="handleScopeChange(permission, groupPermissions, $event.target.value)"
                                         :disabled="!can('roles.edit')"
-                                        @change="
-                                            togglePermission(
-                                                permission.id,
-                                                $event.target.checked
-                                            )
-                                        "
-                                        class="sr-only peer"
-                                    />
-                                    <div
-                                        class="relative w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-sky-300 dark:peer-focus:ring-sky-500 dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-sky-500 dark:peer-checked:bg-sky-600"
-                                    ></div>
-                                </label>
-                                <span class="dark:text-gray-200">
-                                    {{ permission.display_name }}
-                                </span>
+                                        class="w-full text-xs rounded border border-gray-200 dark:border-gray-600 bg-transparent dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+                                    >
+                                        <option value="self">Cabang Sendiri</option>
+                                        <option value="all">Semua Cabang</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -154,6 +171,31 @@ const togglePermission = (permissionId, checked) => {
     });
 };
 
+const toggleMultiplePermissions = (permissionIds, checked) => {
+    if (!can('roles.edit')) return;
+
+    toggleForm.permission_ids = permissionIds;
+    toggleForm.checked = checked;
+
+    toggleForm.patch(route("roles.update", props.role.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            permissionIds.forEach((id) => {
+                if (checked) {
+                    if (!rolePermissions.value.includes(id)) {
+                        rolePermissions.value.push(id);
+                    }
+                } else {
+                    rolePermissions.value = rolePermissions.value.filter(
+                        (item) => item !== id
+                    );
+                }
+                checkedPermissions[id] = checked;
+            });
+        },
+    });
+};
+
 const toggleGroup = (groupPermissions, checked) => {
     if (!can('roles.edit')) return;
 
@@ -186,6 +228,44 @@ const isGroupChecked = (groupPermissions) => {
 };
 
 const checkedPermissions = reactive({});
+
+const hasViewAndGlobal = (groupPermissions) => {
+    const hasView = groupPermissions.some(p => p.name.endsWith('.view'));
+    const hasGlobal = groupPermissions.some(p => p.name.endsWith('.view_global'));
+    return hasView && hasGlobal;
+};
+
+const getFilteredPermissions = (groupPermissions) => {
+    if (hasViewAndGlobal(groupPermissions)) {
+        return groupPermissions.filter(p => !p.name.endsWith('.view_global'));
+    }
+    return groupPermissions;
+};
+
+const isViewPermission = (permission) => {
+    return permission.name.endsWith('.view');
+};
+
+const getAssociatedGlobalPermission = (permission, groupPermissions) => {
+    const baseName = permission.name.slice(0, -5); // remove '.view'
+    return groupPermissions.find(p => p.name === baseName + '.view_global');
+};
+
+const handleViewToggle = (permission, groupPermissions, checked) => {
+    const globalPerm = getAssociatedGlobalPermission(permission, groupPermissions);
+    if (!checked && globalPerm && hasPermission(globalPerm.id)) {
+        toggleMultiplePermissions([permission.id, globalPerm.id], false);
+    } else {
+        togglePermission(permission.id, checked);
+    }
+};
+
+const handleScopeChange = (permission, groupPermissions, value) => {
+    const globalPerm = getAssociatedGlobalPermission(permission, groupPermissions);
+    if (globalPerm) {
+        togglePermission(globalPerm.id, value === 'all');
+    }
+};
 
 onMounted(() => {
     Object.values(props.permissions).forEach((group) => {

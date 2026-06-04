@@ -7,12 +7,15 @@ use App\Models\ItemCategory;
 use App\Models\ItemDisposal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class ItemDisposalController extends Controller
 {
     public function index(Request $request)
     {
+        abort_unless(Gate::allows('item_disposals.view'), 403, 'Anda tidak memiliki akses untuk melihat data disposal.');
+
         $filters = [
             'date_from'   => $request->input('date_from'),
             'date_to'     => $request->input('date_to'),
@@ -24,7 +27,7 @@ class ItemDisposalController extends Controller
         $tanggalAwal  = $filters['date_from'] ? \Carbon\Carbon::parse($filters['date_from'])->startOfDay() : null;
         $tanggalAkhir = $filters['date_to'] ? \Carbon\Carbon::parse($filters['date_to'])->endOfDay() : null;
 
-        $isSuperadmin = Auth::user()->hasRole("Superadmin");
+        $canViewGlobal = Auth::user()->hasRole("Superadmin") || Auth::user()->can("item_disposals.view_global");
         $userBranchId = Auth::user()->employee->branch_id ?? null;
 
         $query = ItemDisposal::with(['item.category', 'item.unit', 'item.branch', 'reporter'])
@@ -53,8 +56,8 @@ class ItemDisposalController extends Controller
             $query->whereHas('item', function ($q) use ($filters) {
                 $q->where('branch_id', $filters['branch_id']);
             });
-        } elseif (!$isSuperadmin && $userBranchId) {
-            // Non-superadmin is restricted to their own branch
+        } elseif (!$canViewGlobal && $userBranchId) {
+            // Non-superadmin without view_global permission is restricted to their own branch
             $query->whereHas('item', function ($q) use ($userBranchId) {
                 $q->where('branch_id', $userBranchId);
             });

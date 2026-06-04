@@ -203,6 +203,32 @@
                                 </div>
                             </th>
                             <th
+                                class="py-3 border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800"
+                            >
+                                <div
+                                    class="flex items-center justify-center gap-2 px-3"
+                                >
+                                    <p
+                                        class="font-medium text-gray-500 whitespace-nowrap dark:text-gray-400"
+                                    >
+                                        Rusak / Cacat
+                                    </p>
+                                </div>
+                            </th>
+                            <th
+                                class="py-3 border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800"
+                            >
+                                <div
+                                    class="flex items-center justify-center gap-2 px-3"
+                                >
+                                    <p
+                                        class="font-medium text-gray-500 whitespace-nowrap dark:text-gray-400"
+                                    >
+                                        Hilang
+                                    </p>
+                                </div>
+                            </th>
+                            <th
                                 class="py-3 border cursor-pointer border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800"
                             >
                                 <div
@@ -219,7 +245,7 @@
                     </thead>
                     <tbody>
                         <tr v-if="!goodReceipt.items || goodReceipt.items.length === 0">
-                            <td colspan="5" class="py-8 text-center text-gray-500">
+                            <td colspan="8" class="py-8 text-center text-gray-500">
                                 Tidak ada item.
                             </td>
                         </tr>
@@ -272,6 +298,30 @@
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
                                     <span class="font-medium">{{ item.quantity_received }}</span>
+                                    {{ item.item?.unit?.short_name || '' }}
+                                </div>
+                            </td>
+                            <td
+                                class="py-2.5 border border-gray-200 dark:border-gray-600"
+                            >
+                                <div
+                                    class="flex items-center gap-3 ps-6 whitespace-nowrap"
+                                >
+                                    <span :class="getDisposalQty(item.item_id, 'rusak') > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
+                                        {{ getDisposalQty(item.item_id, 'rusak') }}
+                                    </span>
+                                    {{ item.item?.unit?.short_name || '' }}
+                                </div>
+                            </td>
+                            <td
+                                class="py-2.5 border border-gray-200 dark:border-gray-600"
+                            >
+                                <div
+                                    class="flex items-center gap-3 ps-6 whitespace-nowrap"
+                                >
+                                    <span :class="getDisposalQty(item.item_id, 'hilang') > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
+                                        {{ getDisposalQty(item.item_id, 'hilang') }}
+                                    </span>
                                     {{ item.item?.unit?.short_name || '' }}
                                 </div>
                             </td>
@@ -465,6 +515,13 @@ const props = defineProps({
     activities: { type: Array, default: () => [] },
     canUpdate: { type: Boolean, default: false },
 });
+
+const getDisposalQty = (itemId, reason) => {
+    if (!props.goodReceipt.disposals) return 0;
+    return props.goodReceipt.disposals
+        .filter(d => d.item_id === itemId && d.reason === reason)
+        .reduce((sum, d) => sum + Number(d.quantity), 0);
+};
 
 const activeTab = ref('items');
 

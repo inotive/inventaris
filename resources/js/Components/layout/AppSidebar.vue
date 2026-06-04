@@ -1093,7 +1093,7 @@ const menuGroups = [
                 icon: DocsIcon,
                 name: "Data Disposal",
                 pathName: "item-disposals.index",
-                permission: "dashboard.view",
+                permission: "item_disposals.view",
             },
         ],
     },
