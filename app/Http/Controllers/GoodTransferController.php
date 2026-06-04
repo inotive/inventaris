@@ -273,7 +273,28 @@ class GoodTransferController extends Controller
                 'receipt_attachment_path' => $goodTransfer->goodReceipt?->attachment_path,
                 'receipt_attachment_name' => $goodTransfer->goodReceipt?->attachment_name,
             ],
-            'items' => $goodTransfer->items->map(function ($item) {
+            'items' => $goodTransfer->items->map(function ($item) use ($goodTransfer) {
+                $goodReceipt = $goodTransfer->goodReceipt;
+                $rusak = 0;
+                $hilang = 0;
+                if ($goodReceipt) {
+                    $rusak = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
+                        ->where('source_id', $goodReceipt->id)
+                        ->whereHas('item', function ($query) use ($item) {
+                            $query->where('name', $item->item?->name);
+                        })
+                        ->where('reason', 'rusak')
+                        ->sum('quantity');
+
+                    $hilang = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
+                        ->where('source_id', $goodReceipt->id)
+                        ->whereHas('item', function ($query) use ($item) {
+                            $query->where('name', $item->item?->name);
+                        })
+                        ->where('reason', 'hilang')
+                        ->sum('quantity');
+                }
+
                 return [
                     'id' => $item->id,
                     'item_name' => $item->item?->name,
@@ -283,6 +304,8 @@ class GoodTransferController extends Controller
                     'unit' => $item->item?->unit?->short_name,
                     'note' => $item->note,
                     'note_received' => $item->note_received,
+                    'quantity_damaged' => (int) $rusak,
+                    'quantity_lost' => (int) $hilang,
                 ];
             }),
             'activities' => $goodTransfer->activities->map(function ($activity) {
