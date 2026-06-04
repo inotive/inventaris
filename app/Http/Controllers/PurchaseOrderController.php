@@ -396,18 +396,19 @@ class PurchaseOrderController extends Controller
             ? Branch::query()->select('id', 'name')->orderBy('name')->get()
             : Branch::where('id', $userBranchId)->select('id', 'name')->get();
 
-        $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
+        $poBranchId = $purchaseOrder->branch_id ?: $userBranchId;
+        $departmentIds = Department::where('branch_id', $poBranchId)->pluck('id');
         $purchaseRequests = PurchaseRequest::with(['items.item.unit'])
-            ->where(function($query) use ($purchaseOrder) {
-                $query->where('status', 'approved');
+            ->where(function($query) use ($purchaseOrder, $departmentIds) {
+                $query->where(function($q) use ($departmentIds) {
+                    $q->where('status', 'approved')
+                      ->whereIn('purchase_requests.department_id', $departmentIds);
+                });
                 if ($purchaseOrder->request_id) {
                     $query->orWhere('id', $purchaseOrder->request_id);
                 }
             })
             ->orderByDesc('request_no')
-            ->when(!$isSuperadmin, function ($query) use ($departmentIds) {
-                return $query->whereIn('purchase_requests.department_id', $departmentIds);
-            })
             ->get()
             ->map(function ($pr) {
                 return [
