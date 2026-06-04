@@ -35,7 +35,7 @@
                 >
                     <option value="">Pilih Purchase Request</option>
                     <option v-for="pr in purchaseRequests" :key="pr.id" :value="pr.id">
-                        {{ pr.request_no }} - {{ pr.requirement }}
+                        {{ pr.request_no }}{{ pr.requirement ? ' - ' + pr.requirement : '' }}
                     </option>
                 </select>
                 <div class="text-xs text-gray-500 mt-1">
