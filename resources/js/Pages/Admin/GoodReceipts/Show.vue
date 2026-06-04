@@ -6,7 +6,7 @@
             <div class="flex gap-2">
                 <!-- Show Update Barang Diterima button if there are items with partial receipt -->
                 <button
-                    v-if="hasPartialReceipt"
+                    v-if="hasPartialReceipt && canUpdate"
                     @click="onReceive"
                     class="inline-flex items-center rounded bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700"
                 >
@@ -463,6 +463,7 @@ const props = defineProps({
     departments: { type: Array, required: true },
     employees: { type: Array, required: true },
     activities: { type: Array, default: () => [] },
+    canUpdate: { type: Boolean, default: false },
 });
 
 const activeTab = ref('items');

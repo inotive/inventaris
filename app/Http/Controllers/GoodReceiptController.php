@@ -435,6 +435,7 @@ class GoodReceiptController extends Controller
             'departments' => $departments,
             'employees' => $employees,
             'activities' => $activities,
+            'canUpdate' => Auth::user()->can('good_receipts.edit') || Auth::user()->hasRole('Superadmin'),
         ]);
     }
 

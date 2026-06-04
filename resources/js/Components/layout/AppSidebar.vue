@@ -585,6 +585,90 @@
                                                                 )
                                                             }}
                                                         </span>
+                                                        <!-- Badge for Pembelian Barang -->
+                                                        <span
+                                                            v-if="
+                                                                subItem.path ===
+                                                                    '/purchase-orders' &&
+                                                                getGoodsTransactionPendingCount(
+                                                                    'purchase_orders',
+                                                                ) > 0
+                                                            "
+                                                            :class="[
+                                                                'inline-flex min-w-[20px] h-5 shrink-0 justify-center items-center rounded-full px-1.5 text-[10px] font-bold',
+                                                                isActive(
+                                                                    subItem.pathName
+                                                                        ? route(
+                                                                              subItem.pathName,
+                                                                          )
+                                                                        : subItem.path,
+                                                                )
+                                                                    ? 'bg-yellow-600 text-white'
+                                                                    : 'bg-yellow-500 text-white',
+                                                            ]"
+                                                        >
+                                                            {{
+                                                                getGoodsTransactionPendingCount(
+                                                                    "purchase_orders",
+                                                                )
+                                                            }}
+                                                        </span>
+                                                        <!-- Badge for Perpindahan Barang -->
+                                                        <span
+                                                            v-if="
+                                                                subItem.path ===
+                                                                    '/good-transfers' &&
+                                                                getGoodsTransactionPendingCount(
+                                                                    'good_transfers',
+                                                                ) > 0
+                                                            "
+                                                            :class="[
+                                                                'inline-flex min-w-[20px] h-5 shrink-0 justify-center items-center rounded-full px-1.5 text-[10px] font-bold',
+                                                                isActive(
+                                                                    subItem.pathName
+                                                                        ? route(
+                                                                              subItem.pathName,
+                                                                          )
+                                                                        : subItem.path,
+                                                                )
+                                                                    ? 'bg-yellow-600 text-white'
+                                                                    : 'bg-yellow-500 text-white',
+                                                            ]"
+                                                        >
+                                                            {{
+                                                                getGoodsTransactionPendingCount(
+                                                                    "good_transfers",
+                                                                )
+                                                            }}
+                                                        </span>
+                                                        <!-- Badge for Pemakaian Barang -->
+                                                        <span
+                                                            v-if="
+                                                                subItem.path ===
+                                                                    '/good-issues' &&
+                                                                getGoodsTransactionPendingCount(
+                                                                    'good_issues',
+                                                                ) > 0
+                                                            "
+                                                            :class="[
+                                                                'inline-flex min-w-[20px] h-5 shrink-0 justify-center items-center rounded-full px-1.5 text-[10px] font-bold',
+                                                                isActive(
+                                                                    subItem.pathName
+                                                                        ? route(
+                                                                              subItem.pathName,
+                                                                          )
+                                                                        : subItem.path,
+                                                                )
+                                                                    ? 'bg-yellow-600 text-white'
+                                                                    : 'bg-yellow-500 text-white',
+                                                            ]"
+                                                        >
+                                                            {{
+                                                                getGoodsTransactionPendingCount(
+                                                                    "good_issues",
+                                                                )
+                                                            }}
+                                                        </span>
                                                         <!-- Badge for Data Pengguna (pending users) -->
                                                         <span
                                                             v-if="

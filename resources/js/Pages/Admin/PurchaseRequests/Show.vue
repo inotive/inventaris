@@ -398,6 +398,7 @@ import { ref, computed } from 'vue'
 import Breadcrumb from '@/Components/common/Breadcrumb.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ConfirmModal from '@/Components/common/ConfirmModal.vue'
+import Swal from 'sweetalert2'
 
 const props = defineProps({
     pr: { type: Object, required: true },
@@ -486,8 +487,20 @@ function formatDate(date) {
 }
 
 function onDelete() {
-    if (!confirm('Hapus pengajuan pembelian ini?')) return
-    router.delete(route('purchase-requests.destroy', pr.id))
+    Swal.fire({
+        title: 'Hapus pengajuan?',
+        text: 'Apakah Anda yakin ingin menghapus pengajuan pembelian ini?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Ya, Hapus',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('purchase-requests.destroy', pr.id))
+        }
+    })
 }
 
 function onRejected() {
@@ -501,7 +514,11 @@ function closeConfirmRejected() {
 
 function submitRejected() {
     if (!rejectionForm.value.reason.trim()) {
-        alert('Alasan penolakan harus diisi')
+        Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan',
+            text: 'Alasan penolakan harus diisi'
+        })
         return
     }
 
@@ -607,13 +624,21 @@ function submitPO() {
 
     // Validate PO date
     if (!poForm.value.po_date) {
-        alert('Tanggal PO harus diisi')
+        Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan',
+            text: 'Tanggal PO harus diisi'
+        })
         return
     }
 
     // Validate items have prices
     if (poForm.value.items.some(item => item.unit_price <= 0)) {
-        alert('Masukkan harga untuk semua item')
+        Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan',
+            text: 'Masukkan harga untuk semua item'
+        })
         return
     }
 

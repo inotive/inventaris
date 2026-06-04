@@ -708,6 +708,32 @@ class PurchaseOrderController extends Controller
                         }
 
                         app(UpdateStockItem::class)->execute($stockInData, $targetItem);
+
+                        // Kurangi / sesuaikan data disposal yang sudah dicatat sebelumnya untuk item ini
+                        $goodReceipt = GoodReceipt::where('order_id', $purchaseOrder->id)->first();
+                        if ($goodReceipt) {
+                            $remainingToReduce = $quantityData['additional_quantity'];
+                            $disposals = \App\Models\ItemDisposal::where('source_type', GoodReceipt::class)
+                                ->where('source_id', $goodReceipt->id)
+                                ->where('item_id', $item->item_id)
+                                ->orderBy('reason', 'asc') // 'hilang' dahulu (karena 'h' < 'r'), baru kemudian 'rusak'
+                                ->orderBy('id', 'asc')
+                                ->get();
+
+                            foreach ($disposals as $disposal) {
+                                if ($remainingToReduce <= 0) {
+                                    break;
+                                }
+
+                                if ($disposal->quantity <= $remainingToReduce) {
+                                    $remainingToReduce -= $disposal->quantity;
+                                    $disposal->delete();
+                                } else {
+                                    $disposal->decrement('quantity', $remainingToReduce);
+                                    $remainingToReduce = 0;
+                                }
+                            }
+                        }
                     }
                 }
 
