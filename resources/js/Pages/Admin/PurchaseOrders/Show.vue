@@ -687,12 +687,12 @@ defineOptions({
 })
 
 function isNoteRequired(index) {
-    const orderedQty = po.items[index]?.quantity_ordered || 0
-    const receivedQty = receivedQuantities.value[index] || 0
+    const orderedQty = Number(po.items[index]?.quantity_ordered || 0)
+    const receivedQty = Number(receivedQuantities.value[index] || 0)
 
     if (po.status_delivered === 'partial') {
         // For partial status, check if total received (existing + new) equals ordered
-        const alreadyReceived = po.items[index]?.quantity_received || 0
+        const alreadyReceived = Number(po.items[index]?.quantity_received || 0)
         const totalReceived = alreadyReceived + receivedQty
         return totalReceived !== orderedQty
     } else {
@@ -800,9 +800,9 @@ const hasShortage = (index) => {
     const item = po.items[index]
     if (!item) return false
     const expected = po.status_delivered === 'partial' 
-        ? (item.quantity_ordered - (item.quantity_received || 0)) 
-        : item.quantity_ordered
-    const receivedQty = receivedQuantities.value[index] || 0
+        ? (Number(item.quantity_ordered || 0) - Number(item.quantity_received || 0)) 
+        : Number(item.quantity_ordered || 0)
+    const receivedQty = Number(receivedQuantities.value[index] || 0)
     return receivedQty < expected
 }
 
@@ -811,9 +811,9 @@ const getShortageQty = (index) => {
     const item = po.items[index]
     if (!item) return 0
     const expected = po.status_delivered === 'partial' 
-        ? (item.quantity_ordered - (item.quantity_received || 0)) 
-        : item.quantity_ordered
-    const receivedQty = receivedQuantities.value[index] || 0
+        ? (Number(item.quantity_ordered || 0) - Number(item.quantity_received || 0)) 
+        : Number(item.quantity_ordered || 0)
+    const receivedQty = Number(receivedQuantities.value[index] || 0)
     return Math.max(0, expected - receivedQty)
 }
 
