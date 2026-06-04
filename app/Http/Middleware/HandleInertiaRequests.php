@@ -94,19 +94,66 @@ class HandleInertiaRequests extends Middleware
                 ? \App\Models\User::where('status', 'pending')->count()
                 : 0,
             'goodsTransactionsPendingCount' => fn() => Auth::check()
-                ? cache()->remember('goods_transactions_pending_count', 60, function () {
-                    $viewData = DB::table('v_goods_transactions_pending_count')->get();
+                ? cache()->remember('goods_transactions_pending_count_' . Auth::id(), 60, function () {
+                    $user = Auth::user();
+                    $isSuperAdmin = method_exists($user, 'hasRole') && $user->hasRole('Superadmin');
+                    $branchId = optional($user->employee)->branch_id;
 
-                    $byType = [];
-                    $total = 0;
-
-                    foreach ($viewData as $row) {
-                        $byType[$row->transaction_type] = $row->pending_count;
-                        $total += $row->pending_count;
+                    // 1. material_requests: pending status is 'pending'
+                    $mrQuery = DB::table('material_requests')
+                        ->where('status', 'pending');
+                    if (!$isSuperAdmin && !$user->can('material_requests.view_global') && $branchId) {
+                        $mrQuery->join('departments', 'material_requests.department_id', '=', 'departments.id')
+                            ->where('departments.branch_id', $branchId);
                     }
+                    $mrCount = $mrQuery->count();
+
+                    // 2. purchase_requests: pending status is 'on_progress'
+                    $prQuery = DB::table('purchase_requests')
+                        ->where('status', 'on_progress');
+                    if (!$isSuperAdmin && !$user->can('purchase_requests.view_global') && $branchId) {
+                        $prQuery->join('departments', 'purchase_requests.department_id', '=', 'departments.id')
+                            ->where('departments.branch_id', $branchId);
+                    }
+                    $prCount = $prQuery->count();
+
+                    // 3. purchase_orders: pending status is status_delivered = 'pending'
+                    $poQuery = DB::table('purchase_orders')
+                        ->where('status_delivered', 'pending');
+                    if (!$isSuperAdmin && !$user->can('purchase_orders.view_global') && $branchId) {
+                        $poQuery->where('branch_id', $branchId);
+                    }
+                    $poCount = $poQuery->count();
+
+                    // 4. good_issues: pending status is 'pending'
+                    $giQuery = DB::table('good_issues')
+                        ->where('status', 'pending');
+                    if (!$isSuperAdmin && !$user->can('good_issues.view_global') && $branchId) {
+                        $giQuery->join('departments', 'good_issues.department_id', '=', 'departments.id')
+                            ->where('departments.branch_id', $branchId);
+                    }
+                    $giCount = $giQuery->count();
+
+                    // 5. good_transfers: pending status is 'Shipped'
+                    $gtQuery = DB::table('good_transfers')
+                        ->where('status', 'Shipped');
+                    if (!$isSuperAdmin && !$user->can('good_transfers.view_global') && $branchId) {
+                        $gtQuery->where(function($q) use ($branchId) {
+                            $q->where('from_branch', $branchId)->orWhere('to_branch', $branchId);
+                        });
+                    }
+                    $gtCount = $gtQuery->count();
+
+                    $byType = [
+                        'material_requests' => $mrCount,
+                        'purchase_requests' => $prCount,
+                        'purchase_orders' => $poCount,
+                        'good_issues' => $giCount,
+                        'good_transfers' => $gtCount,
+                    ];
 
                     return [
-                        'total' => $total,
+                        'total' => array_sum($byType),
                         'by_type' => $byType,
                     ];
                 })
