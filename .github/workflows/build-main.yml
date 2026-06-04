@@ -34,11 +34,11 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           
-          # Folder hasil build di server virtual GitHub
+          # Folder asal hasil kompilasi di server virtual GitHub
           local-dir: ./public/build/ 
           
-          # Folder tujuan di Hostinger (karena akun FTP dikunci di folder proyek Sinergi)
-          server-dir: ./public/build/ 
+          # PERBAIKAN: Mundur dari folder 'sinergi' bawaan FTP cPanel, lalu masuk ke folder build asli
+          server-dir: ../public/build/ 
           
-          # Membersihkan file build lama di Hostinger secara aman
-          dangerous-clean-html: true
+          # PERBAIKAN: Parameter valid untuk membersihkan berkas build lama secara total dan aman
+          dangerous-clean-slate: true
