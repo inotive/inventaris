@@ -40,7 +40,68 @@ class StockRecapController extends Controller
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         
         // Get all items with stock data grouped by item and branch
-        $itemsQuery = Item::with(['category', 'unit', 'branch'])
+        $uniqueQuery = Item::query()
+            ->select('items.name', 'items.category_id', 'items.unit_id', DB::raw('MIN(items.id) as id'))
+            ->groupBy('items.name', 'items.category_id', 'items.unit_id')
+            ->when($filters['item_id'], function ($q) use ($filters) {
+                // If specific item is selected, we filter by name of that item
+                $selectedItem = Item::find($filters['item_id']);
+                if ($selectedItem) {
+                    $q->where('items.name', $selectedItem->name);
+                }
+            })
+            ->when($filters['category_id'], function ($q) use ($filters) {
+                $q->where('items.category_id', $filters['category_id']);
+            })
+            ->when($filters['unit_id'], function ($q) use ($filters) {
+                $q->where('items.unit_id', $filters['unit_id']);
+            })
+            ->when($filters['branch_id'], function ($q) use ($filters) {
+                $q->whereExists(function ($sub) use ($filters) {
+                    $sub->select(DB::raw(1))
+                        ->from('items as sub_items')
+                        ->whereColumn('sub_items.name', 'items.name')
+                        ->whereColumn('sub_items.category_id', 'items.category_id')
+                        ->whereColumn('sub_items.unit_id', 'items.unit_id')
+                        ->where('sub_items.branch_id', $filters['branch_id']);
+                });
+            })
+            ->when($filters['q'], function ($q) use ($filters) {
+                $q->where('items.name', 'like', '%' . $filters['q'] . '%');
+            })
+            ->when($filters['hide_empty'], function ($query) use ($tanggalAwal, $tanggalAkhir) {
+                $query->whereExists(function ($sub) use ($tanggalAwal, $tanggalAkhir) {
+                    $sub->select(DB::raw(1))
+                        ->from('items as sub_items')
+                        ->whereColumn('sub_items.name', 'items.name')
+                        ->whereColumn('sub_items.category_id', 'items.category_id')
+                        ->whereColumn('sub_items.unit_id', 'items.unit_id')
+                        ->whereRaw('(
+                            COALESCE((SELECT SUM(CASE WHEN type IN ("In", "adjust_in", "transfer_in") THEN amount ELSE -amount END) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND item_stocks.created_at < ?), 0) +
+                            COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND type IN ("In", "adjust_in", "transfer_in") AND item_stocks.created_at BETWEEN ? AND ?), 0) -
+                            COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND type IN ("Out", "adjust_out", "transfer_out") AND item_stocks.created_at BETWEEN ? AND ?), 0)
+                        ) > 0', [$tanggalAwal, $tanggalAwal, $tanggalAkhir, $tanggalAwal, $tanggalAkhir]);
+                });
+            })
+            ->when(!$canViewGlobal, function ($query) use ($userBranchId) {
+                $query->whereExists(function ($sub) use ($userBranchId) {
+                    $sub->select(DB::raw(1))
+                        ->from('items as sub_items')
+                        ->whereColumn('sub_items.name', 'items.name')
+                        ->whereColumn('sub_items.category_id', 'items.category_id')
+                        ->whereColumn('sub_items.unit_id', 'items.unit_id')
+                        ->where('sub_items.branch_id', $userBranchId);
+                });
+            })
+            ->orderBy('items.name', 'asc');
+
+        $items = $uniqueQuery->paginate($request->integer('per_page') ?: 15)->withQueryString();
+
+        $itemGroups = $items->getCollection();
+        $names = $itemGroups->pluck('name')->unique()->toArray();
+
+        // Query all matching items across branches with their stock details
+        $allBranchItems = Item::whereIn('items.name', $names)
             ->select('items.*')
             ->leftJoin('branches', 'items.branch_id', '=', 'branches.id')
             ->addSelect('branches.name as branch_name')
@@ -67,92 +128,67 @@ class StockRecapController extends Controller
                     ->whereIn('type', ['Out', 'adjust_out', 'transfer_out'])
                     ->whereBetween('item_stocks.created_at', [$tanggalAwal, $tanggalAkhir]);
             }, 'stok_keluar')
-            // Nominal perhitungan dinonaktifkan (tidak ada kolom items.price)
-            ->when($filters['item_id'], function ($q) use ($filters) {
-                $q->where('items.id', $filters['item_id']);
-            })
-            ->when($filters['category_id'], function ($q) use ($filters) {
-                // filter by single category relation
-                $q->where('items.category_id', $filters['category_id']);
-            })
-            ->when($filters['unit_id'], function ($q) use ($filters) {
-                // filter by unit
-                $q->where('items.unit_id', $filters['unit_id']);
-            })
-            ->when($filters['branch_id'], function ($q) use ($filters) {
-                // filter by branch
-                $q->where('items.branch_id', $filters['branch_id']);
-            })
-            ->when($filters['q'], function ($q) use ($filters) {
-                $q->where('items.name', 'like', '%' . $filters['q'] . '%');
-            })
-            ->when($filters['hide_empty'], function ($query) use ($tanggalAwal, $tanggalAkhir) {
-                // If hide_empty is true, ONLY show items where ending stock is > 0
-                $query->whereRaw('(
-                        COALESCE((SELECT SUM(CASE WHEN type IN ("In", "adjust_in", "transfer_in") THEN amount ELSE -amount END) FROM item_stocks WHERE item_stocks.item_id = items.id AND item_stocks.created_at < ?), 0) +
-                        COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = items.id AND type IN ("In", "adjust_in", "transfer_in") AND item_stocks.created_at BETWEEN ? AND ?), 0) -
-                        COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = items.id AND type IN ("Out", "adjust_out", "transfer_out") AND item_stocks.created_at BETWEEN ? AND ?), 0)
-                    ) > 0', [$tanggalAwal, $tanggalAwal, $tanggalAkhir, $tanggalAwal, $tanggalAkhir]);
-            })
-            ->when(!$canViewGlobal && empty($filters['branch_id']), function ($query) use ($userBranchId) {
-                // Only restrict to user's branch if they DON'T have global view permission
-                return $query->where('items.branch_id', $userBranchId);
-            })
-            // Order by stok_masuk DESC (highest first), then stok_keluar DESC
-            ->orderByRaw('(
-                COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = items.id AND type IN ("In", "adjust_in", "transfer_in") AND item_stocks.created_at BETWEEN ? AND ?), 0)
-            ) DESC', [$tanggalAwal, $tanggalAkhir])
-            ->orderByRaw('(
-                COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = items.id AND type IN ("Out", "adjust_out", "transfer_out") AND item_stocks.created_at BETWEEN ? AND ?), 0)
-            ) DESC', [$tanggalAwal, $tanggalAkhir]);
+            ->get();
 
-        $items = $itemsQuery->paginate($request->integer('per_page') ?: 15)->withQueryString();
+        // Group the branch items by name, category_id, unit_id for easy lookup
+        $branchItemsGrouped = $allBranchItems->groupBy(function ($item) {
+            return $item->name . '_' . $item->category_id . '_' . $item->unit_id;
+        });
 
-        $data = $items->getCollection()->map(function ($item) use ($tanggalAwal, $tanggalAkhir) {
-            // Use values from subqueries that respect date filters
-            $stokAwal = (float) ($item->stok_awal ?? 0);
-            $stokMasuk = (float) ($item->stok_masuk ?? 0);
-            $stokKeluar = (float) ($item->stok_keluar ?? 0);
+        // Load relationships for the paginated item groups
+        $itemGroups->load(['category', 'unit']);
 
-            // Calculate ending stock based on date range: saldo awal + masuk - keluar
-            $stokAkhir = $stokAwal + $stokMasuk - $stokKeluar;
+        $data = $itemGroups->map(function ($group) use ($branchItemsGrouped) {
+            $lookupKey = $group->name . '_' . $group->category_id . '_' . $group->unit_id;
+            $itemsForGroup = $branchItemsGrouped->get($lookupKey) ?: collect();
 
-            // Calculate activity (total movement)
-            $aktivitas = $stokMasuk + $stokKeluar;
+            $stocksByBranch = [];
+            $branchesData = [];
+            $totalPersediaan = 0;
+
+            foreach ($itemsForGroup as $item) {
+                $stokAwal = (float) ($item->stok_awal ?? 0);
+                $stokMasuk = (float) ($item->stok_masuk ?? 0);
+                $stokKeluar = (float) ($item->stok_keluar ?? 0);
+                $stokAkhir = $stokAwal + $stokMasuk - $stokKeluar;
+
+                $stocksByBranch[$item->branch_id] = [
+                    'item_id' => $item->id,
+                    'qty' => $stokAkhir,
+                ];
+
+                $branchesData[] = [
+                    'item_id' => $item->id,
+                    'branch_id' => $item->branch_id,
+                    'branch_name' => $item->branch_name ?? 'Tanpa Cabang',
+                ];
+
+                $totalPersediaan += $stokAkhir;
+            }
 
             return [
-                'id' => $item->id,
+                'id' => $group->id,
                 'item' => [
-                    'id' => $item->id,
-                    'code' => $item->code,
-                    'name' => $item->name,
-                    'unit' => $item->unit ? ($item->unit->short_name ?? $item->unit->name) : null,
-                    // price & categories di-nonaktifkan/diringkas
+                    'id' => $group->id,
+                    'code' => $group->code,
+                    'name' => $group->name,
+                    'unit' => $group->unit ? ($group->unit->short_name ?? $group->unit->name) : null,
                     'price' => 0,
-                    'category' => $item->category ? $item->category->name : null,
+                    'category' => $group->category ? $group->category->name : null,
                 ],
-                'branch' => $item->branch_name ?? 'Semua Cabang',
-                'saldo_awal' => [
-                    'qty' => $stokAwal,
-                    'value' => 0,
-                ],
-                'in' => [
-                    'qty' => $stokMasuk,
-                    'value' => 0,
-                ],
-                'out' => [
-                    'qty' => $stokKeluar,
-                    'value' => 0,
-                ],
-                'ending' => [
-                    'qty' => $stokAkhir,
-                    'value' => 0
-                ],
-                'aktivitas' => $aktivitas, // Total pergerakan (masuk + keluar)
+                'stocks' => $stocksByBranch,
+                'branches_data' => $branchesData,
+                'total_persediaan' => $totalPersediaan,
             ];
         });
 
         $items->setCollection($data);
+
+        $branchesQuery = \App\Models\Branch::select('id', 'name');
+        if (!$canViewGlobal) {
+            $branchesQuery->where('id', $userBranchId);
+        }
+        $branches = $branchesQuery->get();
 
         return Inertia::render('Admin/StockRecap/Index', [
             'recaps' => $items,
@@ -160,7 +196,7 @@ class StockRecapController extends Controller
             'items' => Item::select('id', 'name')->get(),
             'categories' => ItemCategory::select('id', 'name')->get(),
             'units' => Unit::select('id', 'name')->get(),
-            'branches' => \App\Models\Branch::select('id', 'name')->get(),
+            'branches' => $branches,
             'can' => [
                 'adjust' => Auth::user()->can('stock_recap.adjust') || $isSuperadmin,
             ]

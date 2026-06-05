@@ -32,9 +32,38 @@
                             class="px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
                         >
                             <option value="">Kelompokan Berdasarkan</option>
-                            <option value="warehouse">Group: Cabang</option>
                             <option value="source">
                                 Group: Kategori
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <select
+                            v-model="filtersLocal.category_id"
+                            class="px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                        >
+                            <option value="">Semua Kategori</option>
+                            <option
+                                v-for="category in categories"
+                                :key="category.id"
+                                :value="category.id"
+                            >
+                                {{ category.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <select
+                            v-model="filtersLocal.unit_id"
+                            class="px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                        >
+                            <option value="">Semua Satuan</option>
+                            <option
+                                v-for="unit in units"
+                                :key="unit.id"
+                                :value="unit.id"
+                            >
+                                {{ unit.name }}
                             </option>
                         </select>
                     </div>
@@ -171,28 +200,11 @@
             </div>
 
             <div class="overflow-auto overflow-x-auto" data-simplebar>
-                <table class="min-w-full text-sm table-fixed">
-                    <colgroup>
-                        <col style="width: 50px" />
-                        <col style="width: 250px" />
-                        <col style="width: 120px" />
-                        <!-- <col /> -->
-                        <col style="width: 70px" />
-                        <!-- <col style="width: 200px" /> -->
-                        <col style="width: 140px" />
-                        <col style="width: 100px" />
-                        <!-- <col style="width: 140px" /> -->
-                        <col style="width: 100px" />
-                        <!-- <col style="width: 140px" />
-                        <col style="width: 140px" /> -->
-                        <col style="width: 100px" />
-                        <col style="width: 120px" />
-                        <col style="width: 80px" />
-                    </colgroup>
+                <table class="min-w-full text-sm border-collapse">
                     <thead>
                         <tr>
                             <th
-                                class="py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky left-0 z-30 py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[50px] max-w-[50px] w-[50px]"
                             >
                                 <div
                                     class="px-3 font-medium text-gray-600 dark:text-gray-300"
@@ -201,16 +213,18 @@
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky z-30 py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[220px] max-w-[220px] w-[220px]"
+                                style="left: 50px"
                             >
                                 <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
+                                    class="px-3 font-medium text-gray-600 dark:text-gray-300 text-left"
                                 >
                                     Nama Barang
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky z-30 py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[160px] max-w-[160px] w-[160px]"
+                                style="left: 270px"
                             >
                                 <div
                                     class="px-3 font-medium text-gray-600 dark:text-gray-300"
@@ -219,7 +233,8 @@
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky z-30 py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[100px] max-w-[100px] w-[100px]"
+                                style="left: 430px"
                             >
                                 <div
                                     class="px-3 font-medium text-gray-600 dark:text-gray-300"
@@ -228,52 +243,19 @@
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                v-for="branch in branches"
+                                :key="branch.id"
+                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[140px]"
                             >
                                 <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
+                                    class="px-3 font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap"
                                 >
-                                    Cabang
+                                    {{ branch.name }}
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
-                            >
-                                <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
-                                >
-                                    Saldo Awal
-                                </div>
-                            </th>
-                            <!-- <th colspan="2" class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">Saldo Awal</div>
-                            </th> -->
-                            <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
-                            >
-                                <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
-                                >
-                                    Stok Masuk
-                                </div>
-                            </th>
-                            <!-- <th colspan="2" class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">Stok Masuk</div>
-                            </th> -->
-                            <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
-                            >
-                                <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
-                                >
-                                    Stok Keluar
-                                </div>
-                            </th>
-                            <!-- <th colspan="2" class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">Stok Keluar</div>
-                            </th> -->
-                            <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky z-30 py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[120px] max-w-[120px] w-[120px]"
+                                style="right: 80px"
                             >
                                 <div
                                     class="px-3 font-medium text-gray-600 dark:text-gray-300"
@@ -281,101 +263,13 @@
                                     Total Persediaan
                                 </div>
                             </th>
-                            <th class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
+                            <th 
+                                class="sticky right-0 z-30 py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[80px] max-w-[80px] w-[80px]"
+                            >
                                 <div class="px-3 font-medium text-gray-600 dark:text-gray-300">
                                     Aksi
                                 </div>
                             </th>
-                        </tr>
-                        <tr>
-                            <th
-                                class="px-2 py-2 bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <th
-                                class="px-2 py-2 bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            >
-                                <input
-                                    v-model="filtersLocal.q"
-                                    type="text"
-                                    placeholder="Cari Barang"
-                                    class="px-3 w-full h-10 text-xs rounded border-gray-300 sm:text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                />
-                            </th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            >
-                                <select
-                                    v-model="filtersLocal.category_id"
-                                    class="px-2 w-full h-8 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                >
-                                    <option value="">Semua Kategori</option>
-                                    <option
-                                        v-for="category in categories"
-                                        :key="category.id"
-                                        :value="category.id"
-                                    >
-                                        {{ category.name }}
-                                    </option>
-                                </select>
-                            </th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            >
-                                <select
-                                    v-model="filtersLocal.unit_id"
-                                    class="px-2 w-full h-8 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                >
-                                    <option value="">Semua Satuan</option>
-                                    <option
-                                        v-for="unit in units"
-                                        :key="unit.id"
-                                        :value="unit.id"
-                                    >
-                                        {{ unit.name }}
-                                    </option>
-                                </select>
-                            </th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            >
-                                <select
-                                    v-model="filtersLocal.branch_id"
-                                    class="px-2 w-full h-8 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                >
-                                    <option value="">Semua Cabang</option>
-                                    <option
-                                        v-for="branch in branches"
-                                        :key="branch.id"
-                                        :value="branch.id"
-                                    >
-                                        {{ branch.name }}
-                                    </option>
-                                </select>
-                            </th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <!-- <th class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">Transaksi (Rp)</div>
-                            </th> -->
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <!-- <th class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">Transaksi (Rp)</div>
-                            </th> -->
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <!-- <th class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">Transaksi (Rp)</div>
-                            </th> -->
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -383,7 +277,7 @@
                             v-if="!stockIns?.data || stockIns.data.length === 0"
                         >
                             <td
-                                colspan="9"
+                                :colspan="6 + branches.length"
                                 class="py-8 text-center text-gray-500"
                             >
                                 Tidak ada data
@@ -392,12 +286,14 @@
                         <template v-else-if="isGrouped">
                             <template v-for="(rows, gkey) in groupedData" :key="gkey">
                                 <tr>
-                                    <td :colspan="9" class="px-4 py-2 font-semibold text-gray-600 bg-gray-50 dark:bg-gray-800/40 dark:text-gray-300">
-                                        <button class="inline-flex items-center gap-2" @click="toggleGroupCollapse(gkey)">
-                                            <span class="text-sm">{{ isCollapsed(gkey) ? "▶" : "▼" }}</span>
-                                            <span>{{ groupLabel(gkey) }}</span>
-                                            <span class="ml-1 text-sm font-medium text-gray-500">({{ rows.length }})</span>
-                                        </button>
+                                    <td :colspan="6 + branches.length" class="px-4 py-2 font-semibold text-gray-600 bg-gray-50 dark:bg-gray-800/40 dark:text-gray-300">
+                                        <div class="sticky left-4 inline-block">
+                                            <button class="inline-flex items-center gap-2" @click="toggleGroupCollapse(gkey)">
+                                                <span class="text-sm">{{ isCollapsed(gkey) ? "▶" : "▼" }}</span>
+                                                <span>{{ groupLabel(gkey) }}</span>
+                                                <span class="ml-1 text-sm font-medium text-gray-500">({{ rows.length }})</span>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 <template v-if="!isCollapsed(gkey)">
@@ -406,77 +302,53 @@
                                         :key="row.id"
                                         class="border-b border-gray-200 dark:border-gray-700"
                                     >
-                                        <td class="px-3 py-3">
+                                        <td class="sticky left-0 z-10 px-3 py-3 bg-white dark:bg-gray-800 min-w-[50px] max-w-[50px] w-[50px]">
                                             {{ serialMap[row.id] ?? "-" }}
                                         </td>
-                                        <td class="px-3 py-3">
+                                        <td 
+                                            class="sticky z-10 px-3 py-3 bg-white dark:bg-gray-800 min-w-[220px] max-w-[220px] w-[220px]"
+                                            style="left: 50px"
+                                        >
                                             <div
                                                 class="font-medium text-gray-800 dark:text-gray-200"
                                             >
                                                 {{ row.item?.name }}
                                             </div>
-                                            <div
-                                                class="mt-1 flex flex-wrap gap-1 text-[10px] text-gray-500"
-                                            >
-                                                <span
-                                                    v-for="b in row.item?.brands || []"
-                                                    :key="'b-' + b"
-                                                    class="px-2 py-0.5 bg-gray-100 rounded-full dark:bg-white/10"
-                                                    >{{ b }}</span
-                                                >
-                                                <span
-                                                    v-for="t in row.item?.types || []"
-                                                    :key="'t-' + t"
-                                                    class="px-2 py-0.5 bg-gray-100 rounded-full dark:bg.white/10"
-                                                    >{{ t }}</span
-                                                >
-                                            </div>
                                         </td>
-                                        <td class="px-3 py-3 text-center">
+                                        <td 
+                                            class="sticky z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[160px] max-w-[160px] w-[160px]"
+                                            style="left: 270px"
+                                        >
                                             <span class="inline-flex px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-100 rounded dark:bg-blue-900/30 dark:text-blue-300">
                                                 {{ row.item?.category || '-' }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-3 text-center">
+                                        <td 
+                                            class="sticky z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[100px] max-w-[100px] w-[100px]"
+                                            style="left: 430px"
+                                        >
                                             {{ row.item?.unit || '-' }}
                                         </td>
-                                        <td class="px-3 py-3 text-center">
-                                            {{ row.branch || '-' }}
-                                        </td>
-                                        <td class="px-3 py-3 text-center">
+                                        <td v-for="branch in branches" :key="branch.id" class="px-3 py-3 text-center min-w-[140px]">
                                             <button
-                                                @click="openSaldoAwalModal(row)"
+                                                v-if="row.stocks[branch.id]"
+                                                @click="openTotalPersediaanModal({ item: { name: row.item.name, id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
                                                 class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                             >
-                                                {{ row.saldo_awal.qty }}
+                                                {{ row.stocks[branch.id].qty }}
                                             </button>
+                                            <span v-else class="text-gray-400">0</span>
                                         </td>
-                                        <td class="px-3 py-3 text-center">
-                                            <button
-                                                @click="openStokMasukModal(row)"
-                                                class="text-green-600 hover:text-green-800 hover:underline cursor-pointer"
-                                            >
-                                                {{ row.in.qty }}
-                                            </button>
+                                        <td 
+                                            class="sticky z-10 px-3 py-3 text-center font-semibold text-purple-600 bg-white dark:bg-gray-800 min-w-[120px] max-w-[120px] w-[120px]"
+                                            style="right: 80px"
+                                        >
+                                            {{ row.total_persediaan }}
                                         </td>
-                                        <td class="px-3 py-3 text-center">
-                                            <button
-                                                @click="openStokKeluarModal(row)"
-                                                class="text-red-600 hover:text-red-800 hover:underline cursor-pointer"
-                                            >
-                                                {{ row.out.qty }}
-                                            </button>
-                                        </td>
-                                        <td class="px-3 py-3 text-center">
-                                            <button
-                                                @click="openTotalPersediaanModal(row)"
-                                                class="text-purple-600 hover:text-purple-800 hover:underline cursor-pointer"
-                                            >
-                                                {{ row.ending.qty }}
-                                            </button>
-                                        </td>
-                                        <td class="px-3 py-3 text-center">
-                                            <button @click="openAdjustModal(row)" class="text-blue-500 hover:text-blue-700" title="Sesuaikan Stok">
+                                        <td 
+                                            class="sticky right-0 z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[80px] max-w-[80px] w-[80px]"
+                                        >
+                                            <button v-if="can.adjust" @click="openAdjustModal(row)" class="text-blue-500 hover:text-blue-700" title="Sesuaikan Stok">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>
@@ -492,80 +364,52 @@
                                 :key="row.id"
                                 class="border-b border-gray-200 dark:border-gray-700"
                             >
-                                <td class="px-3 py-3">
+                                <td class="sticky left-0 z-10 px-3 py-3 bg-white dark:bg-gray-800 min-w-[50px] max-w-[50px] w-[50px]">
                                     {{ serialMap[row.id] ?? "-" }}
                                 </td>
-                                <td class="px-3 py-3">
+                                <td 
+                                    class="sticky z-10 px-3 py-3 bg-white dark:bg-gray-800 min-w-[220px] max-w-[220px] w-[220px]"
+                                    style="left: 50px"
+                                >
                                     <div
                                         class="font-medium text-gray-800 dark:text-gray-200"
                                     >
-                                        {{ row.item?.name }} <span v-if="!isSuperadmin">({{ row.branch }})</span>
-
-                                    </div>
-                                    <div
-                                        class="mt-1 flex flex-wrap gap-1 text-[10px] text-gray-500"
-                                    >
-                                        <span
-                                            v-for="b in row.item?.brands || []"
-                                            :key="'b-' + b"
-                                            class="px-2 py-0.5 bg-gray-100 rounded-full dark:bg-white/10"
-                                            >{{ b }}</span
-                                        >
-                                        <span
-                                            v-for="t in row.item?.types || []"
-                                            :key="'t-' + t"
-                                            class="px-2 py-0.5 bg-gray-100 rounded-full dark:bg.white/10"
-                                            >{{ t }}</span
-                                        >
+                                        {{ row.item?.name }}
                                     </div>
                                 </td>
-                                <td class="px-3 py-3 text-center">
+                                <td 
+                                    class="sticky z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[160px] max-w-[160px] w-[160px]"
+                                    style="left: 270px"
+                                >
                                     <span class="inline-flex px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-100 rounded dark:bg-blue-900/30 dark:text-blue-300">
                                         {{ row.item?.category || '-' }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-3 text-center">
+                                <td 
+                                    class="sticky z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[100px] max-w-[100px] w-[100px]"
+                                    style="left: 430px"
+                                >
                                     {{ row.item?.unit || '-' }}
                                 </td>
-                                <td class="px-3 py-3 text-center">
-                                    {{ row.branch || '-' }}
-                                </td>
-                                <td class="px-3 py-3 text-center">
+                                <td v-for="branch in branches" :key="branch.id" class="px-3 py-3 text-center min-w-[140px]">
                                     <button
-                                        @click="openSaldoAwalModal(row)"
+                                        v-if="row.stocks[branch.id]"
+                                        @click="openTotalPersediaanModal({ item: { name: row.item.name, id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
                                         class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                     >
-                                        {{ row.saldo_awal.qty }}
+                                        {{ row.stocks[branch.id].qty }}
                                     </button>
+                                    <span v-else class="text-gray-400">0</span>
                                 </td>
-                                <!-- <td class="px-3 py-3 text-right">{{ formatCurrencyIDR(row.saldo_awal.value) }}</td> -->
-                                <td class="px-3 py-3 text-center">
-                                    <button
-                                        @click="openStokMasukModal(row)"
-                                        class="text-green-600 hover:text-green-800 hover:underline cursor-pointer"
-                                    >
-                                        {{ row.in.qty }}
-                                    </button>
+                                <td 
+                                    class="sticky z-10 px-3 py-3 text-center font-semibold text-purple-600 bg-white dark:bg-gray-800 min-w-[120px] max-w-[120px] w-[120px]"
+                                    style="right: 80px"
+                                >
+                                    {{ row.total_persediaan }}
                                 </td>
-                                <!-- <td class="px-3 py-3 text-right">{{ formatCurrencyIDR(row.in.value) }}</td> -->
-                                <td class="px-3 py-3 text-center">
-                                    <button
-                                        @click="openStokKeluarModal(row)"
-                                        class="text-red-600 hover:text-red-800 hover:underline cursor-pointer"
-                                    >
-                                        {{ row.out.qty }}
-                                    </button>
-                                </td>
-                                <!-- <td class="px-3 py-3 text-right">{{ formatCurrencyIDR(row.out.value) }}</td> -->
-                                <td class="px-3 py-3 text-center">
-                                    <button
-                                        @click="openTotalPersediaanModal(row)"
-                                        class="text-purple-600 hover:text-purple-800 hover:underline cursor-pointer"
-                                    >
-                                        {{ row.ending.qty }}
-                                    </button>
-                                </td>
-                                <td class="px-3 py-3 text-center">
+                                <td 
+                                    class="sticky right-0 z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[80px] max-w-[80px] w-[80px]"
+                                >
                                     <button v-if="can.adjust" @click="openAdjustModal(row)" class="text-blue-500 hover:text-blue-700" title="Sesuaikan Stok">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -950,7 +794,7 @@
                     class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
                 >
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Total Persediaan - {{ selectedRow?.item?.name }}
+                        Total Persediaan - {{ selectedRow?.item?.name }} <span v-if="selectedRow?.branch_name" class="text-gray-500 font-normal">({{ selectedRow.branch_name }})</span>
                     </h3>
                     <button
                         @click="showTotalPersediaanModal = false"
@@ -1076,9 +920,26 @@
                             <p class="text-sm text-gray-500 mb-1">Barang</p>
                             <p class="font-medium text-gray-900 dark:text-white">{{ selectedRow?.item?.name }}</p>
                         </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Cabang <span class="text-red-500">*</span>
+                            </label>
+                            <SearchableSelect
+                                v-model="adjustForm.item_id"
+                                :options="selectedRow?.branches_data || []"
+                                label-key="branch_name"
+                                track-by-key="item_id"
+                                :allow-empty="false"
+                                placeholder="Cari Cabang"
+                            />
+                        </div>
+
                         <div>
                             <p class="text-sm text-gray-500 mb-1">Stok Saat Ini (Sistem)</p>
-                            <p class="font-medium text-gray-900 dark:text-white">{{ selectedRow?.ending?.qty }}</p>
+                            <p class="font-medium text-gray-900 dark:text-white">
+                                {{ selectedRow && adjustForm.item_id ? (selectedRow.stocks[selectedRow.branches_data.find(b => b.item_id === adjustForm.item_id)?.branch_id]?.qty ?? 0) : 0 }}
+                            </p>
                         </div>
                         
                         <div>
@@ -1137,6 +998,7 @@ import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import Pagination from "@/Components/common/Pagination.vue";
 import Breadcrumb from "@/Components/common/Breadcrumb.vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
+import SearchableSelect from "@/Components/common/SearchableSelect.vue";
 
 const props = defineProps({
     recaps: { type: Object, required: true },
@@ -1323,10 +1185,19 @@ const adjustForm = useForm({
     note: ''
 });
 
+watch(() => adjustForm.item_id, (newVal) => {
+    if (selectedRow.value && newVal) {
+        const branchData = selectedRow.value.branches_data.find(b => b.item_id === newVal);
+        if (branchData) {
+            adjustForm.actual_stock = selectedRow.value.stocks[branchData.branch_id]?.qty || 0;
+        }
+    }
+});
+
 function openAdjustModal(row) {
     selectedRow.value = row;
-    adjustForm.item_id = row.item.id;
-    adjustForm.actual_stock = row.ending.qty;
+    adjustForm.item_id = row.branches_data[0]?.item_id || null;
+    adjustForm.actual_stock = row.branches_data[0] ? (row.stocks[row.branches_data[0].branch_id]?.qty || 0) : 0;
     adjustForm.note = 'Penyesuaian stok (Opname)';
     showAdjustModal.value = true;
 }
