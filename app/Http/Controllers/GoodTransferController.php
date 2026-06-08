@@ -607,7 +607,8 @@ class GoodTransferController extends Controller
             'toBranch:id,name',
             'sentBy:id,name',
             'receivedBy:id,name',
-            'items.item:id,name,code'
+            'items.item:id,name,code,unit_id',
+            'items.item.unit:id,name'
         ]);
 
         return view('good-transfers.print-receipt', compact('goodTransfer'));

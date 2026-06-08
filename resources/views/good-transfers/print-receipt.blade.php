@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nota Pemindahan Barang - {{ $goodTransfer->transfer_no }}</title>
+    <title>Surat Jalan - {{ $goodTransfer->transfer_no }}</title>
     <style>
         * {
             margin: 0;
@@ -12,381 +12,453 @@
         }
 
         body {
-            font-family: 'Arial', sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #333;
-            background: white;
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 10px;
+            line-height: 1.3;
+            color: #000;
+            background: #fff;
+            padding: 20px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
         .container {
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
+            position: relative;
+            min-height: 750px;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 20px;
+        /* Header Styles */
+        .header-section {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .logo-container {
+            flex: 0 0 240px;
+            margin-right: 15px;
+        }
+
+        .logo-container img {
+            width: 100%;
+            height: auto;
+            max-height: 110px;
+            object-fit: contain;
+            object-position: left top;
+        }
+
+        .company-info {
+            flex: 1;
+            text-align: left;
+            padding-top: 2px;
         }
 
         .company-name {
-            font-size: 24px;
+            font-size: 21px;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
+            color: #000;
+            letter-spacing: 0.5px;
         }
 
         .company-address {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 10px;
+            font-size: 9.5px;
+            color: #000;
+            line-height: 1.35;
         }
 
-        .receipt-title {
-            font-size: 18px;
+        /* Title Styles */
+        .title-section {
+            text-align: center;
+            margin: 15px 0 20px 0;
+        }
+
+        .document-title {
+            font-size: 19px;
             font-weight: bold;
-            margin-top: 15px;
+            letter-spacing: 0.5px;
         }
 
-        .receipt-info {
+        /* Metadata & Recipient Section */
+        .meta-recipient-section {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            gap: 20px;
         }
 
-        .info-section {
+        .recipient-box {
             flex: 1;
-            min-width: 200px;
-            margin: 10px;
+            font-size: 10px;
         }
 
-        .info-section h3 {
-            font-size: 14px;
+        .recipient-title {
             font-weight: bold;
-            margin-bottom: 10px;
-            color: #333;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 5px;
-        }
-
-        .info-row {
-            display: flex;
             margin-bottom: 5px;
+            font-size: 10.5px;
         }
 
-        .info-label {
+        .recipient-details {
             font-weight: bold;
-            min-width: 100px;
+            line-height: 1.4;
+            max-width: 400px;
         }
 
-        .info-value {
-            color: #555;
+        .meta-box {
+            border: 1.2px solid #000;
+            font-size: 10px;
+            width: 100%;
         }
 
+        .meta-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .meta-table td {
+            padding: 4px 8px;
+            vertical-align: top;
+            width: 50%;
+        }
+
+        .meta-table tr:first-child td {
+            border-bottom: 1.2px dashed #000 !important;
+        }
+
+        .meta-table td:first-child {
+            border-right: 1.2px dashed #000 !important;
+        }
+
+        .meta-label {
+            font-weight: normal;
+            color: #000;
+            font-size: 8.5px;
+            margin-bottom: 1px;
+            display: block;
+        }
+
+        .meta-value {
+            font-weight: bold;
+            color: #000;
+            font-size: 10px;
+        }
+
+        /* Table Styles */
         .items-table {
             width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 30px;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 15px;
+            border-top: 1.2px solid #000 !important;
+            border-left: 1.2px solid #000 !important;
         }
 
         .items-table th,
         .items-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
+            border-right: 1.2px solid #000 !important;
+            border-bottom: 1.2px solid #000 !important;
+            padding: 6px 8px;
+            font-size: 10px;
+            background-clip: padding-box;
         }
 
         .items-table th {
-            background-color: #f5f5f5;
+            background-color: #7dadff !important;
             font-weight: bold;
+            color: #000;
+        }
+
+        .items-table th.center,
+        .items-table td.center {
             text-align: center;
         }
 
-        .items-table .number {
-            text-align: center;
-            width: 50px;
+        /* Summary & Notes Section */
+        .summary-notes-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            gap: 20px;
         }
 
-        .items-table .quantity {
-            text-align: center;
-            width: 80px;
+        .notes-container {
+            flex: 1;
         }
 
-        .items-table .unit {
-            text-align: center;
-            width: 80px;
+        .notes-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 10px;
         }
 
-        .items-table .received-qty {
-            text-align: center;
-            width: 80px;
-            color: #059669;
+        .notes-box {
+            border: 1.2px solid #000;
+            min-height: 75px;
+            max-width: 410px;
+            padding: 8px;
+            font-size: 10px;
+            border-radius: 0px;
+        }
+
+        .totals-container {
+            flex: 0 0 160px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 6px 0;
+            border-top: 1.2px solid #000 !important;
+            border-bottom: 1.2px solid #000 !important;
+            margin-top: 12px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
             font-weight: bold;
         }
 
-        .items-table .note {
-            font-style: italic;
-            color: #666;
+        .total-row span:last-child {
+            padding-right: 5px;
         }
 
-        .ttd-section {
+        /* Signatures Section */
+        .signatures-section {
             display: flex;
             justify-content: flex-end;
-            margin-top: 48px;
+            margin-top: 45px;
+            gap: 120px;
+            padding-right: 20px;
         }
-        .ttd-box {
-            width: 230px;
+
+        .signature-box {
+            width: 170px;
             text-align: center;
         }
-        .ttd-date {
-            font-size: 12px;
-            color: #444;
-            margin-bottom: 8px;
-        }
-        .ttd-label {
-            margin-bottom: 52px;
-            font-size: 12px;
-            color: #444;
-        }
-        .ttd-name {
-            font-weight: 600;
-            font-size: 13px;
-            border-top: 1px solid #bdbdbd;
-            display: inline-block;
-            min-width: 140px;
-            margin-top: 13px;
-            padding-top: 4px;
-            color: #2d2d2d;
-            letter-spacing: 1.5px;
+
+        .signature-title {
+            font-size: 10.5px;
+            font-weight: normal;
+            margin-bottom: 45px;
         }
 
-        .footer {
-            margin-top: 38px;
+        .signature-line {
+            width: 100%;
+            height: 1px;
+            background-color: #000 !important;
+            border: none !important;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .signature-date {
+            font-size: 9.5px;
+            text-align: left;
+            padding-left: 2px;
+        }
+
+        /* Page Number */
+        .page-number-footer {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            font-size: 9.5px;
+            font-style: italic;
+            color: #000;
+        }
+
+        /* Print Button */
+        .print-button-container {
+            margin-bottom: 20px;
             text-align: right;
-            font-size: 10.8px;
-            color: #666;
-            border-top: 1px dashed #bcbcbc;
-            padding-top: 8px;
         }
 
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .status-shipped {
-            background-color: #fef3c7;
-            color: #92400e;
-        }
-
-        .status-received {
-            background-color: #d1fae5;
-            color: #065f46;
-        }
-
-        .status-canceled {
-            background-color: #fee2e2;
-            color: #991b1b;
-        }
-
-        .print-button {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: #059669;
+        .print-btn {
+            background-color: #4f81bd;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 8px 16px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.2s;
         }
 
-        .print-button:hover {
-            background-color: #047857;
+        .print-btn:hover {
+            background-color: #3b6290;
         }
 
         @media print {
-            .print-button {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+            body {
+                padding: 15mm 20mm;
+                background-color: #fff;
+                font-size: 10px;
+            }
+            .container {
+                min-height: 255mm;
+            }
+            .print-button-container {
                 display: none;
             }
-
-            body {
-                font-size: 11px;
-            }
-
-            .container {
-                padding: 10px;
-            }
-            .footer {
-                padding-top: 4px;
-                margin-top: 32px !important;
-                border-color: #999 !important;
-            }
-            .ttd-section {
-                margin-top: 32px !important;
-            }
-            .no-print {
-                display: none !important;
-            }
-        }
-
-        @page {
-            margin: 1cm;
         }
     </style>
 </head>
 <body>
-    <button class="print-button" onclick="window.print()">🖨️ Cetak</button>
+    <div class="print-button-container">
+        <button class="print-btn" onclick="window.print()">🖨️ Cetak Surat Jalan</button>
+    </div>
 
     <div class="container">
-        <div class="header" style="display: flex; align-items: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px;">
-            <div style="flex: 0 0 100px;">
-                <img src="{{ asset('images/logo-spb-hitam.png') }}" alt="Sinergi Putra Borneo" style="width: 100%; height: auto;">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="logo-container">
+                <img src="{{ asset('images/logo-spb-hitam.png') }}" alt="Sinergi Putra Borneo" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';">
+                <div id="logo-fallback" style="display: none; font-size: 14px; font-weight: bold; color: #4f81bd; letter-spacing: 1px;">
+                    SINERGI PUTRA BORNEO
+                </div>
             </div>
-            <div style="flex: 1; text-align: center;">
-                <div class="company-name">PT. SINERGI PUTRA BORNEO</div>
+            <div class="company-info">
+                <div class="company-name">PT SINERGI PUTRA BORNEO</div>
                 <div class="company-address">
-                    Cabang: {{ $goodTransfer->fromBranch->name }}<br>
-                    {{ $goodTransfer->fromBranch->address }}<br>
-                    Telp: {{ $goodTransfer->fromBranch->phone }} | Email: {{ $goodTransfer->fromBranch->email }}
+                    Jl. Karya Etam No 164 RT 12 Desa Sangatta Utara Kec. Sangatta Utara<br>
+                    Kab. Kutai Timur Kalimantan Timur 75611<br>
+                    Indonesia
                 </div>
-                <div class="receipt-title" style="margin-top: 10px;">NOTA PEMINDAHAN BARANG</div>
-            </div>
-            <div style="flex: 0 0 100px;"></div>
-        </div>
-
-        <div class="receipt-info">
-            <div class="info-section">
-                <h3>Informasi Transfer</h3>
-                <div class="info-row">
-                    <span class="info-label">No. Transfer:</span>
-                    <span class="info-value">{{ $goodTransfer->transfer_no }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Tanggal:</span>
-                    <span class="info-value">{{ \Carbon\Carbon::parse($goodTransfer->transferred_at)->format('d/m/Y H:i') }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Status:</span>
-                    <span class="status-badge status-{{ strtolower($goodTransfer->status) }}">
-                        @if($goodTransfer->status == 'Shipped')
-                            Dikirim
-                        @elseif($goodTransfer->status == 'Received')
-                            Diterima
-                        @else
-                            Dibatalkan
-                        @endif
-                    </span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Catatan:</span>
-                    <span class="info-value">{{ $goodTransfer->purpose ?: '-' }}</span>
-                </div>
-            </div>
-
-            <div class="info-section">
-                <h3>Dari Cabang</h3>
-                <div class="info-row">
-                    <span class="info-label">Nama:</span>
-                    <span class="info-value">{{ $goodTransfer->fromBranch->name }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Dikirim oleh:</span>
-                    <span class="info-value">{{ $goodTransfer->sentBy->name }}</span>
-                </div>
-            </div>
-
-            <div class="info-section">
-                <h3>Ke Cabang</h3>
-                <div class="info-row">
-                    <span class="info-label">Nama:</span>
-                    <span class="info-value">{{ $goodTransfer->toBranch->name }}</span>
-                </div>
-                @if($goodTransfer->receivedBy)
-                <div class="info-row">
-                    <span class="info-label">Diterima oleh:</span>
-                    <span class="info-value">{{ $goodTransfer->receivedBy->name }}</span>
-                </div>
-                @endif
             </div>
         </div>
 
+        <!-- Metadata & Recipient -->
+        <div class="meta-recipient-section" style="margin-top: 20px;">
+            <div class="recipient-box" style="margin-top: 32px;">
+                <div class="recipient-title">Kepada</div>
+                <div class="recipient-details">
+                    {{ strtoupper($goodTransfer->toBranch->name) }}<br>
+                    @if($goodTransfer->toBranch->address)
+                        {{ $goodTransfer->toBranch->address }}
+                    @endif
+                </div>
+            </div>
+            <div class="meta-container" style="display: flex; flex-direction: column; align-items: center; width: 340px; flex: 0 0 340px;">
+                <div class="document-title" style="font-size: 19px; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 8px; text-align: center;">Surat Jalan</div>
+                <div class="meta-box" style="width: 100%;">
+                    <table class="meta-table">
+                        <tr>
+                            <td>
+                                <span class="meta-label">Tanggal</span>
+                                <span class="meta-value">{{ \Carbon\Carbon::parse($goodTransfer->transferred_at)->locale('id')->translatedFormat('d F Y') }}</span>
+                            </td>
+                            <td>
+                                <span class="meta-label">Nomor</span>
+                                <span class="meta-value">{{ $goodTransfer->transfer_no }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="meta-label">Lampiran</span>
+                                <span class="meta-value">-</span>
+                            </td>
+                            <td>
+                                <span class="meta-label">PO No</span>
+                                <span class="meta-value">-</span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
         <table class="items-table">
             <thead>
                 <tr>
-                    <th class="number">No</th>
-                    <th>Nama Item</th>
-                    <th>Kode</th>
-                    <th class="quantity">Qty Dikirim</th>
-                    <th class="quantity">Qty Diterima</th>
-                    <th class="unit">Satuan</th>
-                    <th>Catatan</th>
+                    <th style="width: 5%;" class="center">No</th>
+                    <th style="width: 55%;">Nama Barang</th>
+                    <th style="width: 10%;" class="center">Qty</th>
+                    <th style="width: 10%;" class="center">Satuan</th>
+                    <th style="width: 20%;">Keterangan</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($goodTransfer->items as $index => $item)
                 <tr>
-                    <td class="number">{{ $index + 1 }}</td>
+                    <td class="center">{{ $index + 1 }}</td>
                     <td>{{ $item->item->name }}</td>
-                    <td>{{ $item->item->code }}</td>
-                    <td class="quantity">{{ $item->quantity_transferred }}</td>
-                    <td class="received-qty">
-                        @if($item->quantity_received !== null)
-                            {{ $item->quantity_received }}
-                        @else
-                            -
-                        @endif
-                    </td>
-                    <td class="unit">{{ $item->unit }}</td>
-                    <td class="note">
+                    <td class="center">{{ $item->quantity_transferred }}</td>
+                    <td class="center">{{ $item->item->unit->name ?? $item->unit ?? 'Unit' }}</td>
+                    <td>
+                        {{ $item->note }}
                         @if($item->note_received)
-                            <strong>Penerimaan:</strong> {{ $item->note_received }}<br>
-                        @endif
-                        @if($item->note)
-                            <strong>Transfer:</strong> {{ $item->note }}
+                            <div style="font-size: 8.5px; color: #555; margin-top: 2px;">
+                                <em>Diterima: {{ $item->note_received }} (Qty: {{ $item->quantity_received ?? '-' }})</em>
+                            </div>
                         @endif
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" style="text-align: center; padding: 20px; color: #666;">
-                        Tidak ada item
+                    <td colspan="5" style="text-align: center; padding: 15px; color: #666;">
+                        Tidak ada item barang.
                     </td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
 
-        <!-- Tanda Tangan Section -->
-        <div class="ttd-section">
-            <div class="ttd-box">
-                <div class="ttd-date">{{ $goodTransfer->fromBranch->region}}, {{ \Carbon\Carbon::parse($goodTransfer->transferred_at)->format('d F Y') }}</div>
-                <div class="ttd-label">Dikirim oleh,</div>
-                <div class="ttd-name">
-                    {{ $goodTransfer->sentBy->name ?? '___________________' }}
+        <!-- Summary & Notes -->
+        <div class="summary-notes-section">
+            <div class="notes-container">
+                <div class="notes-title">Catatan :</div>
+                <div class="notes-box">
+                    {{ $goodTransfer->purpose ?: '-' }}
+                </div>
+            </div>
+            <div class="totals-container">
+                <div class="total-row">
+                    <span>Total Kuantitas</span>
+                    <span>{{ $goodTransfer->items->sum('quantity_transferred') }}</span>
+                </div>
+                <div class="total-row">
+                    <span>Jumlah Barang</span>
+                    <span>{{ $goodTransfer->items->count() }}</span>
                 </div>
             </div>
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            Dicetak pada: {{ now()->format('d/m/Y H:i:s') }}<br>
-            <span>Terima kasih atas kepercayaan Anda!</span>
+        <!-- Signatures -->
+        <div class="signatures-section">
+            <div class="signature-box">
+                <div class="signature-title">Pengirim</div>
+                <div class="signature-line"></div>
+                <div class="signature-date">Tgl.</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-title">Penerima</div>
+                <div class="signature-line"></div>
+                <div class="signature-date">Tgl.</div>
+            </div>
+        </div>
+
+        <!-- Footer Page info -->
+        <div class="page-number-footer">
+            Halaman 1 dari 1
         </div>
     </div>
 
     <script>
         // Auto print when page loads
         window.onload = function() {
-            // Small delay to ensure all content is loaded
             setTimeout(function() {
                 window.print();
             }, 500);
