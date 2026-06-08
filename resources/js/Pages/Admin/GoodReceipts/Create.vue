@@ -486,11 +486,11 @@ const updateHilangShortage = (r, val) => {
     r.shortage_rusak = total - valNum;
 };
 
-// Deep watch on requests to auto-allocate shortages when quantity changes
+// Watch quantities changes to auto-allocate shortages when quantity changes
 watch(
-    requests,
+    () => requests.value.map(r => ({ received: r.quantity_received, actually: r.quantity_actually_received })),
     (newVal) => {
-        newVal.forEach((r) => {
+        requests.value.forEach((r) => {
             if (hasShortage(r)) {
                 const total = getShortageMax(r);
                 if (r.shortage_rusak === undefined) r.shortage_rusak = 0;
