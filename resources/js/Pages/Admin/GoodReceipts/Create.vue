@@ -380,7 +380,7 @@ const getAvailableOptions = (currentRowIndex) => {
 
     return options.value.filter(option => {
         const notSelected = !selectedItemIds.includes(option.id);
-        const branchMatch = option.branch_id === targetBranchId.value;
+        const branchMatch = option.branch_id == targetBranchId.value;
         return notSelected && branchMatch;
     });
 };
