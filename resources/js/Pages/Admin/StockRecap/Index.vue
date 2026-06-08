@@ -26,152 +26,117 @@
                     Rekap Stok Barang
                 </div>
                 <div class="flex gap-3 items-center">
-                    <div>
-                        <select
-                            v-model="groupByLocal"
-                            class="px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                        >
-                            <option value="">Kelompokan Berdasarkan</option>
-                            <option value="source">
-                                Group: Kategori
-                            </option>
-                        </select>
-                    </div>
-                    <div>
-                        <select
-                            v-model="filtersLocal.category_id"
-                            class="px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                        >
-                            <option value="">Semua Kategori</option>
-                            <option
-                                v-for="category in categories"
-                                :key="category.id"
-                                :value="category.id"
-                            >
-                                {{ category.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div>
-                        <select
-                            v-model="filtersLocal.unit_id"
-                            class="px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                        >
-                            <option value="">Semua Satuan</option>
-                            <option
-                                v-for="unit in units"
-                                :key="unit.id"
-                                :value="unit.id"
-                            >
-                                {{ unit.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div class="relative" data-date-filter>
+                    <!-- Collapsed Filter Button & Dropdown -->
+                    <div class="relative" data-filters-dropdown>
                         <button
-                            @click="toggleDateFilter"
+                            @click="showFiltersDropdown = !showFiltersDropdown"
                             type="button"
-                            class="flex items-center gap-2 px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            class="flex items-center gap-2 px-4 h-10 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
                         >
-                            <span>Filter Tanggal</span>
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="currentColor"
-                                class="size-4"
-                            >
-                                <path
-                                    d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z"
-                                />
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
                             </svg>
+                            <span>Filter</span>
+                            <!-- Badge for active filter count -->
+                            <span v-if="activeFiltersCount > 0" class="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-500 rounded-full">
+                                {{ activeFiltersCount }}
+                            </span>
                         </button>
 
-                        <!-- Date Filter Dropdown -->
+                        <!-- Dropdown Content -->
                         <div
-                            v-if="showDateFilter"
-                            class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                            v-if="showFiltersDropdown"
+                            class="absolute right-0 z-50 mt-2 w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-800 space-y-4"
                             @click.stop
                         >
-                            <div class="p-4 space-y-4">
-                                <!-- Tanggal Awal -->
-                                <div>
-                                    <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Tanggal Awal
-                                    </label>
-                                    <div class="relative">
-                                        <input
-                                            v-model="tempDateFrom"
-                                            type="date"
-                                            class="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                        <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                viewBox="0 0 24 24"
-                                                fill="currentColor"
-                                                class="size-4"
-                                            >
-                                                <path
-                                                    d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z"
-                                                />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
+                            <!-- Kelompokkan -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelompokkan</label>
+                                <select
+                                    v-model="groupByLocal"
+                                    class="w-full px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                >
+                                    <option value="">Kelompokan Berdasarkan</option>
+                                    <option value="source">Group: Kategori</option>
+                                </select>
+                            </div>
 
-                                <!-- Tanggal Akhir -->
-                                <div>
-                                    <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Tanggal Akhir
-                                    </label>
-                                    <div class="relative">
-                                        <input
-                                            v-model="tempDateTo"
-                                            type="date"
-                                            class="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                        <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                viewBox="0 0 24 24"
-                                                fill="currentColor"
-                                                class="size-4"
-                                            >
-                                                <path
-                                                    d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z"
-                                                />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
+                            <!-- Kategori -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kategori</label>
+                                <select
+                                    v-model="filtersLocal.category_id"
+                                    class="w-full px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                >
+                                    <option value="">Semua Kategori</option>
+                                    <option v-for="category in categories" :key="category.id" :value="category.id">
+                                        {{ category.name }}
+                                    </option>
+                                </select>
+                            </div>
 
-                                <!-- Action Buttons -->
-                                <div class="flex gap-2 pt-2">
-                                    <button
-                                        @click="applyDateFilter"
-                                        class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                                    >
-                                        Terapkan
-                                    </button>
-                                    <button
-                                        @click="clearDateFilter"
-                                        class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500"
-                                    >
-                                        Hapus
-                                    </button>
-                                </div>
+                            <!-- Satuan -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Satuan</label>
+                                <select
+                                    v-model="filtersLocal.unit_id"
+                                    class="w-full px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                >
+                                    <option value="">Semua Satuan</option>
+                                    <option v-for="unit in units" :key="unit.id" :value="unit.id">
+                                        {{ unit.name }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Tanggal Awal -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Awal</label>
+                                <input
+                                    v-model="tempDateFrom"
+                                    type="date"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                />
+                            </div>
+
+                            <!-- Tanggal Akhir -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Akhir</label>
+                                <input
+                                    v-model="tempDateTo"
+                                    type="date"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                />
+                            </div>
+
+                            <!-- Checkbox Hide Empty -->
+                            <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Sembunyikan Stok 0</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" v-model="filtersLocal.hide_empty" class="sr-only peer" @change="fetchRequests({})">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <!-- Action Buttons for Dates -->
+                            <div class="flex gap-2 pt-2">
+                                <button
+                                    @click="applyDateFilter"
+                                    class="flex-1 px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none"
+                                >
+                                    Terapkan Tanggal
+                                </button>
+                                <button
+                                    @click="clearDateFilter"
+                                    class="flex-1 px-4 py-2 text-xs font-bold text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                >
+                                    Reset
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" v-model="filtersLocal.hide_empty" class="sr-only peer" @change="fetchRequests({})">
-                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                            <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Sembunyikan Stok 0</span>
-                        </label>
-                    </div>
-
+                    <!-- Search Input -->
                     <div class="relative py-2">
                         <div
                             class="absolute left-4 top-1/2 text-gray-400 -translate-y-1/2"
@@ -788,22 +753,69 @@
             @click.self="showTotalPersediaanModal = false"
         >
             <div
-                class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-auto"
+                class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
             >
                 <div
-                    class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
+                    class="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50"
                 >
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Total Persediaan - {{ selectedRow?.item?.name }} <span v-if="selectedRow?.branch_name" class="text-gray-500 font-normal">({{ selectedRow.branch_name }})</span>
-                    </h3>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                            Detail Transaksi: {{ selectedRow?.item?.name }}
+                        </h3>
+                        <p v-if="selectedRow?.branch_name" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Gudang Cabang {{ selectedRow.branch_name }} • Periode Aktif
+                        </p>
+                    </div>
                     <button
                         @click="showTotalPersediaanModal = false"
-                        class="text-gray-400 hover:text-gray-600"
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     >
                         ✕
                     </button>
                 </div>
-                <div class="p-6">
+                <div class="p-6 overflow-y-auto flex-1">
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <!-- TOTAL MASUK -->
+                        <div class="flex items-center gap-4 p-4 rounded-xl border border-emerald-100 bg-emerald-50/50 dark:border-emerald-950/20 dark:bg-emerald-950/10">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Masuk</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ totalMasukDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit || 'pcs' }}</span></div>
+                            </div>
+                        </div>
+
+                        <!-- TOTAL KELUAR -->
+                        <div class="flex items-center gap-4 p-4 rounded-xl border border-amber-100 bg-amber-50/50 dark:border-amber-950/20 dark:bg-amber-950/10">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 text-white shadow-lg shadow-amber-500/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12h-15" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Total Keluar</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ totalKeluarDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit || 'pcs' }}</span></div>
+                            </div>
+                        </div>
+
+                        <!-- SISA STOK -->
+                        <div class="flex items-center gap-4 p-4 rounded-xl border border-blue-100 bg-blue-50/50 dark:border-blue-950/20 dark:bg-blue-950/10">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Sisa Stok</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ sisaStokDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit || 'pcs' }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div v-if="loadingDetail" class="text-center py-8">
                         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Memuat data...</p>
@@ -813,27 +825,33 @@
                     </div>
                     <table v-else class="min-w-full text-sm">
                         <thead>
-                            <tr class="border-b border-gray-200 dark:border-gray-700">
-                                <th class="px-4 py-2 text-left">No</th>
-                                <th class="px-4 py-2 text-left">Waktu</th>
-                                <th class="px-4 py-2 text-left">Sumber</th>
-                                <th class="px-4 py-2 text-left">Referensi</th>
-                                <!-- <th class="px-4 py-2 text-right">Transaksi (Rp)</th> -->
-                                <th class="px-4 py-2 text-center">Masuk</th>
-                                <th class="px-4 py-2 text-center">Keluar</th>
-                                <th class="px-4 py-2 text-center">Total Persediaan</th>
+                            <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+                                <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400 w-16">No</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Waktu Transaksi</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Sumber / Referensi</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Jumlah Mutasi</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Stok Akhir</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800">
-                                <td class="px-4 py-3">{{ detailFrom + idx }}</td>
-                                <td class="px-4 py-3">{{ tx.created_at }}</td>
-                                <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
-                                <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
-                                <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.last_stock }}</td>
+                            <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/30 dark:hover:bg-gray-800/10 transition-colors">
+                                <td class="px-4 py-3 align-middle">{{ detailFrom + idx }}</td>
+                                <td class="px-4 py-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="font-medium text-gray-900 dark:text-white">{{ formatDate(tx.created_at) }}</span>
+                                        <span class="text-xs text-gray-500 mt-0.5">{{ formatTime(tx.created_at) }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="font-medium text-gray-900 dark:text-white">{{ tx.source_type || '-' }}</span>
+                                        <span class="text-xs text-gray-500 font-mono mt-0.5">{{ tx.reference || '-' }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-center align-middle font-semibold" :class="tx.type === 'In' ? 'text-emerald-600' : tx.type === 'Out' ? 'text-rose-600' : 'text-gray-500'">
+                                    {{ tx.type === 'In' ? '+' + tx.amount : tx.type === 'Out' ? '-' + tx.amount : '0' }}
+                                </td>
+                                <td class="px-4 py-3 text-center align-middle font-bold text-gray-900 dark:text-white">{{ tx.last_stock }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1088,6 +1106,32 @@ onUnmounted(() => {
     document.removeEventListener('click', closeDateFilterOnClickOutside);
 });
 
+const showFiltersDropdown = ref(false);
+const activeFiltersCount = computed(() => {
+    let count = 0;
+    if (filtersLocal.value.category_id) count++;
+    if (filtersLocal.value.unit_id) count++;
+    if (filtersLocal.value.date_from || filtersLocal.value.date_to) count++;
+    if (filtersLocal.value.hide_empty) count++;
+    if (groupByLocal.value) count++;
+    return count;
+});
+
+function clickOutsideFilter(event) {
+    const el = document.querySelector('[data-filters-dropdown]');
+    if (el && !el.contains(event.target)) {
+        showFiltersDropdown.value = false;
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('click', clickOutsideFilter);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', clickOutsideFilter);
+});
+
 // Modal states
 const showSaldoAwalModal = ref(false);
 const showStokMasukModal = ref(false);
@@ -1120,6 +1164,38 @@ const detailFrom = computed(() => {
 const detailTo = computed(() => {
     return Math.min(detailCurrentPage.value * detailPerPage.value, detailTransactions.value.length);
 });
+
+const totalMasukDetail = computed(() => {
+    return detailTransactions.value
+        .filter(tx => tx.type === 'In')
+        .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+});
+
+const totalKeluarDetail = computed(() => {
+    return detailTransactions.value
+        .filter(tx => tx.type === 'Out')
+        .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+});
+
+const sisaStokDetail = computed(() => {
+    if (detailTransactions.value.length > 0) {
+        return detailTransactions.value[0].last_stock;
+    }
+    return 0;
+});
+
+function formatDate(dateTimeStr) {
+    if (!dateTimeStr) return '-';
+    const date = new Date(dateTimeStr);
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function formatTime(dateTimeStr) {
+    if (!dateTimeStr) return '';
+    const date = new Date(dateTimeStr);
+    return date.toTimeString().split(' ')[0];
+}
 
 function goToDetailPage(page) {
     if (page >= 1 && page <= detailTotalPages.value) {
