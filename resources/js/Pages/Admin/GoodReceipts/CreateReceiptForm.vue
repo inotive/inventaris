@@ -68,7 +68,7 @@
                         :search-key="'name'"
                         :label-key="'name'"
                         :disabled="!isSuperadmin"
-                        placeholder="Pilih pemesanan oleh"
+                        label="Pilih Penerima"
                         class="w-full"
                     >
                         <template #item="{ item }">
@@ -202,28 +202,13 @@ watch(
             });
             emit('items-loaded', response.data);
 
-            // Find selected order and get employee info
-            const selectedOrder = props.orders.find(order => order.id === newOrderId);
-            if (selectedOrder) {
-                // Set employee info based on available data
-                if (selectedOrder.applicant) {
-                    selectedOrderEmployee.value = selectedOrder.applicant.id;
-                } else if (selectedOrder.ordered_by) {
-                    // If employee data is not loaded, find it from employees list
-                    const employee = props.employees.find(emp => emp.id === selectedOrder.ordered_by);
-                    if (employee) {
-                        selectedOrderEmployee.value = employee.id;
-                    }
-                } else if (props.user?.employee?.id) {
-                    // Fallback to current user if no employee info available
-                    selectedOrderEmployee.value = props.user.employee.id;
-                }
+            // Find selected order and get employee info (keep receiver as the logged-in user)
+            if (!selectedOrderEmployee.value && props.user?.employee?.id) {
+                selectedOrderEmployee.value = props.user.employee.id;
             }
         } catch (error) {
             console.error('Error loading items:', error);
             emit('items-loaded', []);
-            selectedOrderEmployee.value = null;
-            props.form.employee_id = null;
         } finally {
             loading.value = false;
         }

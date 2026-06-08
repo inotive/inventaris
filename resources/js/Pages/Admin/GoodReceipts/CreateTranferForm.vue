@@ -67,7 +67,7 @@
                         :search-key="'name'"
                         :label-key="'name'"
                         :disabled="!isSuperadmin"
-                        placeholder="Pilih pemesanan oleh"
+                        label="Pilih Penerima"
                         class="w-full"
                     >
                         <template #item="{ item }">
@@ -144,13 +144,31 @@ const props = defineProps({
     employees: { type: Array, required: true },
     user: { type: Object, default: null },
     isSuperadmin: { type: Boolean, required: true },
+    isEdit: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['items-loaded', 'attachments-changed']);
 
 const loading = ref(false);
-const selectedTransferEmployee = props.user?.employee?.name;
+const selectedTransferEmployee = ref(null);
 const attachmentFiles = ref([]);
+
+// Set initial employee value
+if (props.isEdit && props.form.employee_id) {
+    selectedTransferEmployee.value = props.form.employee_id;
+} else if (props.user?.employee?.id) {
+    selectedTransferEmployee.value = props.user.employee.id;
+    props.form.employee_id = props.user.employee.id;
+}
+
+// Watch selectedTransferEmployee changes to update form.employee_id
+watch(selectedTransferEmployee, (newValue) => {
+    if (newValue) {
+        props.form.employee_id = newValue;
+    } else {
+        props.form.employee_id = null;
+    }
+});
 
 // Set source value for pemindahan
 props.form.source = 'Pemindahan';
@@ -187,7 +205,7 @@ watch(
         } catch (error) {
             console.error('Error loading items:', error);
             emit('items-loaded', []);
-            selectedTransferEmployee.value = '';
+            selectedTransferEmployee.value = null;
             props.form.employee_id = null;
         } finally {
             loading.value = false;
