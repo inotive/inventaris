@@ -307,8 +307,8 @@
                                 <div
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
-                                    <span :class="getDisposalQty(item.item_id, 'rusak') > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
-                                        {{ getDisposalQty(item.item_id, 'rusak') }}
+                                    <span :class="getDisposalQty(item, 'rusak') > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
+                                        {{ getDisposalQty(item, 'rusak') }}
                                     </span>
                                     {{ item.item?.unit?.short_name || '' }}
                                 </div>
@@ -319,8 +319,8 @@
                                 <div
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
-                                    <span :class="getDisposalQty(item.item_id, 'hilang') > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
-                                        {{ getDisposalQty(item.item_id, 'hilang') }}
+                                    <span :class="getDisposalQty(item, 'hilang') > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
+                                        {{ getDisposalQty(item, 'hilang') }}
                                     </span>
                                     {{ item.item?.unit?.short_name || '' }}
                                 </div>
@@ -559,10 +559,15 @@ const props = defineProps({
     canUpdate: { type: Boolean, default: false },
 });
 
-const getDisposalQty = (itemId, reason) => {
+const getDisposalQty = (item, reason) => {
     if (!props.goodReceipt.disposals) return 0;
     return props.goodReceipt.disposals
-        .filter(d => d.item_id === itemId && d.reason === reason)
+        .filter(d => {
+            const matchId = d.item_id === item.item_id;
+            const matchCode = d.item?.code && item.item?.code && d.item.code === item.item.code;
+            const matchName = d.item?.name && item.item?.name && d.item.name === item.item.name;
+            return (matchId || matchCode || matchName) && d.reason === reason;
+        })
         .reduce((sum, d) => sum + Number(d.quantity), 0);
 };
 

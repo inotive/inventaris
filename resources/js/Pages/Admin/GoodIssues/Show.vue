@@ -232,7 +232,7 @@
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Breadcrumb from '@/Components/common/Breadcrumb.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -243,7 +243,7 @@ const props = defineProps({
     can_approve: { type: Boolean, default: false },
 })
 
-const mr = props.mr
+const mr = computed(() => props.mr)
 const items = ref(props.items.map(item => ({
     ...item,
     approval: {
@@ -252,12 +252,12 @@ const items = ref(props.items.map(item => ({
     },
     current_stock: item.current_stock ?? 0
 })))
-const activities = props.activities
-const breadcrumbs = [
+const activities = computed(() => props.activities)
+const breadcrumbs = computed(() => [
     { label: 'Dashboard', href: route('dashboard') },
     { label: 'Pemakaian Barang', href: route('good-issues.index') },
-    { label: mr.request_no },
-]
+    { label: props.mr.request_no },
+])
 
 const activeTab = ref('items')
 
@@ -294,7 +294,7 @@ function badgeClass(s) {
 const showApproveModal = ref(false)
 
 function onApprove() {
-    if (mr.status === 'approved') {
+    if (props.mr.status === 'approved') {
         return
     }
     showApproveModal.value = true
@@ -341,7 +341,7 @@ function confirmApprove() {
         note_received: item.approval.note_received || null
     }))
 
-    router.post(route('good-issues.approve', mr.id), { approvals }, {
+    router.post(route('good-issues.approve', props.mr.id), { approvals }, {
         onSuccess: () => {
             window.location.reload()
             showApproveModal.value = false

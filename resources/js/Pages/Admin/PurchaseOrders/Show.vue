@@ -132,6 +132,7 @@
                         <col style="width:90px" />
                         <col style="width:120px" />
                         <col style="width:120px" />
+                        <col style="width:90px" />
                         <col />
                     </colgroup>
                     <thead>
@@ -185,15 +186,11 @@
                                 class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
                                 <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Catatan</div>
                             </th>
-                            <th
-                                class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Catatan Penerimaan</div>
-                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="!po.items || po.items.length === 0">
-                            <td colspan="12" class="text-center py-8 text-gray-500">Tidak ada item</td>
+                            <td colspan="11" class="text-center py-8 text-gray-500">Tidak ada item</td>
                         </tr>
                         <tr v-for="(it, idx) in po.items" :key="it.id"
                             class="border-b border-gray-200 dark:border-gray-700">
@@ -219,12 +216,13 @@
                             <td class="px-3 py-2">{{ formatCurrency(it.cost) }}</td>
                             <td class="px-3 py-2">{{ formatCurrency(it.quantity_ordered * it.cost) }}</td>
                             <td class="px-3 py-2">{{ it.unit }}</td>
-                            <td class="px-3 py-2">{{ it.note || '-' }}</td>
                             <td class="px-3 py-2">
-                                <span v-if="it.note_received" class="text-sm text-gray-700 bg-green-50 px-2 py-1 rounded">
-                                    {{ it.note_received }}
-                                </span>
-                                <span v-else class="text-gray-400">-</span>
+                                <div>{{ it.note || '-' }}</div>
+                                <div v-if="it.note_received" class="mt-1">
+                                    <span class="inline-block text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                                        Penerimaan: {{ it.note_received }}
+                                    </span>
+                                </div>
                             </td>
                         </tr>
                     </tbody>

@@ -408,7 +408,7 @@
 
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import Breadcrumb from "@/Components/common/Breadcrumb.vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
 
@@ -420,17 +420,17 @@ const props = defineProps({
     can_approve: { type: Boolean, default: false },
 });
 
-const mr = props.mr;
-const items = props.items;
-const activities = props.activities;
-const can_approve = props.can_approve;
+const mr = computed(() => props.mr);
+const items = computed(() => props.items);
+const activities = computed(() => props.activities);
+const can_approve = computed(() => props.can_approve);
 
-console.log("mr status:", mr.status);
-const breadcrumbs = [
+console.log("mr status:", props.mr.status);
+const breadcrumbs = computed(() => [
     { label: "Penyimpanan" },
     { label: "Permintaan Barang", href: route("material-requests.index") },
-    { label: mr.request_no },
-];
+    { label: props.mr.request_no },
+]);
 
 const activeTab = ref("items");
 const showApprove = ref(false);
@@ -473,7 +473,7 @@ function badgeClass(s) {
 function onRejected() {
     if (!confirm("Tolak permintaan ini?")) return;
     router.post(
-        route("material-requests.rejected", mr.id),
+        route("material-requests.rejected", props.mr.id),
         {},
         { preserveScroll: true }
     );
@@ -488,7 +488,7 @@ function closeConfirmRejected() {
 }
 
 function openApprove() {
-    approvals.value = (items || []).map((it) => ({
+    approvals.value = (props.items || []).map((it) => ({
         id: it.id,
         item_name: it.item_name,
         item_code: it.item_code,
@@ -502,7 +502,7 @@ function openApprove() {
 
 function submitApprove() {
     router.post(
-        route("material-requests.approve", mr.id),
+        route("material-requests.approve", props.mr.id),
         { approvals: approvals.value },
         {
             preserveScroll: true,
@@ -515,7 +515,7 @@ function submitApprove() {
 
 function submitRejected() {
     router.post(
-        route("material-requests.rejected", mr.id),
+        route("material-requests.rejected", props.mr.id),
         {},
         {
             preserveScroll: true,
@@ -536,7 +536,7 @@ function closeConfirmCancel() {
 
 function submitCancel() {
     router.post(
-        route("material-requests.cancel", mr.id),
+        route("material-requests.cancel", props.mr.id),
         {},
         {
             preserveScroll: true,
@@ -557,7 +557,7 @@ function closeProcessPR() {
 
 function submitProcessPR() {
     router.post(
-        route("purchase-requests.from-material-request", mr.id),
+        route("purchase-requests.from-material-request", props.mr.id),
         {},
         {
             preserveScroll: true,
@@ -578,7 +578,7 @@ function closeIssueConfirm() {
 
 function submitIssue() {
     router.post(
-        route("material-requests.issue", mr.id),
+        route("material-requests.issue", props.mr.id),
         {},
         {
             preserveScroll: true,

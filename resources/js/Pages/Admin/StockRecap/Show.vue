@@ -125,7 +125,7 @@
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Breadcrumb from '@/Components/common/Breadcrumb.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -135,15 +135,15 @@ const props = defineProps({
     activities: { type: Array, default: () => [] },
 })
 
-const mr = props.mr
-const items = props.items
-const activities = props.activities
+const mr = computed(() => props.mr)
+const items = computed(() => props.items)
+const activities = computed(() => props.activities)
 
-const breadcrumbs = [
+const breadcrumbs = computed(() => [
     { label: 'Dashboard', href: route('dashboard') },
     { label: 'Permintaan Barang', href: route('material-requests.index') },
-    { label: mr.request_no },
-]
+    { label: props.mr.request_no },
+])
 
 const activeTab = ref('items')
 
@@ -175,11 +175,11 @@ function badgeClass(s) {
 
 function onApprove() {
     if (!confirm('Setujui permintaan ini?')) return
-    router.post(route('material-requests.approve', mr.id), {}, { preserveScroll: true })
+    router.post(route('material-requests.approve', props.mr.id), {}, { preserveScroll: true })
 }
 
 function onIssue() {
     if (!confirm('Mulai proses keluarkan barang untuk permintaan ini?')) return
-    router.post(route('material-requests.issue', mr.id), {}, { preserveScroll: true })
+    router.post(route('material-requests.issue', props.mr.id), {}, { preserveScroll: true })
 }
 </script>

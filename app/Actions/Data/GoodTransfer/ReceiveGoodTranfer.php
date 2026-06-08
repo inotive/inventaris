@@ -86,42 +86,5 @@ class ReceiveGoodTranfer
         $data['items'] = $receiptItems;
 
         $goodReceipt = app(CreateGoodReceipt::class)->execute($data);
-
-        // Create disposal records for items with shortage directly on good receipt (support multiple shortages per item)
-        foreach ($receiptItems as $item) {
-            if (!empty($item['shortages']) && is_array($item['shortages'])) {
-                foreach ($item['shortages'] as $sh) {
-                    $shQty = (int)($sh['quantity'] ?? 0);
-                    if ($shQty > 0 && !empty($sh['reason'])) {
-                        ItemDisposal::create([
-                            'disposal_no'   => ItemDisposal::generateDisposalNo(),
-                            'item_id'       => $item['item_id'],
-                            'quantity'      => $shQty,
-                            'reason'        => $sh['reason'],
-                            'description'   => $sh['description'] ?? null,
-                            'source_type'   => GoodReceipt::class,
-                            'source_id'     => $goodReceipt->id,
-                            'reported_by'   => Auth::user()->employee?->id,
-                            'disposal_date' => now()->toDateString(),
-                        ]);
-                    }
-                }
-            } else {
-                $shortageQty = (int)($item['shortage_quantity'] ?? 0);
-                if ($shortageQty > 0 && !empty($item['shortage_reason'])) {
-                    ItemDisposal::create([
-                        'disposal_no'   => ItemDisposal::generateDisposalNo(),
-                        'item_id'       => $item['item_id'],
-                        'quantity'      => $shortageQty,
-                        'reason'        => $item['shortage_reason'],
-                        'description'   => $item['shortage_description'] ?? null,
-                        'source_type'   => GoodReceipt::class,
-                        'source_id'     => $goodReceipt->id,
-                        'reported_by'   => Auth::user()->employee?->id,
-                        'disposal_date' => now()->toDateString(),
-                    ]);
-                }
-            }
-        }
     }
 }
