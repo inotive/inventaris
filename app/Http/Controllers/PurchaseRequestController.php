@@ -324,7 +324,7 @@ class PurchaseRequestController extends Controller
     {
         $data = $request->validate([
             'request_id' => ['nullable', 'exists:material_requests,id'],
-            'request_no' => ['required', 'string', 'unique:purchase_requests,request_no'],
+            'request_no' => ['nullable', 'string', 'unique:purchase_requests,request_no'],
             'requested_at' => ['required', 'date', 'before_or_equal:today'],
             'department_id' => ['required', 'exists:departments,id'],
             'employee_id' => ['required', 'exists:employees,id'],
@@ -334,6 +334,10 @@ class PurchaseRequestController extends Controller
             'requests.*.request' => ['required_with:requests', 'integer', 'min:1'],
             'requests.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        if (empty($data['request_no'])) {
+            $data['request_no'] = PurchaseRequest::generateRequestNo($data['requested_at']);
+        }
 
         try {
             app(CreatePurchaseRequest::class)->execute($data);
@@ -407,12 +411,14 @@ class PurchaseRequestController extends Controller
             });
 
         $canCreatePO = Auth::user()->can('purchase_orders.create') || Auth::user()->can('purchase_orders.create_global') || Auth::user()->hasRole('Superadmin');
+        $orderNo = \App\Models\PurchaseOrder::generateOrderNo();
 
         return Inertia::render('Admin/PurchaseRequests/Show', [
             'pr' => $pr,
             'activities' => $activities,
             'can_approve' => $canApprove,
             'can_create_po' => $canCreatePO,
+            'orderNo' => $orderNo,
         ]);
     }
 

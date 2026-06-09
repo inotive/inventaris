@@ -147,6 +147,7 @@ Route::middleware([
         Route::post('/{good_receipt}/print', [GoodReceiptController::class, 'print'])->name('good-receipts.print');
     });
     Route::resource('/good-transfers', GoodTransferController::class);
+    Route::get('/good-transfers/po-items/{order_no}', [GoodTransferController::class, 'getPOItems'])->name('good-transfers.po-items');
     Route::post('/good-transfers/{good_transfer}/receive', [GoodTransferController::class, 'receive'])->name('good-transfers.receive');
     Route::post('/good-transfers/{good_transfer}/cancel', [GoodTransferController::class, 'cancel'])->name('good-transfers.cancel');
     Route::get('/good-transfers/{good_transfer}/print-receipt', [GoodTransferController::class, 'printReceipt'])->name('good-transfers.print-receipt');

@@ -74,8 +74,24 @@
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ po.from_pr?.number }}</div>
                 </div>
                 <div>
-                    <div class="text-xs text-gray-500">Total</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(po.total) }}</div>
+                    <div class="text-xs text-gray-500">Subtotal</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(po.subtotal || 0) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500">Diskon</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">- {{ formatCurrency(po.discount || 0) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500">PPN ({{ po.tax_percent || 11 }}%)</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(po.ppn || 0) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500">Biaya Lain-Lain</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(po.other_cost || 0) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500">Total Akhir</div>
+                    <div class="font-bold text-blue-600 dark:text-blue-400">{{ formatCurrency(po.total) }}</div>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Jumlah Dibayar</div>
@@ -484,13 +500,31 @@
 
                     <div class="mt-6">
                         <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Total Order</label>
-                                <div class="text-lg font-semibold text-gray-900">{{ formatCurrency(po.total) }}</div>
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-1.5 text-xs text-gray-600 mb-3">
+                                <div class="flex justify-between">
+                                    <span>Subtotal:</span>
+                                    <span class="font-medium text-gray-800">{{ formatCurrency(po.subtotal || 0) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Diskon:</span>
+                                    <span class="font-medium text-gray-800">- {{ formatCurrency(po.discount || 0) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>PPN ({{ po.tax_percent || 11 }}%):</span>
+                                    <span class="font-medium text-gray-800">{{ formatCurrency(po.ppn || 0) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Biaya Lain-Lain:</span>
+                                    <span class="font-medium text-gray-800">{{ formatCurrency(po.other_cost || 0) }}</span>
+                                </div>
+                                <div class="flex justify-between border-t border-gray-200 pt-1.5 text-sm font-semibold">
+                                    <span class="text-gray-900">Total Akhir:</span>
+                                    <span class="text-blue-600">{{ formatCurrency(po.total) }}</span>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah yang Sudah Dibayar</label>
-                                <div class="text-sm text-gray-600">{{ formatCurrency(po.paid_amount || 0) }}</div>
+                                <div class="text-sm font-semibold text-gray-900">{{ formatCurrency(po.paid_amount || 0) }}</div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah Pembayaran Tambahan *</label>

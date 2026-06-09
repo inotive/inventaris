@@ -1,6 +1,39 @@
 <template>
     <form class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Row 1 -->
+            <div class="space-y-1">
+                <label
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >No. Transfer
+                </label>
+                <input
+                    v-model="form.transfer_no"
+                    type="text"
+                    class="mt-1 h-10 px-3 w-full rounded-md text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 font-mono placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500"
+                    placeholder="Auto-generate jika dikosongkan"
+                />
+                <div class="text-[10px] text-gray-400 mt-0.5">Kosongkan untuk generate otomatis</div>
+                <p
+                    v-if="form.errors.transfer_no"
+                    class="mt-1 text-xs text-red-500"
+                >
+                    {{ form.errors.transfer_no[0] }}
+                </p>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Referensi PO</label>
+                <select
+                    v-model="form.po_no"
+                    class="mt-1 h-10 w-full rounded-md text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                    <option value="">Pilih Referensi PO (Opsional)</option>
+                    <option v-for="po in purchaseOrders" :key="po.id" :value="po.order_no">
+                        {{ po.order_no }}
+                    </option>
+                </select>
+                <p v-if="form.errors.po_no" class="mt-1 text-xs text-rose-600">{{ form.errors.po_no[0] }}</p>
+            </div>
             <div class="space-y-1">
                 <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -10,7 +43,7 @@
                 <input
                     v-model="form.transferred_at"
                     type="date"
-                    class="h-10 ps-0 pe-5 w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                    class="mt-1 h-10 px-3 w-full rounded-md text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 focus:border-indigo-500 focus:ring-indigo-500"
                 />
                 <p
                     v-if="form.errors.transferred_at"
@@ -19,31 +52,8 @@
                     {{ form.errors.transferred_at[0] }}
                 </p>
             </div>
-            <div class="space-y-2">
-                <label
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >Dikirim oleh
-                    <span class="text-red-500">*</span>
-                </label>
-                <Select
-                    v-model="form.employee_id"
-                    label="Pilih karyawan"
-                    :items="employees"
-                    :disabled="roles !== 'Superadmin'"
-                >
-                    <template #item="{ item }">
-                        <span>
-                            {{ item.name }}
-                        </span>
-                    </template>
-                </Select>
-                <p
-                    v-if="form.errors.employee_id"
-                    class="mt-1 text-xs text-rose-600"
-                >
-                    {{ form.errors.employee_id[0] }}
-                </p>
-            </div>
+
+            <!-- Row 2 -->
             <div class="space-y-2">
                 <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -93,11 +103,38 @@
                     {{ form.errors.to_branch_id[0] }}
                 </p>
             </div>
-            <div class="col-span-4">
+            <div class="space-y-2">
+                <label
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >Dikirim oleh
+                    <span class="text-red-500">*</span>
+                </label>
+                <Select
+                    v-model="form.employee_id"
+                    label="Pilih karyawan"
+                    :items="employees"
+                    :disabled="roles !== 'Superadmin'"
+                >
+                    <template #item="{ item }">
+                        <span>
+                            {{ item.name }}
+                        </span>
+                    </template>
+                </Select>
+                <p
+                    v-if="form.errors.employee_id"
+                    class="mt-1 text-xs text-rose-600"
+                >
+                    {{ form.errors.employee_id[0] }}
+                </p>
+            </div>
+
+            <!-- Row 3 & 4 -->
+            <div class="col-span-3">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Keperluan</label>
                 <textarea
                     v-model="form.purpose"
-                    rows="2"
+                    rows="1"
                     placeholder="Masukkan keperluan pemindahan barang"
                     class="mt-1 w-full rounded-md text-sm border-gray-300 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
                 ></textarea>
@@ -105,7 +142,7 @@
             </div>
 
             <!-- Lampiran Pengiriman -->
-            <div class="col-span-4">
+            <div class="col-span-3">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Lampiran Pengiriman
                     <span class="text-gray-400 text-xs">(PDF, Gambar, Word - max 10MB)</span>
@@ -147,6 +184,7 @@ const props = defineProps({
     employees: { type: Array, required: true },
     user: { type: String, required: true },
     roles: { type: String, required: true },
+    purchaseOrders: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['attachments-changed']);

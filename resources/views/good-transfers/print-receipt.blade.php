@@ -371,7 +371,7 @@
                             </td>
                             <td>
                                 <span class="meta-label">PO No</span>
-                                <span class="meta-value">-</span>
+                                <span class="meta-value">{{ $goodTransfer->po_no ?: '-' }}</span>
                             </td>
                         </tr>
                     </table>

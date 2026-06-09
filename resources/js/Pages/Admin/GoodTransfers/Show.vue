@@ -46,6 +46,10 @@
                     <div class="text-xs text-gray-500">Tanggal Transfer</div>
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ goodTransfer.transferred_at }}</div>
                 </div>
+                <div>
+                    <div class="text-xs text-gray-500">Referensi PO</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ goodTransfer.po_no || '-' }}</div>
+                </div>
                 <div v-if="goodTransfer.received_by">
                     <div class="text-xs text-gray-500">Diterima oleh</div>
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ goodTransfer.received_by }}</div>

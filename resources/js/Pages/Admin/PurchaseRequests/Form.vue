@@ -4,6 +4,25 @@
             <div>
                 <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >No. Pengajuan</label
+                >
+                <input
+                    v-model="form.request_no"
+                    type="text"
+                    class="h-10 p-0 w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 font-mono"
+                    placeholder="Auto-generate jika dikosongkan"
+                />
+                <div class="text-xs text-gray-400 mt-1">Kosongkan untuk generate otomatis (PR-SPB-001-06-2026)</div>
+                <p
+                    v-if="form.errors.request_no"
+                    class="mt-1 text-sm text-red-500"
+                >
+                    {{ form.errors.request_no[0] }}
+                </p>
+            </div>
+            <div>
+                <label
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300"
                     >Tanggal Pengajuan</label
                 >
                 <input

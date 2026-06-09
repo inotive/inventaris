@@ -234,7 +234,7 @@ class MaterialRequestController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'request_no' => ['required', 'string', 'unique:material_requests,request_no'],
+            'request_no' => ['nullable', 'string', 'unique:material_requests,request_no'],
             'requested_at' => ['required', 'date'],
             'department_id' => ['required', 'exists:departments,id'],
             'employee_id' => ['required', 'exists:employees,id'],
@@ -244,6 +244,10 @@ class MaterialRequestController extends Controller
             'requests.*.request' => ['required_with:requests', 'integer', 'min:1'],
             'requests.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        if (empty($data['request_no'])) {
+            $data['request_no'] = MaterialRequest::generateRequestNo($data['requested_at']);
+        }
 
         try {
             DB::transaction(function () use ($data) {

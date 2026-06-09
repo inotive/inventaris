@@ -285,6 +285,26 @@
                         </tr>
                     </tbody>
                     <tfoot v-if="form.items.length > 0">
+                        <tr class="border-t border-gray-200 dark:border-gray-600">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Sub Total:</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(subtotalAmount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="form.discount > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Diskon:</td>
+                            <td class="px-3 py-2 text-sm text-center text-red-600">- {{ formatCurrency(form.discount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="ppnAmount > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">PPN ({{ form.tax_percent ?? 11 }}%):</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(ppnAmount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="form.other_cost > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Biaya Lain-Lain:</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(form.other_cost) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
                         <tr class="border-t-2 border-gray-300 dark:border-gray-600">
                             <td colspan="5" class="px-3 py-2 text-right font-semibold">Total:</td>
                             <td class="px-3 py-2 font-semibold text-center">{{ formatCurrency(totalAmount) }}</td>
@@ -386,6 +406,9 @@ const form = useForm({
     }),
     employee_id: props.po.ordered_by,
     amount_paid: props.po.amount_paid || 0,
+    discount: props.po.discount || '',
+    other_cost: props.po.other_cost || '',
+    tax_percent: props.po.tax_percent || 11,
 });
 
 const showPayment = ref(false);
@@ -471,7 +494,22 @@ const calculateSubtotal = (index) => {
     form.items[index] = { ...form.items[index] };
 };
 
+const ppnAmount = computed(() => {
+    const subtotal = subtotalAmount.value;
+    const discount = form.discount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const percent = typeof form.tax_percent === 'number' ? form.tax_percent : 11;
+    return taxableAmount * (percent / 100);
+});
+
 const totalAmount = computed(() => {
+    const subtotal = subtotalAmount.value;
+    const discount = form.discount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    return taxableAmount + ppnAmount.value + (form.other_cost || 0);
+});
+
+const subtotalAmount = computed(() => {
     return form.items.reduce((total, item) => {
         return total + (item.quantity_ordered * item.cost);
     }, 0);

@@ -14,6 +14,7 @@ use App\Models\ItemStock;
 use App\Models\GoodTransfer;
 use Illuminate\Http\Request;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseOrder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -99,6 +100,7 @@ class GoodTransferController extends Controller
                     'status' => $gt->status,
                     'sent_by' => $gt->sentBy?->name,
                     'received_by' => $gt->receivedBy?->name,
+                    'po_no' => $gt->po_no,
                     'transferred_at' => $gt->transferred_at->locale('id')->translatedFormat('d F Y'),
                     'created_at' => Carbon::parse($gt->created_at)->locale('id')->translatedFormat('d F Y'),
                 ];
@@ -140,9 +142,19 @@ class GoodTransferController extends Controller
 
         $roles = Auth::user()->getRoleNames()->first();
 
+        $purchaseOrders = PurchaseOrder::query()
+            ->select('id', 'order_no')
+            ->whereNotIn('order_no', function ($query) {
+                $query->select('po_no')
+                    ->from('good_transfers')
+                    ->whereNotNull('po_no');
+            })
+            ->orderBy('order_no')
+            ->get();
+
         return Inertia::render(
             'Admin/GoodTransfers/Create',
-            compact('transfer_no', 'branches', 'employees', 'items', 'user', 'roles')
+            compact('transfer_no', 'branches', 'employees', 'items', 'user', 'roles', 'purchaseOrders')
         );
     }
 
@@ -154,11 +166,13 @@ class GoodTransferController extends Controller
         abort_unless(Gate::allows('good_transfers.create'), 403, 'Anda tidak memiliki akses untuk menambah perpindahan barang');
 
         $data = $request->validate([
+            'transfer_no' => ['nullable', 'string', 'max:255', 'unique:good_transfers,transfer_no'],
             'from_branch_id' => ['required', 'exists:branches,id'],
             'to_branch_id' => ['required', 'exists:branches,id'],
             'employee_id' => ['required', 'exists:employees,id'],
             'transferred_at' => ['required', 'date'],
             'purpose' => ['nullable', 'string'],
+            'po_no' => ['nullable', 'string', 'max:255'],
             'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
@@ -197,6 +211,7 @@ class GoodTransferController extends Controller
             DB::transaction(function () use ($data, $attachmentPaths, $attachmentNames) {
 
                 $goodTransfer = GoodTransfer::create([
+                    'transfer_no' => $data['transfer_no'] ?? null,
                     'from_branch' => $data['from_branch_id'],
                     'to_branch' => $data['to_branch_id'],
                     'sent_by' => $data['employee_id'],
@@ -205,6 +220,7 @@ class GoodTransferController extends Controller
                     'status' => 'Shipped',
                     'attachment_path' => !empty($attachmentPaths) ? $attachmentPaths : null,
                     'attachment_name' => !empty($attachmentNames) ? $attachmentNames : null,
+                    'po_no' => $data['po_no'] ?? null,
                 ]);
 
                 if ($data['items']) {
@@ -261,6 +277,7 @@ class GoodTransferController extends Controller
             'goodTransfer' => [
                 'id' => $goodTransfer->id,
                 'transfer_no' => $goodTransfer->transfer_no,
+                'po_no' => $goodTransfer->po_no,
                 'from_branch' => $goodTransfer->fromBranch?->name,
                 'from_branch_id' => $goodTransfer->from_branch,
                 'to_branch' => $goodTransfer->toBranch?->name,
@@ -360,6 +377,7 @@ class GoodTransferController extends Controller
             'goodTransfer' => [
                 'id' => $goodTransfer->id,
                 'transfer_no' => $goodTransfer->transfer_no,
+                'po_no' => $goodTransfer->po_no,
                 'from_branch_id' => $goodTransfer->from_branch,
                 'to_branch_id' => $goodTransfer->to_branch,
                 'employee_id' => $goodTransfer->sent_by,
@@ -383,6 +401,20 @@ class GoodTransferController extends Controller
             'allItems' => $items,
             'user' => $user,
             'roles' => $roles,
+            'purchaseOrders' => PurchaseOrder::query()
+                ->select('id', 'order_no')
+                ->where(function ($query) use ($goodTransfer) {
+                    $query->whereNotIn('order_no', function ($q) {
+                        $q->select('po_no')
+                            ->from('good_transfers')
+                            ->whereNotNull('po_no');
+                    });
+                    if ($goodTransfer->po_no) {
+                        $query->orWhere('order_no', $goodTransfer->po_no);
+                    }
+                })
+                ->orderBy('order_no')
+                ->get(),
         ]);
     }
 
@@ -399,11 +431,13 @@ class GoodTransferController extends Controller
         }
 
         $data = $request->validate([
+            'transfer_no' => ['nullable', 'string', 'max:255', 'unique:good_transfers,transfer_no,' . $goodTransfer->id],
             'from_branch_id' => ['required', 'exists:branches,id'],
             'to_branch_id' => ['required', 'exists:branches,id'],
             'employee_id' => ['required', 'exists:employees,id'],
             'transferred_at' => ['required', 'date'],
             'purpose' => ['nullable', 'string'],
+            'po_no' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
             'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
@@ -421,11 +455,13 @@ class GoodTransferController extends Controller
         try {
             DB::transaction(function () use ($data, $goodTransfer) {
                 $goodTransfer->update([
+                    'transfer_no' => $data['transfer_no'] ?? $goodTransfer->transfer_no,
                     'from_branch' => $data['from_branch_id'],
                     'to_branch' => $data['to_branch_id'],
                     'sent_by' => $data['employee_id'],
                     'transferred_at' => $data['transferred_at'],
                     'purpose' => $data['purpose'] ?? null,
+                    'po_no' => $data['po_no'] ?? null,
                 ]);
 
                 $goodTransfer->items()->delete();
@@ -612,5 +648,57 @@ class GoodTransferController extends Controller
         ]);
 
         return view('good-transfers.print-receipt', compact('goodTransfer'));
+    }
+
+    /**
+     * Get PO items and quantities resolved for the source branch.
+     */
+    public function getPOItems(Request $request, $orderNo)
+    {
+        $fromBranchId = $request->query('from_branch_id');
+
+        $purchaseOrder = PurchaseOrder::with(['items.item'])
+            ->where('order_no', $orderNo)
+            ->first();
+
+        if (!$purchaseOrder) {
+            return response()->json(['error' => 'Purchase order not found'], 404);
+        }
+
+        $items = $purchaseOrder->items->map(function ($poItem) use ($fromBranchId) {
+            $poItemRecord = $poItem->item;
+            if (!$poItemRecord) {
+                return null;
+            }
+
+            $branchItem = null;
+            if ($fromBranchId) {
+                $branchItem = Item::with(['unit', 'stock:id,item_id,last_stock'])
+                    ->where('branch_id', $fromBranchId)
+                    ->where(function ($q) use ($poItemRecord) {
+                        if ($poItemRecord->code) {
+                            $q->where('code', $poItemRecord->code);
+                        } else {
+                            $q->where('name', $poItemRecord->name);
+                        }
+                    })->first();
+            }
+
+            $resolvedItem = $branchItem ?? $poItemRecord;
+
+            return [
+                'id' => $resolvedItem->id,
+                'name' => $resolvedItem->name,
+                'code' => $resolvedItem->code,
+                'stock' => $resolvedItem->stock ? ($resolvedItem->stock->last_stock ?? 0) : 0,
+                'unit' => $resolvedItem->unit,
+                'quantity_ordered' => $poItem->quantity_ordered,
+                'note' => $poItem->note,
+            ];
+        })->filter()->values();
+
+        return response()->json([
+            'items' => $items
+        ]);
     }
 }

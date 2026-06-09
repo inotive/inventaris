@@ -62,8 +62,7 @@ class HandleInertiaRequests extends Middleware
                     $branchId = optional($user->employee)->branch_id;
 
                     // Base query
-                    $query = DB::table('v_pending_submissions_count')
-                        ->where('source_table', 'submissions');
+                    $query = DB::table('v_pending_submissions_count');
 
                     // Filter by branch if not Superadmin and has branch_id
                     if (!$isSuperAdmin && $branchId && $branchId != 2) {

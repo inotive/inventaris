@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Validation\Rule;
+
 use App\Actions\Data\GoodReceipt\CreateGoodReceipt;
 use App\Actions\Data\Item\UpdateStockItem;
 use App\Actions\Data\PurchaseOrder\CreatePurchaseOrderLogActivities;
@@ -216,6 +218,9 @@ class PurchaseOrderController extends Controller
             'vendor' => ['required', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:255'],
             'branch_id' => ['nullable', 'exists:branches,id'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'other_cost' => ['nullable', 'numeric', 'min:0'],
+            'tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
             'items.*.quantity_ordered' => ['required_with:items', 'integer', 'min:1'],
@@ -235,10 +240,16 @@ class PurchaseOrderController extends Controller
             DB::transaction(function () use ($data) {
                 $amountPaid = $data['amount_paid'] ?? 0;
 
-                $totalOrder = 0;
+                $subtotal = 0;
                 foreach ($data['items'] as $item) {
-                    $totalOrder += $item['quantity_ordered'] * ($item['cost'] ?? 0);
+                    $subtotal += $item['quantity_ordered'] * ($item['cost'] ?? 0);
                 }
+
+                $discount = $data['discount'] ?? 0;
+                $taxPercent = $data['tax_percent'] ?? 11;
+                $taxableAmount = max(0, $subtotal - $discount);
+                $ppn = $taxableAmount * ($taxPercent / 100);
+                $totalOrder = $taxableAmount + $ppn + ($data['other_cost'] ?? 0);
 
                 $statusInvoice = $totalOrder > $amountPaid ? PurchaseOrder::STATUS_INVOICE_BELUM_LUNAS : PurchaseOrder::STATUS_INVOICE_LUNAS;
 
@@ -250,7 +261,7 @@ class PurchaseOrderController extends Controller
 
                 $purchaseOrder = PurchaseOrder::create([
                     'request_id' => $data['request_id'],
-                    'order_no' => $data['order_no'],
+                    'order_no' => $data['order_no'] ?: PurchaseOrder::generateOrderNo($data['ordered_at']),
                     'ordered_at' => $data['ordered_at'],
                     'ordered_by' => Auth::user()->employee?->id ?? Auth::id(),
                     'status_invoice' => $statusInvoice,
@@ -258,6 +269,9 @@ class PurchaseOrderController extends Controller
                     'note' => $data['note'] ?? null,
                     'branch_id' => $branchId,
                     'paid_amount' => $amountPaid,
+                    'discount' => $discount,
+                    'other_cost' => $data['other_cost'] ?? 0,
+                    'tax_percent' => $taxPercent,
                 ]);
 
                 foreach ($data['items'] as $item) {
@@ -302,9 +316,17 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrder->load(['request', 'applicant', 'branch', 'items.item.unit']);
 
-        $total = $purchaseOrder->items->sum(function ($item) {
+        $subtotal = $purchaseOrder->items->sum(function ($item) {
             return $item->quantity_ordered * ($item->cost ?? 0);
         });
+        $discount = $purchaseOrder->discount ?? 0;
+        $otherCost = $purchaseOrder->other_cost ?? 0;
+        $taxPercent = $purchaseOrder->tax_percent ?? 11;
+        
+        // PPN is calculated from (Subtotal - Discount)
+        $taxableAmount = max(0, $subtotal - $discount);
+        $ppn = $taxableAmount * ($taxPercent / 100);
+        $total = $taxableAmount + $ppn + $otherCost;
 
         $activities = \App\Models\PurchaseOrderActivity::where('purchase_order_id', $purchaseOrder->id)
             ->with('createdBy:id,name')
@@ -323,11 +345,16 @@ class PurchaseOrderController extends Controller
             'po' => [
                 'id' => $purchaseOrder->id,
                 'number' => $purchaseOrder->order_no,
-                'date' => $purchaseOrder->ordered_at->format('d/m/Y'),
+                'date' => $purchaseOrder->ordered_at->locale('id')->translatedFormat('d F Y'),
                 'vendor' => $purchaseOrder->vendor ? ['id' => $purchaseOrder->vendor, 'name' => $purchaseOrder->vendor] : null,
                 'status_delivered' => $purchaseOrder->status_delivered,
                 'status_invoice' => $purchaseOrder->status_invoice,
                 'paid_amount' => $purchaseOrder->paid_amount,
+                'discount' => $discount,
+                'other_cost' => $otherCost,
+                'subtotal' => $subtotal,
+                'tax_percent' => $taxPercent,
+                'ppn' => $ppn,
                 'total' => $total,
                 'note' => $purchaseOrder->note,
                 'ordered_by' => $purchaseOrder->applicant?->name,
@@ -445,6 +472,9 @@ class PurchaseOrderController extends Controller
                 'status_invoice' => $purchaseOrder->status_invoice,
                 'status_delivered' => $purchaseOrder->status_delivered,
                 'amount_paid' => $purchaseOrder->paid_amount,
+                'discount' => $purchaseOrder->discount ?? 0,
+                'other_cost' => $purchaseOrder->other_cost ?? 0,
+                'tax_percent' => $purchaseOrder->tax_percent ?? 11,
                 'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
                 'items' => $purchaseOrder->items->map(function ($item) {
                     return [
@@ -475,10 +505,14 @@ class PurchaseOrderController extends Controller
         $userBranchId = Auth::user()->employee?->branch_id;
 
         $data = $request->validate([
+            'order_no' => ['nullable', 'string', Rule::unique('purchase_orders', 'order_no')->ignore($purchaseOrder->id)],
             'vendor' => ['required', 'string', 'max:255'],
             'ordered_at' => ['required', 'date'],
             'note' => ['nullable', 'string', 'max:255'],
             'branch_id' => ['nullable', 'exists:branches,id'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'other_cost' => ['nullable', 'numeric', 'min:0'],
+            'tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
             'items.*.quantity_ordered' => ['required_with:items', 'integer', 'min:1'],
@@ -496,10 +530,14 @@ class PurchaseOrderController extends Controller
         try {
             DB::transaction(function () use ($purchaseOrder, $data) {
                 $purchaseOrder->update([
+                    'order_no' => $data['order_no'] ?: $purchaseOrder->order_no,
                     'vendor' => $data['vendor'],
                     'ordered_at' => $data['ordered_at'],
                     'note' => $data['note'] ?? null,
                     'branch_id' => $data['branch_id'],
+                    'discount' => $data['discount'] ?? 0,
+                    'other_cost' => $data['other_cost'] ?? 0,
+                    'tax_percent' => $data['tax_percent'] ?? 11,
                 ]);
 
                 $purchaseOrder->items()->delete();
@@ -576,6 +614,8 @@ class PurchaseOrderController extends Controller
                 'status_delivered' => $purchaseOrder->status_delivered,
                 'status_invoice' => $purchaseOrder->status_invoice,
                 'paid_amount' => $purchaseOrder->paid_amount,
+                'discount' => $purchaseOrder->discount ?? 0,
+                'other_cost' => $purchaseOrder->other_cost ?? 0,
                 'total' => $total,
                 'note' => $purchaseOrder->note,
                 'receive_notes' => $purchaseOrder->receive_notes,

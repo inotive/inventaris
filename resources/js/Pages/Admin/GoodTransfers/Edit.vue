@@ -42,6 +42,7 @@
                 :user="user"
                 :employees="employees"
                 :roles="roles"
+                :purchaseOrders="purchaseOrders"
                 @submit="submit"
                 @cancel="goBack"
             />
@@ -437,6 +438,7 @@ const props = defineProps({
     employees: { type: Array, required: true },
     user: { type: Object, required: true },
     roles: { type: String, required: true },
+    purchaseOrders: { type: Array, default: () => [] },
 });
 console.log(props.employees)
 const options = ref(
@@ -563,11 +565,13 @@ const removeItem = (index) => {
 };
 
 const form = useForm({
+    transfer_no: props.goodTransfer.transfer_no ?? "",
     from_branch_id: props.goodTransfer.from_branch_id ?? null,
     to_branch_id: props.goodTransfer.to_branch_id ?? null,
     employee_id: props.goodTransfer.employee_id ?? null,
     transferred_at: props.goodTransfer.transferred_at ?? '',
     purpose: props.goodTransfer.purpose ?? '',
+    po_no: props.goodTransfer.po_no ?? '',
     items: props.items?.map(item => ({
         uid: uuidv4(),
         item_id: item.item_id,
@@ -582,6 +586,62 @@ const form = useForm({
         },
     ],
 });
+
+watch(
+    () => form.po_no,
+    async (newVal) => {
+        if (!newVal) {
+            return;
+        }
+        try {
+            const response = await fetch(`/good-transfers/po-items/${newVal}?from_branch_id=${form.from_branch_id}`);
+            const data = await response.json();
+            if (data && data.items) {
+                items.value = data.items.map(poItem => {
+                    const matchedItem = {
+                        id: poItem.id,
+                        name: poItem.name,
+                        code: poItem.code,
+                        stock: poItem.stock,
+                        unit: poItem.unit
+                    };
+                    
+                    const newRow = reactive({
+                        uid: uuidv4(),
+                        item_id: matchedItem,
+                        amount: poItem.quantity_ordered,
+                        code: poItem.code || "",
+                        name: poItem.name || "",
+                        stock: poItem.stock || 0,
+                        unit: poItem.unit || null,
+                        note: poItem.note || "",
+                    });
+                    
+                    watch(
+                        () => newRow.item_id,
+                        (itemVal) => {
+                            if (itemVal) {
+                                newRow.code = itemVal.code;
+                                newRow.name = itemVal.name;
+                                newRow.stock = itemVal.stock || 0;
+                                newRow.unit = itemVal.unit;
+                            } else {
+                                newRow.code = "";
+                                newRow.name = "";
+                                newRow.stock = 0;
+                                newRow.unit = null;
+                            }
+                        }
+                    );
+                    
+                    return newRow;
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching PO items:', error);
+        }
+    }
+);
 
 function saveTransfer() {
     // Clear previous errors

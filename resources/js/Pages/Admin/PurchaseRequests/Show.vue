@@ -278,6 +278,21 @@
                     <form @submit.prevent="submitPO">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nomor PO</label>
+                                <input
+                                    type="text"
+                                    v-model="poForm.order_no"
+                                    class="w-full h-9 px-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500 font-mono"
+                                    placeholder="Auto-generate jika dikosongkan"
+                                />
+                                <div class="text-xs text-gray-400 mt-1">Kosongkan untuk generate otomatis (PO-SPB-001-06-2026)</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal PO</label>
+                                <input type="date" v-model="poForm.po_date" required
+                                    class="w-full h-9 px-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Vendor <span class="text-red-500">*</span>
                                 </label>
@@ -296,9 +311,47 @@
                                 <p v-if="vendorError" class="mt-1 text-xs text-red-600">{{ vendorError }}</p>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal PO</label>
-                                <input type="date" v-model="poForm.po_date" required
-                                    class="w-full h-9 px-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Diskon</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        v-model.number="poForm.discount"
+                                        class="w-full h-9 pl-10 pr-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Biaya Lain-Lain</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        v-model.number="poForm.other_cost"
+                                        class="w-full h-9 pl-10 pr-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">PPN (%)</label>
+                                <div class="relative">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.01"
+                                        v-model.number="poForm.tax_percent"
+                                        class="w-full h-9 px-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500 font-mono"
+                                        placeholder="11"
+                                    />
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                                </div>
                             </div>
                         </div>
 
@@ -339,9 +392,25 @@
                                     </tr>
                                 </tbody>
                                 <tfoot>
-                                    <tr class="bg-gray-50 font-semibold">
-                                        <td colspan="4" class="p-2 text-right">Total:</td>
-                                        <td class="p-2 text-right">{{ formatCurrency(totalPOAmount) }}</td>
+                                    <tr class="bg-gray-50 text-xs text-gray-600">
+                                        <td colspan="4" class="p-2 text-right">Subtotal:</td>
+                                        <td class="p-2 text-right">{{ formatCurrency(poForm.items.reduce((total, item) => total + (item.total_price || 0), 0)) }}</td>
+                                    </tr>
+                                    <tr v-if="poForm.discount > 0" class="bg-gray-50 text-xs text-gray-600">
+                                        <td colspan="4" class="p-2 text-right">Diskon:</td>
+                                        <td class="p-2 text-right text-red-600">- {{ formatCurrency(poForm.discount) }}</td>
+                                    </tr>
+                                    <tr v-if="((poForm.items.reduce((total, item) => total + (item.total_price || 0), 0) - (poForm.discount || 0)) * ((poForm.tax_percent ?? 11) / 100)) > 0" class="bg-gray-50 text-xs text-gray-600">
+                                        <td colspan="4" class="p-2 text-right">PPN ({{ poForm.tax_percent ?? 11 }}%):</td>
+                                        <td class="p-2 text-right">{{ formatCurrency((Math.max(0, poForm.items.reduce((total, item) => total + (item.total_price || 0), 0) - (poForm.discount || 0))) * ((poForm.tax_percent ?? 11) / 100)) }}</td>
+                                    </tr>
+                                    <tr v-if="poForm.other_cost > 0" class="bg-gray-50 text-xs text-gray-600">
+                                        <td colspan="4" class="p-2 text-right">Biaya Lain-Lain:</td>
+                                        <td class="p-2 text-right">{{ formatCurrency(poForm.other_cost) }}</td>
+                                    </tr>
+                                    <tr class="bg-gray-100 font-semibold">
+                                        <td colspan="4" class="p-2 text-right text-sm">Total Akhir:</td>
+                                        <td class="p-2 text-right text-sm text-blue-600">{{ formatCurrency(totalPOAmount) }}</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -406,6 +475,7 @@ const props = defineProps({
     can_approve: { type: Boolean, default: false },
     can_create_po: { type: Boolean, default: false },
     vendors: { type: Array, default: () => [] },
+    orderNo: { type: String, default: '' },
 })
 
 const pr = props.pr
@@ -430,9 +500,13 @@ const showPOForm = ref(false)
 
 // PO Form data
 const poForm = ref({
+    order_no: '',
     vendor: '',
     po_date: new Date().toISOString().split('T')[0],
     notes: '',
+    discount: '',
+    other_cost: '',
+    tax_percent: 11,
     items: []
 })
 
@@ -446,7 +520,12 @@ const rejectionForm = ref({
 
 // Computed properties
 const totalPOAmount = computed(() => {
-    return poForm.value.items.reduce((total, item) => total + (item.total_price || 0), 0)
+    const subtotal = poForm.value.items.reduce((total, item) => total + (item.total_price || 0), 0)
+    const discount = poForm.value.discount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const taxPercent = typeof poForm.value.tax_percent === 'number' ? poForm.value.tax_percent : 11;
+    const ppn = taxableAmount * (taxPercent / 100);
+    return taxableAmount + ppn + (poForm.value.other_cost || 0)
 })
 
 defineOptions({
@@ -581,7 +660,8 @@ function openConvertToPO() {
 function confirmConvertToPO() {
     showConvertConfirm.value = false
 
-    // Initialize PO form with approved items
+    // Initialize PO form with approved items and auto-generated PO number
+    poForm.value.order_no = props.orderNo || ''
     poForm.value.items = (pr.items || [])
         .filter(item => item.quantity_approved > 0)
         .map(item => ({
@@ -644,11 +724,14 @@ function submitPO() {
 
     router.post(route('purchase-orders.store'), {
         request_id: pr.id,
-        order_no: '', // Will be auto-generated
+        order_no: poForm.value.order_no,
         ordered_at: poForm.value.po_date,
         vendor: poForm.value.vendor,
         branch_id: pr.department?.branch_id,
         note: poForm.value.notes,
+        discount: poForm.value.discount,
+        other_cost: poForm.value.other_cost,
+        tax_percent: poForm.value.tax_percent,
         items: poForm.value.items.map(item => ({
             item_id: item.item.id,
             quantity_ordered: item.quantity,

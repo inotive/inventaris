@@ -401,9 +401,10 @@
             $subtotal = collect($po['items'])->sum(function($item) {
                 return $item['quantity_ordered'] * $item['cost'];
             });
-            $discount = 0;
-            $ppn = ($subtotal - $discount) * 0.11;
-            $grandTotal = $subtotal - $discount + $ppn;
+            $discount   = $po['discount'] ?? 0;
+            $other_cost = $po['other_cost'] ?? 0;
+            $ppn        = ($subtotal - $discount) * 0.11;
+            $grandTotal = $subtotal - $discount + $ppn + $other_cost;
         @endphp
 
         <div class="summary-signature-section">
@@ -439,7 +440,7 @@
                 </div>
                 <div class="totals-row">
                     <span>Biaya Lain-lain</span>
-                    <span>0</span>
+                    <span>{{ number_format($other_cost, 0, ',', '.') }}</span>
                 </div>
                 <div class="totals-row grand-total">
                     <span>Total</span>

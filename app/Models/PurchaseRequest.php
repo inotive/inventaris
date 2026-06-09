@@ -73,11 +73,13 @@ class PurchaseRequest extends Model
     public static function generateRequestNo($requestDate = null): string
     {
         $date = $requestDate ? Carbon::parse($requestDate) : now();
-        $ym = $date->format('Ym');
-        $prefix = 'PR-' . $ym . '-';
+        $month = $date->format('m');
+        $year  = $date->format('Y');
+        $prefix = 'PR-SPB-';
+        $suffix = '-' . $month . '-' . $year;
 
         $last = static::query()
-            ->where('request_no', 'like', $prefix . '%')
+            ->where('request_no', 'like', $prefix . '%' . $suffix)
             ->orderBy('request_no', 'desc')
             ->value('request_no');
 
@@ -88,7 +90,7 @@ class PurchaseRequest extends Model
             $seq = $lastSeq + 1;
         }
 
-        return $prefix . str_pad((string)$seq, 4, '0', STR_PAD_LEFT);
+        return $prefix . str_pad((string)$seq, 3, '0', STR_PAD_LEFT) . $suffix;
     }
 
     public function logActivities()

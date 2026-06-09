@@ -56,10 +56,13 @@
                             <th colspan="1" class="py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
                                 <div class="px-3 font-medium text-center text-gray-600 dark:text-gray-300">Ke Cabang</div>
                             </th>
+                            <th colspan="1" class="py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
+                                <div class="px-3 font-medium text-center text-gray-600 dark:text-gray-300">Referensi PO</div>
+                            </th>
                             <th class="py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <button @click="changeSort('transfer_date')" class="w-full px-3 font-medium text-gray-600 dark:text-gray-300">
+                                <button @click="changeSort('transferred_at')" class="w-full px-3 font-medium text-gray-600 dark:text-gray-300">
                                     Tanggal Transfer
-                                    <SortIcon :active="sortBy === 'transfer_date'" :direction="sortDirection" />
+                                    <SortIcon :active="sortBy === 'transferred_at'" :direction="sortDirection" />
                                 </button>
                             </th>
                             <th class="py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
@@ -125,6 +128,9 @@
                                     </Select>
                                 </div>
                             </th>
+                            <th class="px-2 py-2 border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900">
+                                <div class="flex items-center h-10 px-3 text-xs text-gray-500 justify-center">-</div>
+                            </th>
                             <th class="p-2 border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900">
                                 <div class="grid grid-cols-2 gap-2">
                                     <input v-model="filtersLocal.date_from" type="date" class="h-10 px-2 text-xs border-gray-300 rounded sm:text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
@@ -139,11 +145,11 @@
                                     <option value="Canceled">Dibatalkan</option>
                                 </select>
                             </th>
-                            <th class="px-2 py-2 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="flex items-center h-10 px-3 text-xs text-gray-500">-</div>
+                             <th class="px-2 py-2 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900">
+                                <div class="flex items-center h-10 px-3 text-xs text-gray-500 justify-center">-</div>
                             </th>
                             <th class="px-2 py-2 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="flex items-center h-10 px-3 text-xs text-gray-500">-</div>
+                                <div class="flex items-center h-10 px-3 text-xs text-gray-500 justify-center">-</div>
                             </th>
                             <th class="px-2 py-2 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900">
                                 <button @click="clearFilters" class="px-3 py-2 text-xs text-white bg-red-500 rounded hover:bg-red-600">
@@ -155,7 +161,7 @@
 
                     <tbody>
                         <tr v-if="!goodTransfers.data || goodTransfers.data.length === 0">
-                            <td colspan="10" class="py-8 text-center text-gray-500">
+                            <td colspan="11" class="py-8 text-center text-gray-500">
                                 Tidak ada pemindahan barang.
                             </td>
                         </tr>
@@ -164,7 +170,7 @@
                         <template v-else-if="isGrouped">
                             <template v-for="(rows, gkey) in groupedData" :key="gkey">
                                 <tr v-if="groupByLocal != 'all'">
-                                    <td :colspan="10" class="px-4 py-2 font-semibold text-gray-600 bg-gray-50 dark:bg-gray-900/40 dark:text-gray-300">
+                                    <td :colspan="11" class="px-4 py-2 font-semibold text-gray-600 bg-gray-50 dark:bg-gray-900/40 dark:text-gray-300">
                                         <button class="inline-flex items-center gap-2" @click="toggleGroupCollapse(gkey)">
                                             <span class="text-xs">{{ isCollapsed(gkey) ? "▶" : "▼" }}</span>
                                             <span>{{ groupLabel(gkey) }}</span>
@@ -183,6 +189,7 @@
                                                 <span class="font-semibold text-green-500">{{ row.to_branch }}</span>
                                             </div>
                                         </td>
+                                        <td class="px-3 py-3 text-center">{{ row.po_no || '-' }}</td>
                                         <td class="px-3 py-3 text-center">{{ row.transferred_at }}</td>
                                         <td class="px-3 py-3 text-center">
                                             <span :class="badgeClass(row.status)" class="px-2.5 py-1 text-xs font-medium rounded-full">
@@ -228,6 +235,7 @@
                                         <span class="font-semibold text-green-500">{{ row.to_branch }}</span>
                                     </div>
                                 </td>
+                                <td class="p-3 text-center">{{ row.po_no || '-' }}</td>
                                 <td class="p-3 text-center">{{ row.transferred_at }}</td>
                                 <td class="p-3 text-center">
                                     <span :class="badgeClass(row.status)" class="px-2.5 py-1.5 text-xs font-medium rounded-full">
