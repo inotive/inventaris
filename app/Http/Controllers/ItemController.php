@@ -173,6 +173,8 @@ class ItemController extends Controller
             $validated['code'] = $generatedCode;
         }
 
+        $validated['min_stock'] = $validated['min_stock'] ?? 0;
+
         try {
             DB::transaction(function () use ($validated) {
                 $branches = Branch::all();
@@ -204,10 +206,15 @@ class ItemController extends Controller
             'category_id.exists' => 'Kategori barang tidak valid.',
         ]);
 
+        $validated['min_stock'] = $validated['min_stock'] ?? 0;
+
         try {
-            $items = Item::where('code', $validated['code'])->get();
+            $items = Item::where('code', $item->code)->get();
+            $updateData = $validated;
+            unset($updateData['branch_id']);
+
             foreach ($items as $row) {
-                $row->update($validated);
+                $row->update($updateData);
             }
 
             return back()->with('success', 'Barang berhasil diupdate');
