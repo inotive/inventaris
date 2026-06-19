@@ -40,7 +40,7 @@ class ItemSeeder extends Seeder
             foreach ($itemTemplates as $index => $template) {
                 $itemCount++;
                 $itemsToInsert[] = [
-                    'code' => $template['code_prefix'] . '-' . str_pad($branch->id, 2, '0', STR_PAD_LEFT) . '-' . str_pad($index + 1, 3, '0', STR_PAD_LEFT),
+                    'code' => $template['code_prefix'] . '-' . str_pad($index + 1, 3, '0', STR_PAD_LEFT),
                     'name' => $template['name'],
                     'description' => $template['description'],
                     'unit_id' => $template['unit_id'],
