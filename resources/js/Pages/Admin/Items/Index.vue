@@ -169,7 +169,7 @@
                                             class="px-2 py-2 text-center dark:text-white"
                                             :class="Number(row.stock) <= Number(row.min_stock) ? 'text-red-600' : 'text-emerald-600'"
                                         >
-                                            {{ row.stock }}
+                                            {{ parseFloat(row.stock) }}
                                         </td>
                                         <td class="px-2 py-2 text-center dark:text-white">
                                             <div class="flex items-center justify-center gap-5">
@@ -215,7 +215,7 @@
                                     class="px-2 py-2 text-center dark:text-white"
                                     :class="Number(row.stock) <= Number(row.min_stock) ? 'text-red-600' : 'text-emerald-600'"
                                 >
-                                    {{ row.stock }}
+                                    {{ parseFloat(row.stock) }}
                                 </td>
                                 <td class="px-2 py-2 text-center dark:text-white">
                                     <div class="flex items-center justify-center gap-5">
