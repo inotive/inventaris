@@ -395,13 +395,13 @@
                 <tr>
                     <td class="center">{{ $index + 1 }}</td>
                     <td>{{ $item->item->name }}</td>
-                    <td class="center">{{ $item->quantity_transferred }}</td>
+                    <td class="center">{{ (float)$item->quantity_transferred }}</td>
                     <td class="center">{{ $item->item->unit->name ?? $item->unit ?? 'Unit' }}</td>
                     <td>
                         {{ $item->note }}
                         @if($item->note_received)
                             <div style="font-size: 8.5px; color: #555; margin-top: 2px;">
-                                <em>Diterima: {{ $item->note_received }} (Qty: {{ $item->quantity_received ?? '-' }})</em>
+                                <em>Diterima: {{ $item->note_received }} (Qty: {{ isset($item->quantity_received) ? (float)$item->quantity_received : '-' }})</em>
                             </div>
                         @endif
                     </td>
@@ -427,7 +427,7 @@
             <div class="totals-container">
                 <div class="total-row">
                     <span>Total Kuantitas</span>
-                    <span>{{ $goodTransfer->items->sum('quantity_transferred') }}</span>
+                    <span>{{ (float)$goodTransfer->items->sum('quantity_transferred') }}</span>
                 </div>
                 <div class="total-row">
                     <span>Jumlah Barang</span>

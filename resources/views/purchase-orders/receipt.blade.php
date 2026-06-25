@@ -381,7 +381,7 @@
                 <tr>
                     <td class="center">{{ $index + 1 }}</td>
                     <td>{{ $item['item_name'] }}</td>
-                    <td class="center">{{ $item['quantity_ordered'] }}</td>
+                    <td class="center">{{ (float)$item['quantity_ordered'] }}</td>
                     <td class="right">{{ number_format($item['cost'], 0, ',', '.') }}</td>
                     <td class="center">{{ $item['unit'] ?? 'Unit' }}</td>
                     <td class="right">{{ number_format($item['quantity_ordered'] * $item['cost'], 0, ',', '.') }}</td>
