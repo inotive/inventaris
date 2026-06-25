@@ -620,10 +620,17 @@ const barangOptions = computed(() => ({
     yaxis: {
         labels: {
             formatter: function (val) {
-                return val;
+                return val !== undefined && val !== null ? parseFloat(parseFloat(val).toFixed(4)) : val;
             },
         },
     },
+    tooltip: {
+        y: {
+            formatter: function (val) {
+                return val !== undefined && val !== null ? parseFloat(parseFloat(val).toFixed(4)) : val;
+            }
+        }
+    }
 }));
 
 const barangSeries = computed(() => [
@@ -672,6 +679,13 @@ const frequentItemsOptions = computed(() => ({
     colors: ["#1B84FF", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#F59E0B"],
     dataLabels: { enabled: false },
     legend: { show: false },
+    tooltip: {
+        y: {
+            formatter: function (val) {
+                return val !== undefined && val !== null ? parseFloat(parseFloat(val).toFixed(4)) : val;
+            }
+        }
+    }
 }));
 
 const frequentItemsSeries = computed(() => [
