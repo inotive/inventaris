@@ -684,8 +684,8 @@ watch(receivedQuantities, (newVal) => {
     newVal.forEach((qty, index) => {
         const item = po.items[index]
         if (!item) return
-        const expected = po.status_delivered === 'partial' ? (item.quantity_ordered - (item.quantity_received || 0)) : item.quantity_ordered
-        const diff = expected - (qty || 0)
+        const expected = po.status_delivered === 'partial' ? (parseFloat(item.quantity_ordered) - parseFloat(item.quantity_received || 0)) : parseFloat(item.quantity_ordered)
+        const diff = parseFloat((expected - (qty || 0)).toFixed(4))
         
         if (diff > 0) {
             if (!shortages.value[index] || (shortages.value[index].rusak === 0 && shortages.value[index].hilang === 0)) {
@@ -695,7 +695,7 @@ watch(receivedQuantities, (newVal) => {
                 }
             } else {
                 const totalAllocated = Number(shortages.value[index].rusak || 0) + Number(shortages.value[index].hilang || 0)
-                if (totalAllocated !== diff) {
+                if (parseFloat(totalAllocated.toFixed(4)) !== diff) {
                     shortages.value[index] = {
                         rusak: diff,
                         hilang: 0
@@ -865,21 +865,23 @@ const getRemainingShortageToAllocate = (index) => {
 const updateRusakShortage = (index, val) => {
     const total = getShortageQty(index)
     let r = Math.min(total, Math.max(0, Number(val) || 0))
+    r = parseFloat(r.toFixed(4))
     if (!shortages.value[index]) {
         shortages.value[index] = { rusak: 0, hilang: 0 }
     }
     shortages.value[index].rusak = r
-    shortages.value[index].hilang = total - r
+    shortages.value[index].hilang = parseFloat((total - r).toFixed(4))
 }
 
 const updateHilangShortage = (index, val) => {
     const total = getShortageQty(index)
     let h = Math.min(total, Math.max(0, Number(val) || 0))
+    h = parseFloat(h.toFixed(4))
     if (!shortages.value[index]) {
         shortages.value[index] = { rusak: 0, hilang: 0 }
     }
     shortages.value[index].hilang = h
-    shortages.value[index].rusak = total - h
+    shortages.value[index].rusak = parseFloat((total - h).toFixed(4))
 }
 
 function handleAttachmentChange(event) {
