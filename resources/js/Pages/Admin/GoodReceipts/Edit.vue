@@ -167,7 +167,7 @@
                             <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-700 align-middle min-w-[220px]">
                                 <div v-if="hasShortage(r)" class="bg-amber-50/50 dark:bg-amber-950/10 border border-dashed border-amber-300 rounded-lg p-2 space-y-2">
                                     <div class="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                                        ⚠️ Rincian Kekurangan ({{ getShortageMax(r) }} {{ r.unit?.short_name || 'pcs' }})
+                                        ⚠️ Rincian Kekurangan ({{ getShortageMax(r) }} {{ r.unit?.short_name || r.unit?.name || '' }})
                                     </div>
                                     <div class="flex flex-col gap-1.5">
                                         <div class="flex items-center justify-between gap-2">
@@ -180,7 +180,7 @@
                                                     @input="updateRusakShortage(r, r.shortage_rusak)"
                                                     class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
                                                 />
-                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || 'pcs' }}</span>
+                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || r.unit?.name || '' }}</span>
                                             </div>
                                         </div>
                                         <div class="flex items-center justify-between gap-2">
@@ -193,7 +193,7 @@
                                                     @input="updateHilangShortage(r, r.shortage_hilang)"
                                                     class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
                                                 />
-                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || 'pcs' }}</span>
+                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || r.unit?.name || '' }}</span>
                                             </div>
                                         </div>
                                     </div>

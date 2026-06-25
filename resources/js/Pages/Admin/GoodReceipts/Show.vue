@@ -443,7 +443,7 @@
                                                         <div class="flex items-center gap-2 text-sm font-semibold text-amber-700">
                                                             <span>⚠️ Rincian Kekurangan Barang</span>
                                                             <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
-                                                                Kekurangan: {{ parseFloat(getShortageQty(index)) }} {{ item.item?.unit?.short_name || 'pcs' }}
+                                                                Kekurangan: {{ parseFloat(getShortageQty(index)) }} {{ item.item?.unit?.short_name || item.item?.unit?.name || '' }}
                                                             </span>
                                                         </div>
                                                         
@@ -460,7 +460,7 @@
                                                                     @input="updateRusakShortage(index, shortages[index].rusak)"
                                                                     class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 
                                                                 />
-                                                                <span class="text-xs text-gray-500">{{ item.item?.unit?.short_name || 'pcs' }}</span>
+                                                                <span class="text-xs text-gray-500">{{ item.item?.unit?.short_name || item.item?.unit?.name || '' }}</span>
                                                             </div>
                                                             <div class="flex items-center gap-2">
                                                                 <span class="text-xs text-gray-600 font-medium">Hilang:</span>
@@ -473,7 +473,7 @@
                                                                     @input="updateHilangShortage(index, shortages[index].hilang)"
                                                                     class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 
                                                                 />
-                                                                <span class="text-xs text-gray-500">{{ item.item?.unit?.short_name || 'pcs' }}</span>
+                                                                <span class="text-xs text-gray-500">{{ item.item?.unit?.short_name || item.item?.unit?.name || '' }}</span>
                                                             </div>
                                                         </div>
                                                     </div>
