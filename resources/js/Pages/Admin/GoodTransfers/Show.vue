@@ -620,7 +620,7 @@ function badgeClass(s) {
 
 function onReceive() {
     showReceiveModal.value = true
-    receivedQuantities.value = items?.map(item => item.quantity_transferred || 0) || []
+    receivedQuantities.value = items?.map(item => parseFloat(item.quantity_transferred) || 0) || []
     itemNotes.value = items?.map(() => '') || []
     shortages.value = items?.map(() => ({ rusak: 0, hilang: 0 })) || []
     receiveAttachmentFiles.value = []

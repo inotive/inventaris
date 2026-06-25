@@ -341,12 +341,12 @@
                                                         type="number"
                                                         min="0"
                                                         step="any"
-                                                        :max="po.status_delivered === 'partial' ? (item.quantity_ordered - (item.quantity_received || 0)) : item.quantity_ordered"
+                                                        :max="po.status_delivered === 'partial' ? (parseFloat(item.quantity_ordered) - parseFloat(item.quantity_received || 0)) : parseFloat(item.quantity_ordered)"
                                                         :class="[
                                                             'w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
                                                             isNoteRequired(index) ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
                                                         ]"
-                                                        :placeholder="po.status_delivered === 'partial' ? '0' : item.quantity_ordered"
+                                                        :placeholder="po.status_delivered === 'partial' ? '0' : parseFloat(item.quantity_ordered)"
                                                     />
                                                     <span v-if="isNoteRequired(index)" class="text-orange-500 text-xs" title="Catatan wajib diisi">
                                                         ⚠️
@@ -676,7 +676,7 @@ const paymentForm = ref({
 })
 
 // Initialize received quantities and notes arrays
-receivedQuantities.value = po.items?.map(item => item.quantity_received || 0) || []
+receivedQuantities.value = po.items?.map(item => parseFloat(item.quantity_received) || 0) || []
 itemNotes.value = po.items?.map(item => item.note_received || '') || []
 
 // Watch for quantity changes to update shortages
@@ -812,7 +812,7 @@ function onReceive() {
     if (po.status_delivered === 'partial') {
         receivedQuantities.value = po.items?.map(() => 0) || []
     } else {
-        receivedQuantities.value = po.items?.map(item => item.quantity_ordered || 0) || []
+        receivedQuantities.value = po.items?.map(item => parseFloat(item.quantity_ordered) || 0) || []
     }
 
     itemNotes.value = po.items?.map(item => item.note_received || '') || []
