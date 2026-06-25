@@ -158,7 +158,7 @@ class ItemController extends Controller
             'category_id' => ['required', 'exists:item_categories,id'],
             'unit_id' => ['nullable', 'exists:units,id'],
             'description' => ['nullable', 'string'],
-            'min_stock' => ['nullable', 'integer', 'min:0'],
+            'min_stock' => ['nullable', 'numeric', 'min:0'],
             'image_path' => ['nullable', 'string', 'max:255'],
         ], [
             'category_id.required' => 'Kategori barang wajib di isi.',
@@ -199,7 +199,7 @@ class ItemController extends Controller
             'category_id' => ['required', 'exists:item_categories,id'],
             'unit_id' => ['required', 'exists:units,id'],
             'description' => ['nullable', 'string'],
-            'min_stock' => ['nullable', 'integer', 'min:0'],
+            'min_stock' => ['nullable', 'numeric', 'min:0'],
             'image_path' => ['nullable', 'string', 'max:255'],
         ], [
             'category_id.required' => 'Kategori barang wajib di isi.',

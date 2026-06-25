@@ -241,7 +241,7 @@ class MaterialRequestController extends Controller
             'requirement' => ['nullable', 'string'],
             'requests' => ['required', 'array'],
             'requests.*.item_id' => ['required_with:requests', 'exists:items,id'],
-            'requests.*.request' => ['required_with:requests', 'integer', 'min:1'],
+            'requests.*.request' => ['required_with:requests', 'numeric', 'min:0.0001'],
             'requests.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 
@@ -420,7 +420,7 @@ class MaterialRequestController extends Controller
             'requirement' => ['nullable', 'string'],
             'requests' => ['required', 'array'],
             'requests.*.item_id' => ['required_with:requests', 'exists:items,id'],
-            'requests.*.request' => ['required_with:requests', 'integer', 'min:1'],
+            'requests.*.request' => ['required_with:requests', 'numeric', 'min:0.0001'],
             'requests.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 

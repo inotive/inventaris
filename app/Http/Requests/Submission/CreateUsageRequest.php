@@ -27,7 +27,7 @@ class CreateUsageRequest extends FormRequest
             'note' => 'required|string',
             'items' => 'required|array',
             'items.*.id' => 'required|integer',
-            'items.*.quantity' => 'required|integer',
+            'items.*.quantity' => 'required|numeric',
             // 'items.*.note' => 'required|string',
         ];
     }

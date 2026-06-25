@@ -223,7 +223,7 @@ class PurchaseOrderController extends Controller
             'tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.quantity_ordered' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.quantity_ordered' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.cost' => ['nullable', 'numeric', 'min:0'],
             'items.*.note' => ['nullable', 'string', 'max:255'],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
@@ -515,7 +515,7 @@ class PurchaseOrderController extends Controller
             'tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.quantity_ordered' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.quantity_ordered' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.cost' => ['nullable', 'numeric', 'min:0'],
             'items.*.note' => ['nullable', 'string', 'max:255'],
             'amount_paid' => ['required', 'numeric', 'min:0'],
@@ -651,14 +651,14 @@ class PurchaseOrderController extends Controller
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
             'quantities' => ['required', 'array'],
             'quantities.*.item_id' => ['required', 'exists:purchase_order_items,id'],
-            'quantities.*.quantity_received' => ['required', 'integer', 'min:0'],
+            'quantities.*.quantity_received' => ['required', 'numeric', 'min:0'],
             'quantities.*.receive_note' => ['nullable', 'string', 'max:500'],
             'quantities.*.shortage_reason' => ['nullable', 'string', 'in:rusak,hilang'],
-            'quantities.*.shortage_quantity' => ['nullable', 'integer', 'min:1'],
+            'quantities.*.shortage_quantity' => ['nullable', 'numeric', 'min:0.0001'],
             'quantities.*.shortage_description' => ['nullable', 'string', 'max:500'],
             'quantities.*.shortages' => ['nullable', 'array'],
             'quantities.*.shortages.*.reason' => ['required', 'string', 'in:rusak,hilang'],
-            'quantities.*.shortages.*.quantity' => ['required', 'integer', 'min:1'],
+            'quantities.*.shortages.*.quantity' => ['required', 'numeric', 'min:0.0001'],
             'quantities.*.shortages.*.description' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -741,11 +741,11 @@ class PurchaseOrderController extends Controller
         $data = $request->validate([
             'quantities' => ['required', 'array'],
             'quantities.*.item_id' => ['required', 'exists:purchase_order_items,id'],
-            'quantities.*.additional_quantity' => ['required', 'integer', 'min:0'],
+            'quantities.*.additional_quantity' => ['required', 'numeric', 'min:0'],
             'quantities.*.receive_note' => ['nullable', 'string', 'max:500'],
             'quantities.*.shortages' => ['nullable', 'array'],
             'quantities.*.shortages.*.reason' => ['required', 'string', 'in:rusak,hilang'],
-            'quantities.*.shortages.*.quantity' => ['required', 'integer', 'min:1'],
+            'quantities.*.shortages.*.quantity' => ['required', 'numeric', 'min:0.0001'],
             'quantities.*.shortages.*.description' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -850,7 +850,7 @@ class PurchaseOrderController extends Controller
 
                     if (!empty($quantityData['shortages']) && is_array($quantityData['shortages'])) {
                         foreach ($quantityData['shortages'] as $sh) {
-                            $shQty = (int)($sh['quantity'] ?? 0);
+                            $shQty = (float)($sh['quantity'] ?? 0);
                             if ($shQty > 0 && !empty($sh['reason'])) {
                                 \App\Models\ItemDisposal::create([
                                     'disposal_no'   => \App\Models\ItemDisposal::generateDisposalNo(),

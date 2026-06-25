@@ -110,7 +110,7 @@ class CreateGoodReceipt
             // Handle shortage: rusak atau hilang (supports multiple shortages per item)
             if (!empty($item['shortages']) && is_array($item['shortages'])) {
                 foreach ($item['shortages'] as $sh) {
-                    $shQty = isset($sh['quantity']) ? (int) $sh['quantity'] : 0;
+                    $shQty = isset($sh['quantity']) ? (float) $sh['quantity'] : 0.0;
                     if ($shQty > 0 && !empty($sh['reason'])) {
                         ItemDisposal::create([
                             'disposal_no'   => ItemDisposal::generateDisposalNo(),
@@ -136,7 +136,7 @@ class CreateGoodReceipt
                 }
             } else {
                 // Fallback for single shortage fields
-                $shortageQty = isset($item['shortage_quantity']) ? (int) $item['shortage_quantity'] : 0;
+                $shortageQty = isset($item['shortage_quantity']) ? (float) $item['shortage_quantity'] : 0.0;
                 if ($shortageQty > 0 && !empty($item['shortage_reason'])) {
                     ItemDisposal::create([
                         'disposal_no'  => ItemDisposal::generateDisposalNo(),

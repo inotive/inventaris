@@ -24,7 +24,7 @@ class UpdateItemStockRequest extends FormRequest
         return [
             'item_id' => 'required|exists:items,id',
             'type' => 'required|in:in,out',
-            'quantity' => 'required|integer',
+            'quantity' => 'required|numeric',
             'tanggal' => 'nullable|date',
             'note' => 'nullable|string',
         ];

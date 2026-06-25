@@ -178,7 +178,7 @@ class GoodTransferController extends Controller
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.quantity_transferred' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.quantity_transferred' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 
@@ -440,7 +440,7 @@ class GoodTransferController extends Controller
             'po_no' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.amount' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 

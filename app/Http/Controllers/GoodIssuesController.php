@@ -222,7 +222,7 @@ class GoodIssuesController extends Controller
             'requirement' => ['nullable', 'string'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.amount' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 
@@ -335,7 +335,7 @@ class GoodIssuesController extends Controller
             $validated = $request->validate([
                 'approvals' => 'required|array',
                 'approvals.*.id' => 'required|exists:good_issue_items,id',
-                'approvals.*.quantity_approved' => 'required|integer|min:0',
+                'approvals.*.quantity_approved' => 'required|numeric|min:0',
                 'approvals.*.note_received' => 'nullable|string|max:255',
             ]);
 
@@ -424,7 +424,7 @@ class GoodIssuesController extends Controller
             'requirement' => ['nullable', 'string'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.amount' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 
