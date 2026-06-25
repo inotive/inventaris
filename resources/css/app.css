@@ -26,3 +26,7 @@
 .simplebar-scrollbar::before {
     @apply bg-gray-600 dark:bg-gray-300;
 }
+
+.apexcharts-canvas title {
+    display: none !important;
+}
