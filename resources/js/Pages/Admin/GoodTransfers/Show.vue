@@ -252,9 +252,9 @@
                                                     <div class="flex items-center gap-1">
                                                         <input
                                                             v-model.number="receivedQuantities[index]"
-                                                            type="number" min="0" :max="item.quantity_transferred"
+                                                            type="number" min="0" step="any" :max="item.quantity_transferred"
                                                             :class="['w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500', isNoteRequired(index) ? 'border-orange-300 bg-orange-50' : 'border-gray-300']"
-                                                            :placeholder="item.quantity_transferred"
+                                                            :placeholder="parseFloat(item.quantity_transferred)"
                                                         />
                                                         <span v-if="isNoteRequired(index)" class="text-orange-500 text-xs" title="Catatan wajib">⚠️</span>
                                                     </div>
@@ -286,6 +286,7 @@
                                                                     v-model.number="shortages[index].rusak" 
                                                                     type="number" 
                                                                     min="0" 
+                                                                    step="any"
                                                                     :max="getShortageQty(index)"
                                                                     @input="updateRusakShortage(index, shortages[index].rusak)"
                                                                     class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 
@@ -298,6 +299,7 @@
                                                                     v-model.number="shortages[index].hilang" 
                                                                     type="number" 
                                                                     min="0" 
+                                                                    step="any"
                                                                     :max="getShortageQty(index)"
                                                                     @input="updateHilangShortage(index, shortages[index].hilang)"
                                                                     class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 

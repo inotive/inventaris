@@ -340,6 +340,7 @@
                                                         v-model.number="receivedQuantities[index]"
                                                         type="number"
                                                         min="0"
+                                                        step="any"
                                                         :max="po.status_delivered === 'partial' ? (item.quantity_ordered - (item.quantity_received || 0)) : item.quantity_ordered"
                                                         :class="[
                                                             'w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
@@ -394,6 +395,7 @@
                                                                 v-model.number="shortages[index].rusak" 
                                                                 type="number" 
                                                                 min="0" 
+                                                                step="any"
                                                                 :max="getShortageQty(index)"
                                                                 @input="updateRusakShortage(index, shortages[index].rusak)"
                                                                 class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 
@@ -406,6 +408,7 @@
                                                                 v-model.number="shortages[index].hilang" 
                                                                 type="number" 
                                                                 min="0" 
+                                                                step="any"
                                                                 :max="getShortageQty(index)"
                                                                 @input="updateHilangShortage(index, shortages[index].hilang)"
                                                                 class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 

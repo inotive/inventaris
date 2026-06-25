@@ -17,7 +17,7 @@ class ApproveMaterialRequest
                 if (!isset($ap['id'])) continue;
                 $item = $materialRequest->items()->where('id', $ap['id'])->first();
                 if (!$item) continue;
-                $qty = max(0, (int)($ap['quantity_approved'] ?? 0));
+                $qty = max(0, (float)($ap['quantity_approved'] ?? 0));
                 $item->quantity_approved = $qty;
                 if (isset($ap['note'])) $item->note = $ap['note'];
                 $item->save();
