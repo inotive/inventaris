@@ -154,7 +154,7 @@ class ItemController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'code' => ['nullable', 'string', 'max:50', 'unique:items,code'],
+            'code' => ['nullable', 'string', 'max:50'],
             'category_id' => ['required', 'exists:item_categories,id'],
             'unit_id' => ['nullable', 'exists:units,id'],
             'description' => ['nullable', 'string'],
@@ -186,7 +186,7 @@ class ItemController extends Controller
             return back()->with('success', 'Barang berhasil ditambahkan');
         } catch (Throwable $e) {
             Log::error('Store Item failed', ['error' => $e->getMessage()]);
-            return back()->with('error', 'Gagal menambah barang');
+            return back()->with('error', 'Gagal menambah barang: ' . $e->getMessage());
         }
     }
 
@@ -209,7 +209,12 @@ class ItemController extends Controller
         $validated['min_stock'] = $validated['min_stock'] ?? 0;
 
         try {
-            $items = Item::where('code', $item->code)->get();
+            if ($item->code) {
+                $items = Item::where('code', $item->code)->get();
+            } else {
+                $items = Item::where('name', $item->name)->get();
+            }
+
             $updateData = $validated;
             unset($updateData['branch_id']);
 

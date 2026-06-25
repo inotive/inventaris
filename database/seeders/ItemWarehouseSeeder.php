@@ -84,7 +84,7 @@ class ItemWarehouseSeeder extends Seeder
                         // We append branch_id to code to ensure uniqueness per branch if necessary, 
                         // but actually the items table has code as unique globally!
                         // So we must append branch ID or a random string to the code.
-                        'code' => $baseItemCode . '-B' . $branch->id,
+                        'code' => $baseItemCode,
                     ]);
 
                     // Initialize stock to 0 for all branches
