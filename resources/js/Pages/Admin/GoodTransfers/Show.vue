@@ -691,7 +691,8 @@ const getShortageQty = (index) => {
     if (!item) return 0
     const expected = item.quantity_transferred || 0
     const receivedQty = receivedQuantities.value[index] || 0
-    return Math.max(0, expected - receivedQty)
+    const diff = Math.max(0, expected - receivedQty)
+    return parseFloat(diff.toFixed(4))
 }
 
 const getRemainingShortageToAllocate = (index) => {
@@ -699,7 +700,8 @@ const getRemainingShortageToAllocate = (index) => {
     if (totalShortage <= 0) return 0
     const sh = shortages.value[index] || { rusak: 0, hilang: 0 }
     const allocated = Number(sh.rusak || 0) + Number(sh.hilang || 0)
-    return totalShortage - allocated
+    const diff = totalShortage - allocated
+    return parseFloat(diff.toFixed(4))
 }
 
 const updateRusakShortage = (index, val) => {
