@@ -1,0 +1,1 @@
+import{aA as o,a1 as t,bb as e,a0 as r,aY as s,ao as n}from"./app-DCBJPVO3.js";const u={__name:"AuthenticationCardLogo",setup(i){return(c,a)=>(o(),t(s(n),{href:"/"},{default:e(()=>[...a[0]||(a[0]=[r("img",{src:"/images/logo-spb-hitam.png",alt:"Logo Sinergi Putra Borneo",class:"w-64 object-contain"},null,-1)])]),_:1}))}};export{u as _};

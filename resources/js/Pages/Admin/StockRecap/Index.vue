@@ -1165,20 +1165,22 @@ const detailTo = computed(() => {
 });
 
 const totalMasukDetail = computed(() => {
-    return detailTransactions.value
+    const sum = detailTransactions.value
         .filter(tx => tx.type === 'In')
         .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+    return parseFloat(sum.toFixed(4));
 });
 
 const totalKeluarDetail = computed(() => {
-    return detailTransactions.value
+    const sum = detailTransactions.value
         .filter(tx => tx.type === 'Out')
         .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+    return parseFloat(sum.toFixed(4));
 });
 
 const sisaStokDetail = computed(() => {
     if (detailTransactions.value.length > 0) {
-        return detailTransactions.value[0].last_stock;
+        return parseFloat(parseFloat(detailTransactions.value[0].last_stock).toFixed(4));
     }
     return 0;
 });
