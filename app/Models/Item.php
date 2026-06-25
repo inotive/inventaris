@@ -21,7 +21,7 @@ class Item extends Model
     ];
 
     protected $casts = [
-        'min_stock' => 'integer',
+        'min_stock' => 'float',
     ];
 
     public function branch()

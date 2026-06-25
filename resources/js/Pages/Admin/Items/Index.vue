@@ -164,7 +164,7 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="px-2 py-2 text-center dark:text-white">{{ parseInt(row.min_stock) }}</td>
+                                        <td class="px-2 py-2 text-center dark:text-white">{{ row.min_stock }}</td>
                                         <td
                                             class="px-2 py-2 text-center dark:text-white"
                                             :class="Number(row.stock) <= Number(row.min_stock) ? 'text-red-600' : 'text-emerald-600'"
@@ -333,10 +333,8 @@
                             <input
                                 id="min_stock"
                                 class="w-full text-sm font-medium text-gray-600 placeholder-gray-500 border-gray-400 rounded-lg placeholder:font-normal dark:border-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
-                                type="number"
-                                v-model.number="form.min_stock"
-                                min="0"
-                                step="0.01"
+                                type="text"
+                                v-model="form.min_stock"
                                 placeholder="Masukkan min stok"
                             />
                             <div v-if="form.errors.min_stock" class="text-sm text-red-500">
@@ -443,6 +441,10 @@ function saveItem() {
     if (!form.category_id) {
         form.setError?.("category_id", "Kategori barang wajib di isi.");
         return;
+    }
+
+    if (form.min_stock) {
+        form.min_stock = String(form.min_stock).replace(',', '.');
     }
 
     if (isEditMode.value) {
