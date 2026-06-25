@@ -211,7 +211,7 @@
                                 </span>
                             </td>
                             <td class="px-3 py-3 text-center font-bold text-gray-900 dark:text-white">
-                                {{ row.quantity }}
+                                {{ parseFloat(row.quantity) }}
                             </td>
                             <td class="px-3 py-3 text-center text-gray-700 dark:text-gray-300">
                                 {{ row.unit }}

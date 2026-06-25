@@ -110,19 +110,19 @@
                             <td class="py-2.5 border border-gray-200 dark:border-gray-600">
                                 <div class="flex items-center px-3 whitespace-nowrap justify-center">
                                     <p class="text-gray-500 dark:text-gray-400">
-                                        {{ r.stock }} {{ r.unit?.short_name }}
+                                        {{ r.stock !== undefined && r.stock !== null && r.stock !== "" ? parseFloat(r.stock) : 0 }} {{ r.unit?.short_name }}
                                     </p>
                                 </div>
                             </td>
                             <td class="py-2.5 border border-gray-200 dark:border-gray-600">
                                 <div class="flex items-center gap-3 ps-6 whitespace-nowrap">
                                     <input
-                                        v-model.number="r.amount"
-                                        type="number"
-                                        :min="1"
-                                        :max="r.stock && !isNaN(Number(r.stock)) ? Number(r.stock) : undefined"
+                                        v-model="r.amount"
+                                        type="text"
+                                        inputmode="decimal"
+                                        placeholder="0"
                                         @input="validateAmount(i)"
-                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
                                         :class="{
                                             'border-red-500': itemErrors[i] && itemErrors[i].amount
                                         }"
@@ -339,7 +339,10 @@ watch(
             const response = await axios.get(route('material-requests.items.by-department'), {
                 params: { department_id: newDepartmentId }
             });
-            options.value = response.data.items;
+            options.value = response.data.items.map(opt => ({
+                ...opt,
+                stock: opt.stock ? parseFloat(opt.stock) : 0
+            }));
         } catch (error) {
             console.error('Error loading items by department:', error);
             options.value = [];
@@ -376,15 +379,18 @@ function validateAmount(indexOrRow) {
 
     // Validate amount
     if (r.item_id && r.item_id.id) {
-        const stock = Number(r.stock);
-        const amount = Number(r.amount);
+        let amountStr = String(r.amount);
+        if (amountStr.includes(',')) amountStr = amountStr.replace(',', '.');
+        const amount = Number(amountStr);
+
+        let stockStr = String(r.stock);
+        if (stockStr.includes(',')) stockStr = stockStr.replace(',', '.');
+        const stock = Number(stockStr);
 
         if (r.amount === null || r.amount === "" || isNaN(amount)) {
-            itemErrors.value[index].amount = "Jumlah harus berupa angka bulat.";
-        } else if (!Number.isInteger(amount)) {
-            itemErrors.value[index].amount = "Jumlah harus berupa angka bulat.";
-        } else if (amount < 1) {
-            itemErrors.value[index].amount = "Jumlah harus minimal 1.";
+            itemErrors.value[index].amount = "Jumlah harus berupa angka.";
+        } else if (amount <= 0) {
+            itemErrors.value[index].amount = "Jumlah harus lebih besar dari 0.";
         } else if (!isNaN(stock) && stock >= 0 && amount > stock) {
             itemErrors.value[index].amount = "Jumlah permintaan tidak boleh lebih dari stok tersedia.";
         }
@@ -420,23 +426,26 @@ function validateItems() {
             valid = false;
         }
 
-        // items.*.amount: required_with:items, integer, min:1
+        let amountStr = String(r.amount);
+        if (amountStr.includes(',')) amountStr = amountStr.replace(',', '.');
+        const amount = Number(amountStr);
+
+        let stockStr = String(r.stock);
+        if (stockStr.includes(',')) stockStr = stockStr.replace(',', '.');
+        const stock = Number(stockStr);
+
         if (
             r.amount === null ||
             r.amount === "" ||
-            isNaN(r.amount) ||
-            !Number.isInteger(Number(r.amount))
+            isNaN(amount)
         ) {
-            err.amount = "Jumlah harus berupa angka bulat.";
+            err.amount = "Jumlah harus berupa angka.";
             valid = false;
-        } else if (Number(r.amount) < 1) {
-            err.amount = "Jumlah harus minimal 1.";
+        } else if (amount <= 0) {
+            err.amount = "Jumlah harus minimal lebih besar dari 0.";
             valid = false;
         } else {
             // Validasi jumlah tidak boleh melebihi stok tersedia
-            const stock = Number(r.stock);
-            const amount = Number(r.amount);
-
             if (!isNaN(stock) && stock >= 0 && amount > stock) {
                 err.amount = "Jumlah permintaan tidak boleh lebih dari stok tersedia.";
                 valid = false;
@@ -499,12 +508,16 @@ function submit() {
     }
 
     // Transform items data for submission
-    const itemsData = items.value.map((item) => ({
-        uid: item.uid,
-        item_id: typeof item.item_id === 'object' ? item.item_id.id : item.item_id,
-        amount: item.amount,
-        note: item.note,
-    }));
+    const itemsData = items.value.map((item) => {
+        let amountStr = String(item.amount);
+        if (amountStr.includes(',')) amountStr = amountStr.replace(',', '.');
+        return {
+            uid: item.uid,
+            item_id: typeof item.item_id === 'object' ? item.item_id.id : item.item_id,
+            amount: Number(amountStr),
+            note: item.note,
+        };
+    });
 
     // Prepare complete form data
     const submitData = {
@@ -543,7 +556,7 @@ function handleItemsLoaded(loadedItems) {
             id: item.id,
             name: item.name,
             code: item.code,
-            stock: item.stock,
+            stock: item.stock ? parseFloat(item.stock) : 0,
             unit: item.unit,
         }));
 
@@ -563,13 +576,13 @@ function handleItemsLoaded(loadedItems) {
                     id: item.id,
                     name: item.name,
                     code: item.code,
-                    stock: item.stock,
+                    stock: item.stock ? parseFloat(item.stock) : 0,
                     unit: item.unit,
                 },
-                amount: item.quantity_approved || item.quantity_requested || 1,
+                amount: item.quantity_approved ? parseFloat(item.quantity_approved) : (item.quantity_requested ? parseFloat(item.quantity_requested) : 1),
                 code: item.code,
                 name: item.name,
-                stock: item.stock,
+                stock: item.stock ? parseFloat(item.stock) : 0,
                 unit: item.unit,
                 note: item.note || "",
             });
@@ -595,13 +608,13 @@ if (props.items && props.items.length > 0) {
                 id: item.item_id,
                 name: item.item_name,
                 code: item.item_code,
-                stock: item.stock ? item.stock.last_stock : 0,
+                stock: item.stock ? parseFloat(item.stock.last_stock) : 0,
                 unit: item.unit,
             },
-            amount: item.amount || item.qty || 1,
+            amount: item.amount ? parseFloat(item.amount) : (item.qty ? parseFloat(item.qty) : 1),
             code: item.item_code || "",
             name: item.item_name || "",
-            stock: item.stock ? item.stock.last_stock : 0,
+            stock: item.stock ? parseFloat(item.stock.last_stock) : 0,
             unit: item.unit || {},
             note: item.note || item.notes || "",
         });
@@ -616,7 +629,7 @@ if (props.items && props.items.length > 0) {
         id: item.item_id,
         name: item.item_name,
         code: item.item_code,
-        stock: item.stock ? item.stock.last_stock : 0,
+        stock: item.stock ? parseFloat(item.stock.last_stock) : 0,
         unit: item.unit,
     }));
     options.value = [...options.value, ...existingOptions];

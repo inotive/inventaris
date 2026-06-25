@@ -208,10 +208,10 @@
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
                                     <input
-                                        v-model.number="item.quantity_ordered"
+                                        v-model="item.quantity_ordered"
                                         @input="calculateSubtotal(i)"
-                                        type="number"
-                                        min="1"
+                                        type="text"
+                                        inputmode="decimal"
                                         class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
                                         required
                                     />
@@ -396,7 +396,7 @@ const form = useForm({
                 code: item.item_code || '',
                 unit: { short_name: item.unit || '' }
             },
-            quantity_ordered: item.quantity_ordered,
+            quantity_ordered: item.quantity_ordered ? parseFloat(item.quantity_ordered) : 0,
             cost: item.cost,
             note: item.note || '',
             unit: item.unit,
@@ -511,15 +511,35 @@ const totalAmount = computed(() => {
 
 const subtotalAmount = computed(() => {
     return form.items.reduce((total, item) => {
-        return total + (item.quantity_ordered * item.cost);
+        let qty = item.quantity_ordered;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        const numericQty = qty ? Number(qty) : 0;
+        return total + (numericQty * item.cost);
     }, 0);
 });
+
+const sanitizeItems = () => {
+    form.items = form.items.map(item => {
+        let qty = item.quantity_ordered;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        return {
+            ...item,
+            quantity_ordered: qty ? Number(qty) : 0,
+        };
+    });
+};
 
 const showPaymentModal = () => {
     if (form.items.length === 0) {
         alert('Minimal harus ada satu item');
         return;
     }
+
+    sanitizeItems();
 
     form.put(route('purchase-orders.update', props.po.id), {
         onSuccess: () => {

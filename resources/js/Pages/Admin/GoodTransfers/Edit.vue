@@ -227,8 +227,8 @@
                                 >
                                     <input
                                         v-model="r.amount"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         :class="[
                                             'w-24 rounded dark:bg-gray-800 dark:text-white/90',
                                             form.errors[`items.${i}.amount`] || isQuantityExceedStock(r)
@@ -446,7 +446,7 @@ const options = ref(
         id: i.id,
         name: i.name,
         code: i.code,
-        stock: i.stock?.last_stock || 0,
+        stock: parseFloat(i.stock?.last_stock || i.stock || 0),
         unit: i.unit,
     }))
 );
@@ -465,7 +465,12 @@ const getAvailableOptions = (currentRowIndex) => {
 
 // Function to check if quantity exceeds stock
 const isQuantityExceedStock = (row) => {
-    return row.amount > row.stock;
+    let qty = row.amount;
+    if (typeof qty === 'string') {
+        qty = qty.replace(',', '.');
+    }
+    const numericQty = qty ? Number(qty) : 0;
+    return numericQty > row.stock;
 };
 
 function addTag(newTag) {
@@ -488,10 +493,10 @@ const items = ref(
         return reactive({
             uid: uuidv4(),
             item_id: itemData || null,
-            amount: item.amount || item.quantity_transferred || 1,
+            amount: item.amount || item.quantity_transferred ? parseFloat(item.amount || item.quantity_transferred) : 0,
             code: item.item_code || "",
             name: item.item_name || "",
-            stock: itemData?.stock || 0,
+            stock: itemData?.stock ? parseFloat(itemData.stock) : 0,
             unit: itemData?.unit || null,
             note: item.note || "",
         });
@@ -527,7 +532,7 @@ const addItem = () => {
             if (newVal) {
                 newRow.code = newVal.code;
                 newRow.name = newVal.name;
-                newRow.stock = newVal.stock || 0;
+                newRow.stock = newVal.stock ? (newVal.stock.last_stock !== undefined ? parseFloat(newVal.stock.last_stock) : parseFloat(newVal.stock)) : 0;
                 newRow.unit = newVal.unit;
             } else {
                 newRow.code = "";
@@ -548,7 +553,7 @@ items.value.forEach((row) => {
             if (newVal) {
                 row.code = newVal.code;
                 row.name = newVal.name;
-                row.stock = newVal.stock || 0;
+                row.stock = newVal.stock ? (newVal.stock.last_stock !== undefined ? parseFloat(newVal.stock.last_stock) : parseFloat(newVal.stock)) : 0;
                 row.unit = newVal.unit;
             } else {
                 row.code = "";
@@ -609,10 +614,10 @@ watch(
                     const newRow = reactive({
                         uid: uuidv4(),
                         item_id: matchedItem,
-                        amount: poItem.quantity_ordered,
+                        amount: poItem.quantity_ordered ? parseFloat(poItem.quantity_ordered) : 0,
                         code: poItem.code || "",
                         name: poItem.name || "",
-                        stock: poItem.stock || 0,
+                        stock: poItem.stock ? parseFloat(poItem.stock) : 0,
                         unit: poItem.unit || null,
                         note: poItem.note || "",
                     });
@@ -623,7 +628,7 @@ watch(
                             if (itemVal) {
                                 newRow.code = itemVal.code;
                                 newRow.name = itemVal.name;
-                                newRow.stock = itemVal.stock || 0;
+                                newRow.stock = itemVal.stock ? (itemVal.stock.last_stock !== undefined ? parseFloat(itemVal.stock.last_stock) : parseFloat(itemVal.stock)) : 0;
                                 newRow.unit = itemVal.unit;
                             } else {
                                 newRow.code = "";
@@ -668,11 +673,16 @@ function saveTransfer() {
             form.setError(`items.${i}.item_id`, 'Pilih barang yang akan dipindahkan');
             return true;
         }
-        if (!r.amount || r.amount <= 0) {
+        let qty = r.amount;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        const numericQty = qty ? Number(qty) : 0;
+        if (isNaN(numericQty) || numericQty <= 0) {
             form.setError(`items.${i}.amount`, 'Jumlah pengiriman harus lebih dari 0');
             return true;
         }
-        if (r.amount > r.stock) {
+        if (numericQty > r.stock) {
             form.setError(`items.${i}.amount`, `Jumlah pengiriman tidak boleh melebihi stok tersedia (${r.stock} ${r.unit?.short_name || ''})`);
             return true;
         }
@@ -683,12 +693,18 @@ function saveTransfer() {
         return;
     }
 
-    form.items = items.value.map((r, i) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null, // karena Select pakai object
-        amount: r.amount,
-        note: r.note ?? null,
-    }));
+    form.items = items.value.map((r, i) => {
+        let qty = r.amount;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        return {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null, // karena Select pakai object
+            amount: qty ? Number(qty) : 0,
+            note: r.note ?? null,
+        };
+    });
 
     form.put(route("good-transfers.update", props.goodTransfer.id));
 }

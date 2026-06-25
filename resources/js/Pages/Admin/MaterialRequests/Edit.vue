@@ -243,8 +243,8 @@
                                 >
                                     <input
                                         v-model="r.request"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         :class="[
                                             'w-24 rounded dark:bg-gray-800 dark:text-white/90',
                                             form.errors[`requests.${i}.request`]
@@ -457,7 +457,7 @@ const options = ref(
         id: i.id,
         name: i.name,
         code: i.code,
-        stock: i.stock,
+        stock: parseFloat(i.stock),
         unit: i.unit,
     }))
 );
@@ -485,7 +485,7 @@ const fetchItemsByDepartment = async (departmentId) => {
                 id: item.id,
                 name: item.name,
                 code: item.code,
-                stock: item.stock,
+                stock: parseFloat(item.stock),
                 unit: item.unit,
             }));
             console.log('Fetched items:', options.value);
@@ -555,7 +555,7 @@ const requests = ref(
         return reactive({
             uid: uuidv4(),
             item_id: itemData || null,
-            request: item.qty,
+            request: item.qty ? parseFloat(item.qty) : 0,
             code: item.item_code || "",
             name: item.item_name || "",
             stock: itemData?.stock || 0,
@@ -623,12 +623,15 @@ const bindWatcher = (row) => {
                         params: { item_id: newVal.id }
                     });
                     if (response.data) {
-                        row.stock = response.data.total_stock;
-                        row.stockBreakdown = response.data.breakdown;
+                        row.stock = parseFloat(response.data.total_stock);
+                        row.stockBreakdown = response.data.breakdown.map(b => ({
+                            ...b,
+                            stock: parseFloat(b.stock)
+                        }));
                     }
                 } catch (error) {
                     console.error('Error fetching stock breakdown:', error);
-                    row.stock = newVal.stock || 0;
+                    row.stock = newVal.stock ? parseFloat(newVal.stock) : 0;
                 } finally {
                     row.isLoadingStock = false;
                 }
@@ -753,7 +756,12 @@ function saveRequest() {
             form.setError(`requests.${i}.item_id`, 'Pilih barang yang diminta');
             return true;
         }
-        if (!r.request || r.request <= 0) {
+        let val = r.request;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        const numericVal = val ? Number(val) : 0;
+        if (isNaN(numericVal) || numericVal <= 0) {
             form.setError(`requests.${i}.request`, 'Jumlah permintaan harus lebih dari 0');
             return true;
         }
@@ -764,12 +772,18 @@ function saveRequest() {
         return;
     }
 
-    form.requests = requests.value.map((r, i) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null, // karena Select pakai object
-        request: r.request,
-        note: r.note ?? null,
-    }));
+    form.requests = requests.value.map((r, i) => {
+        let val = r.request;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        return {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null, // karena Select pakai object
+            request: val ? Number(val) : 0,
+            note: r.note ?? null,
+        };
+    });
 
     form.put(route("material-requests.update", props.mr?.id));
 }

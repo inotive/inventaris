@@ -124,8 +124,8 @@
                                 <div class="flex items-center gap-2 justify-center">
                                     <input
                                         v-model="r.quantity_received"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         class="w-20 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center readonly:bg-gray-100 dark:readonly:bg-gray-700"
                                         :readonly="r.is_preloaded"
                                         :disabled="r.is_preloaded"
@@ -137,8 +137,8 @@
                                 <div class="flex items-center gap-2 justify-center">
                                     <input
                                         v-model="r.quantity_actually_received"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         placeholder="0"
                                         class="w-20 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
                                     />
@@ -177,10 +177,9 @@
                                             <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Rusak / Cacat:</span>
                                             <div class="flex items-center gap-1">
                                                 <input
-                                                    v-model.number="r.shortage_rusak"
-                                                    type="number"
-                                                    min="0"
-                                                    :max="getShortageMax(r)"
+                                                    v-model="r.shortage_rusak"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     @input="updateRusakShortage(r, r.shortage_rusak)"
                                                     class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
                                                 />
@@ -191,10 +190,9 @@
                                             <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Hilang:</span>
                                             <div class="flex items-center gap-1">
                                                 <input
-                                                    v-model.number="r.shortage_hilang"
-                                                    type="number"
-                                                    min="0"
-                                                    :max="getShortageMax(r)"
+                                                    v-model="r.shortage_hilang"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     @input="updateHilangShortage(r, r.shortage_hilang)"
                                                     class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
                                                 />
@@ -457,18 +455,26 @@ function handleAttachmentsChanged(files) {
 }
 
 const hasShortage = (r) => {
-    const qty = Number(r.quantity_actually_received);
-    const sent = Number(r.quantity_received);
-    return qty < sent;
+    let qty = r.quantity_actually_received;
+    let sent = r.quantity_received;
+    if (typeof qty === 'string') qty = qty.replace(',', '.');
+    if (typeof sent === 'string') sent = sent.replace(',', '.');
+    return (qty ? Number(qty) : 0) < (sent ? Number(sent) : 0);
 };
 
 const getShortageMax = (r) => {
-    return Number(r.quantity_received) - Number(r.quantity_actually_received);
+    let qty = r.quantity_actually_received;
+    let sent = r.quantity_received;
+    if (typeof qty === 'string') qty = qty.replace(',', '.');
+    if (typeof sent === 'string') sent = sent.replace(',', '.');
+    return (sent ? Number(sent) : 0) - (qty ? Number(qty) : 0);
 };
 
 const updateRusakShortage = (r, val) => {
     const total = getShortageMax(r);
-    let valNum = Number(val) || 0;
+    let valStr = String(val);
+    if (valStr.includes(',')) valStr = valStr.replace(',', '.');
+    let valNum = Number(valStr) || 0;
     if (valNum < 0) valNum = 0;
     if (valNum > total) valNum = total;
     
@@ -478,7 +484,9 @@ const updateRusakShortage = (r, val) => {
 
 const updateHilangShortage = (r, val) => {
     const total = getShortageMax(r);
-    let valNum = Number(val) || 0;
+    let valStr = String(val);
+    if (valStr.includes(',')) valStr = valStr.replace(',', '.');
+    let valNum = Number(valStr) || 0;
     if (valNum < 0) valNum = 0;
     if (valNum > total) valNum = total;
     
@@ -560,8 +568,8 @@ function handleItemsLoaded(items) {
             code: item.code,
             name: item.name,
             unit: item.unit,
-            quantity_received: item.quantity_requested,
-            quantity_actually_received: item.quantity_requested,
+            quantity_received: item.quantity_requested ? parseFloat(item.quantity_requested) : 0,
+            quantity_actually_received: item.quantity_requested ? parseFloat(item.quantity_requested) : 0,
             note: item.note,
             received_note: "",
             shortage_rusak: 0,
@@ -618,28 +626,42 @@ function confirmSave() {
     }
 
     form.items = requests.value.map((r) => {
+        let qr = r.quantity_received;
+        let qar = r.quantity_actually_received;
+        if (typeof qr === 'string') qr = qr.replace(',', '.');
+        if (typeof qar === 'string') qar = qar.replace(',', '.');
+        const numQr = qr ? Number(qr) : 0;
+        const numQar = qar ? Number(qar) : 0;
+
+        let r_rusak = r.shortage_rusak;
+        let r_hilang = r.shortage_hilang;
+        if (typeof r_rusak === 'string') r_rusak = r_rusak.replace(',', '.');
+        if (typeof r_hilang === 'string') r_hilang = r_hilang.replace(',', '.');
+        const numRusak = r_rusak ? Number(r_rusak) : 0;
+        const numHilang = r_hilang ? Number(r_hilang) : 0;
+
         const itemPayload = {
             uid: r.uid,
             item_id: r.item_id?.id ?? null,
-            quantity_received: r.quantity_received,
-            quantity_actually_received: r.quantity_actually_received,
+            quantity_received: numQr,
+            quantity_actually_received: numQar,
             note: r.note ?? null,
             received_note: r.received_note ?? null,
         };
 
         if (hasShortage(r)) {
             const list = [];
-            if (Number(r.shortage_rusak || 0) > 0) {
+            if (numRusak > 0) {
                 list.push({
                     reason: 'rusak',
-                    quantity: Number(r.shortage_rusak),
+                    quantity: numRusak,
                     description: r.received_note || ''
                 });
             }
-            if (Number(r.shortage_hilang || 0) > 0) {
+            if (numHilang > 0) {
                 list.push({
                     reason: 'hilang',
-                    quantity: Number(r.shortage_hilang),
+                    quantity: numHilang,
                     description: r.received_note || ''
                 });
             }

@@ -203,7 +203,7 @@
                             </td>
                             <td class="py-2.5 border border-gray-200 dark:border-gray-600">
                                 <div class="flex items-center gap-3 ps-6 whitespace-nowrap">
-                                    <input v-model="r.quantity_transferred" type="number" min="0" :class="[
+                                    <input v-model="r.quantity_transferred" type="text" inputmode="decimal" :class="[
                                         'w-24 rounded dark:bg-gray-800 dark:text-white/90',
                                         form.errors[`items.${i}.quantity_transferred`] || isQuantityExceedStock(r)
                                             ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
@@ -412,7 +412,7 @@ const options = ref(
         id: i.id,
         name: i.name,
         code: i.code,
-        stock: i.stock,
+        stock: parseFloat(i.stock),
         unit: i.unit,
         branch_id: i.branch_id,
     }))
@@ -443,7 +443,12 @@ const getAvailableOptions = (currentRowIndex) => {
 
 // Function to check if quantity exceeds stock
 const isQuantityExceedStock = (row) => {
-    return row.quantity_transferred > row.stock;
+    let qty = row.quantity_transferred;
+    if (typeof qty === 'string') {
+        qty = qty.replace(',', '.');
+    }
+    const numericQty = qty ? Number(qty) : 0;
+    return numericQty > row.stock;
 };
 
 function addTag(newTag) {
@@ -492,7 +497,7 @@ const addItem = () => {
             if (newVal) {
                 newRow.code = newVal.code;
                 newRow.name = newVal.name;
-                newRow.stock = newVal.stock?.last_stock || 0;
+                newRow.stock = newVal.stock ? (newVal.stock.last_stock !== undefined ? parseFloat(newVal.stock.last_stock) : parseFloat(newVal.stock)) : 0;
                 newRow.unit = newVal.unit;
             } else {
                 newRow.code = "";
@@ -513,7 +518,7 @@ items.value.forEach((row) => {
             if (newVal) {
                 row.code = newVal.code;
                 row.name = newVal.name;
-                row.stock = newVal.stock?.last_stock || 0;
+                row.stock = newVal.stock ? (newVal.stock.last_stock !== undefined ? parseFloat(newVal.stock.last_stock) : parseFloat(newVal.stock)) : 0;
                 row.unit = newVal.unit;
             } else {
                 row.code = "";
@@ -583,10 +588,10 @@ watch(
                     const newRow = reactive({
                         uid: uuidv4(),
                         item_id: matchedItem,
-                        quantity_transferred: poItem.quantity_ordered,
+                        quantity_transferred: poItem.quantity_ordered ? parseFloat(poItem.quantity_ordered) : 0,
                         code: poItem.code || "",
                         name: poItem.name || "",
-                        stock: poItem.stock || 0,
+                        stock: poItem.stock ? parseFloat(poItem.stock) : 0,
                         unit: poItem.unit || null,
                         note: poItem.note || "",
                     });
@@ -597,7 +602,7 @@ watch(
                             if (itemVal) {
                                 newRow.code = itemVal.code;
                                 newRow.name = itemVal.name;
-                                newRow.stock = itemVal.stock || itemVal.stock?.last_stock || 0;
+                                newRow.stock = itemVal.stock ? (itemVal.stock.last_stock !== undefined ? parseFloat(itemVal.stock.last_stock) : parseFloat(itemVal.stock)) : 0;
                                 newRow.unit = itemVal.unit;
                             } else {
                                 newRow.code = "";
@@ -633,18 +638,29 @@ function saveLog() {
     if (duplicateItems.length > 0) { form.setError('items', 'Tidak boleh ada item yang duplikat'); return; }
     const hasInvalidItems = items.value.some((r, i) => {
         if (!r.item_id || !r.item_id.id) { form.setError(`items.${i}.item_id`, 'Pilih barang yang akan dipindahkan'); return true; }
-        if (!r.quantity_transferred || r.quantity_transferred <= 0) { form.setError(`items.${i}.quantity_transferred`, 'Jumlah pengiriman harus lebih dari 0'); return true; }
-        if (r.quantity_transferred > r.stock) { form.setError(`items.${i}.quantity_transferred`, `Jumlah pengiriman tidak boleh melebihi stok tersedia (${r.stock} ${r.unit?.short_name || ''})`); return true; }
+        let qty = r.quantity_transferred;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        const numericQty = qty ? Number(qty) : 0;
+        if (isNaN(numericQty) || numericQty <= 0) { form.setError(`items.${i}.quantity_transferred`, 'Jumlah pengiriman harus lebih dari 0'); return true; }
+        if (numericQty > r.stock) { form.setError(`items.${i}.quantity_transferred`, `Jumlah pengiriman tidak boleh melebihi stok tersedia (${r.stock} ${r.unit?.short_name || ''})`); return true; }
         if (r.note && r.note.length > 225) { form.setError(`items.${i}.note`, 'Catatan tidak boleh lebih dari 225 karakter'); return true; }
         return false;
     });
     if (hasInvalidItems) return;
-    form.items = items.value.map((r) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null,
-        quantity_transferred: r.quantity_transferred,
-        note: r.note ?? null,
-    }));
+    form.items = items.value.map((r) => {
+        let qty = r.quantity_transferred;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        return {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null,
+            quantity_transferred: qty ? Number(qty) : 0,
+            note: r.note ?? null,
+        };
+    });
     form.transform((data) => {
         const payload = { ...data };
         if (attachmentFiles.value.length > 0) {

@@ -300,7 +300,7 @@
                                                 @click="openTotalPersediaanModal({ item: { name: row.item.name, id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
                                                 class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                             >
-                                                {{ row.stocks[branch.id].qty }}
+                                                {{ parseFloat(row.stocks[branch.id].qty) }}
                                             </button>
                                             <span v-else class="text-gray-400">0</span>
                                         </td>
@@ -308,7 +308,7 @@
                                             class="sticky z-10 px-3 py-3 text-center font-semibold text-purple-600 bg-white dark:bg-gray-800 min-w-[120px] max-w-[120px] w-[120px]"
                                             style="right: 80px"
                                         >
-                                            {{ row.total_persediaan }}
+                                            {{ parseFloat(row.total_persediaan) }}
                                         </td>
                                         <td 
                                             class="sticky right-0 z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[80px] max-w-[80px] w-[80px]"
@@ -362,7 +362,7 @@
                                         @click="openTotalPersediaanModal({ item: { name: row.item.name, id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
                                         class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                     >
-                                        {{ row.stocks[branch.id].qty }}
+                                        {{ parseFloat(row.stocks[branch.id].qty) }}
                                     </button>
                                     <span v-else class="text-gray-400">0</span>
                                 </td>
@@ -370,7 +370,7 @@
                                     class="sticky z-10 px-3 py-3 text-center font-semibold text-purple-600 bg-white dark:bg-gray-800 min-w-[120px] max-w-[120px] w-[120px]"
                                     style="right: 80px"
                                 >
-                                    {{ row.total_persediaan }}
+                                    {{ parseFloat(row.total_persediaan) }}
                                 </td>
                                 <td 
                                     class="sticky right-0 z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[80px] max-w-[80px] w-[80px]"
@@ -439,9 +439,9 @@
                                 <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.last_stock }}</td>
+                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? parseFloat(tx.amount) : '-' }}</td>
+                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? parseFloat(tx.amount) : '-' }}</td>
+                                <td class="px-4 py-3 text-center">{{ parseFloat(tx.last_stock) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -558,9 +558,9 @@
                                 <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? tx.amount : '-' }}</td>
+                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? parseFloat(tx.amount) : '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? tx.amount : '-' }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.last_stock }}</td>
+                                <td class="px-4 py-3 text-center">{{ parseFloat(tx.last_stock) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -678,8 +678,8 @@
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
                                 <!-- <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? tx.amount : '-' }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.last_stock }}</td>
+                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? parseFloat(tx.amount) : '-' }}</td>
+                                <td class="px-4 py-3 text-center">{{ parseFloat(tx.last_stock) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -849,9 +849,9 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-center align-middle font-semibold" :class="tx.type === 'In' ? 'text-emerald-600' : tx.type === 'Out' ? 'text-rose-600' : 'text-gray-500'">
-                                    {{ tx.type === 'In' ? '+' + tx.amount : tx.type === 'Out' ? '-' + tx.amount : '0' }}
+                                    {{ tx.type === 'In' ? '+' + parseFloat(tx.amount) : tx.type === 'Out' ? '-' + parseFloat(tx.amount) : '0' }}
                                 </td>
-                                <td class="px-4 py-3 text-center align-middle font-bold text-gray-900 dark:text-white">{{ tx.last_stock }}</td>
+                                <td class="px-4 py-3 text-center align-middle font-bold text-gray-900 dark:text-white">{{ parseFloat(tx.last_stock) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -966,9 +966,8 @@
                             </label>
                             <input
                                 v-model="adjustForm.actual_stock"
-                                type="number"
-                                step="0.01"
-                                min="0"
+                                type="text"
+                                inputmode="decimal"
                                 required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 placeholder="Masukkan jumlah stok aktual di gudang"
@@ -1265,7 +1264,7 @@ watch(() => adjustForm.item_id, (newVal) => {
     if (selectedRow.value && newVal) {
         const branchData = selectedRow.value.branches_data.find(b => b.item_id === newVal);
         if (branchData) {
-            adjustForm.actual_stock = selectedRow.value.stocks[branchData.branch_id]?.qty || 0;
+            adjustForm.actual_stock = parseFloat(selectedRow.value.stocks[branchData.branch_id]?.qty || 0);
         }
     }
 });
@@ -1273,12 +1272,15 @@ watch(() => adjustForm.item_id, (newVal) => {
 function openAdjustModal(row) {
     selectedRow.value = row;
     adjustForm.item_id = row.branches_data[0]?.item_id || null;
-    adjustForm.actual_stock = row.branches_data[0] ? (row.stocks[row.branches_data[0].branch_id]?.qty || 0) : 0;
+    adjustForm.actual_stock = row.branches_data[0] ? parseFloat(row.stocks[row.branches_data[0].branch_id]?.qty || 0) : 0;
     adjustForm.note = 'Penyesuaian stok (Opname)';
     showAdjustModal.value = true;
 }
 
 function submitAdjustment() {
+    if (adjustForm.actual_stock !== null && adjustForm.actual_stock !== undefined) {
+        adjustForm.actual_stock = String(adjustForm.actual_stock).replace(',', '.');
+    }
     adjustForm.post(route('stock-recap.adjust'), {
         preserveScroll: true,
         onSuccess: () => {

@@ -228,8 +228,8 @@
                                 >
                                     <input
                                         v-model="r.request"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
                                     />
                                     {{ r.unit?.short_name }}
@@ -426,7 +426,7 @@ const options = ref(
         id: i.id,
         name: i.name,
         code: i.code,
-        stock: i.stock,
+        stock: parseFloat(i.stock),
         unit: i.unit,
         branch_id: i.branch_id,
     }))
@@ -510,12 +510,15 @@ function bindWatcher(row) {
                         params: { item_id: newVal.id }
                     });
                     if (response.data) {
-                        row.stock = response.data.total_stock;
-                        row.stockBreakdown = response.data.breakdown;
+                        row.stock = parseFloat(response.data.total_stock);
+                        row.stockBreakdown = response.data.breakdown.map(b => ({
+                            ...b,
+                            stock: parseFloat(b.stock)
+                        }));
                     }
                 } catch (error) {
                     console.error('Error fetching stock breakdown:', error);
-                    row.stock = (newVal.stock && newVal.stock.last_stock) ? newVal.stock.last_stock : 0;
+                    row.stock = (newVal.stock && newVal.stock.last_stock) ? parseFloat(newVal.stock.last_stock) : 0;
                 } finally {
                     row.isLoadingStock = false;
                 }
@@ -548,9 +551,9 @@ if (props.pr.items && props.pr.items.length > 0) {
             },
             code: it.code,
             name: it.name,
-            stock: typeof it.stock === 'number' ? it.stock : (it.stock?.last_stock || 0),
+            stock: typeof it.stock === 'number' ? it.stock : (it.stock?.last_stock ? parseFloat(it.stock.last_stock) : 0),
             unit: typeof it.unit === 'string' ? { short_name: it.unit } : (it.unit || {}),
-            request: it.quantity_requested,
+            request: it.quantity_requested ? parseFloat(it.quantity_requested) : 0,
             note: it.note,
             isLoadingStock: false,
             stockBreakdown: [],
@@ -628,9 +631,9 @@ watch(
                     },
                     code: it.code,
                     name: it.name,
-                    stock: typeof it.stock === 'number' ? it.stock : (it.stock?.last_stock || 0),
+                    stock: typeof it.stock === 'number' ? it.stock : (it.stock?.last_stock ? parseFloat(it.stock.last_stock) : 0),
                     unit: typeof it.unit === 'string' ? { short_name: it.unit } : (it.unit || {}),
-                    request: it.quantity_requested,
+                    request: it.quantity_requested ? parseFloat(it.quantity_requested) : 0,
                     note: it.note,
                 });
                 bindWatcher(row);
@@ -669,12 +672,18 @@ watch(
 );
 
 function saveRequest() {
-    form.requests = requests.value.map((r) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null, // ambil id
-        request: r.request,
-        note: r.note ?? null,
-    }));
+    form.requests = requests.value.map((r) => {
+        let val = r.request;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        return {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null, // ambil id
+            request: val ? Number(val) : 0,
+            note: r.note ?? null,
+        };
+    });
 
     form.put(route("purchase-requests.update", props.pr.id));
 }

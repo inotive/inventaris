@@ -212,10 +212,10 @@
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
                                     <input
-                                        v-model.number="item.quantity_ordered"
+                                        v-model="item.quantity_ordered"
                                         @input="calculateSubtotal(i)"
-                                        type="number"
-                                        min="1"
+                                        type="text"
+                                        inputmode="decimal"
                                         class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
                                         required
                                     />
@@ -568,7 +568,12 @@ const totalAmount = computed(() => {
 
 const subtotalAmount = computed(() => {
     return form.items.reduce((total, item) => {
-        return total + (item.quantity_ordered * item.cost);
+        let qty = item.quantity_ordered;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        const numericQty = qty ? Number(qty) : 0;
+        return total + (numericQty * item.cost);
     }, 0);
 });
 
@@ -591,6 +596,19 @@ const showPaymentModal = () => {
     showPayment.value = true;
 };
 
+const sanitizeItems = () => {
+    form.items = form.items.map(item => {
+        let qty = item.quantity_ordered;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        return {
+            ...item,
+            quantity_ordered: qty ? Number(qty) : 0,
+        };
+    });
+};
+
 const submitWithoutPayment = () => {
     if (form.items.length === 0) {
         alert('Minimal harus ada satu item');
@@ -605,6 +623,8 @@ const submitWithoutPayment = () => {
     // Set amount_paid to 0 for no payment
     form.amount_paid = 0;
 
+    sanitizeItems();
+
     // Submit the form
     form.post(route('purchase-orders.store'));
 };
@@ -616,6 +636,8 @@ const closePaymentModal = () => {
 const submitWithZeroPayment = () => {
     // Set amount_paid to 0 for no payment
     form.amount_paid = 0;
+
+    sanitizeItems();
 
     // Submit the form
     form.post(route('purchase-orders.store'), {
@@ -639,6 +661,8 @@ const submitWithPayment = () => {
     // Update form with payment data (can be 0 if no amount entered)
     form.amount_paid = paymentForm.value.amount_paid || 0;
 
+    sanitizeItems();
+
     // Submit the form
     form.post(route('purchase-orders.store'), {
         onSuccess: () => {
@@ -652,6 +676,8 @@ const submit = () => {
         alert('Minimal harus ada satu item');
         return;
     }
+
+    sanitizeItems();
 
     form.post(route('purchase-orders.store'));
 };
@@ -685,7 +711,7 @@ watch(
                         code: item.code || '',
                         unit: { short_name: item.unit || '' }
                     },
-                    quantity_ordered: item.quantity_requested || 1,
+                    quantity_ordered: item.quantity_requested ? parseFloat(item.quantity_requested) : 1,
                     cost: 0, // Default cost, user can fill manually
                     note: item.note || '',
                     unit: itemData?.unit?.short_name || item.unit || '',

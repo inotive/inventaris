@@ -122,9 +122,9 @@
                                 <div class="flex items-center gap-2 justify-center">
                                     <input
                                         v-model="r.quantity_received"
-                                        type="number"
-                                        min="0"
-                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
+                                        type="text"
+                                        inputmode="decimal"
+                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center readonly:bg-gray-100 dark:readonly:bg-gray-700"
                                         :readonly="r.is_preloaded"
                                         :disabled="r.is_preloaded"
                                     />
@@ -135,8 +135,8 @@
                                 <div class="flex items-center gap-2 justify-center">
                                     <input
                                         v-model="r.quantity_actually_received"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         placeholder="0"
                                         class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
                                     />
@@ -174,10 +174,9 @@
                                             <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Rusak / Cacat:</span>
                                             <div class="flex items-center gap-1">
                                                 <input
-                                                    v-model.number="r.shortage_rusak"
-                                                    type="number"
-                                                    min="0"
-                                                    :max="getShortageMax(r)"
+                                                    v-model="r.shortage_rusak"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     @input="updateRusakShortage(r, r.shortage_rusak)"
                                                     class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
                                                 />
@@ -188,10 +187,9 @@
                                             <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Hilang:</span>
                                             <div class="flex items-center gap-1">
                                                 <input
-                                                    v-model.number="r.shortage_hilang"
-                                                    type="number"
-                                                    min="0"
-                                                    :max="getShortageMax(r)"
+                                                    v-model="r.shortage_hilang"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     @input="updateHilangShortage(r, r.shortage_hilang)"
                                                     class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
                                                 />
@@ -326,22 +324,34 @@ const getAvailableOptions = (currentRowIndex) => {
 
 // Computed property to check if received note is required for each item
 const isReceivedNoteRequired = (item) => {
-    return Number(item.quantity_received) !== Number(item.quantity_actually_received);
+    let qr = item.quantity_received;
+    let qar = item.quantity_actually_received;
+    if (typeof qr === 'string') qr = qr.replace(',', '.');
+    if (typeof qar === 'string') qar = qar.replace(',', '.');
+    return Number(qr) !== Number(qar);
 };
 
 const hasShortage = (item) => {
-    const qty = Number(item.quantity_actually_received);
-    const sent = Number(item.quantity_received);
-    return qty < sent;
+    let qty = item.quantity_actually_received;
+    let sent = item.quantity_received;
+    if (typeof qty === 'string') qty = qty.replace(',', '.');
+    if (typeof sent === 'string') sent = sent.replace(',', '.');
+    return (qty ? Number(qty) : 0) < (sent ? Number(sent) : 0);
 };
 
 const getShortageMax = (item) => {
-    return Number(item.quantity_received) - Number(item.quantity_actually_received);
+    let qty = item.quantity_actually_received;
+    let sent = item.quantity_received;
+    if (typeof qty === 'string') qty = qty.replace(',', '.');
+    if (typeof sent === 'string') sent = sent.replace(',', '.');
+    return (sent ? Number(sent) : 0) - (qty ? Number(qty) : 0);
 };
 
 const updateRusakShortage = (item, val) => {
     const total = getShortageMax(item);
-    let valNum = Number(val) || 0;
+    let valStr = String(val);
+    if (valStr.includes(',')) valStr = valStr.replace(',', '.');
+    let valNum = Number(valStr) || 0;
     if (valNum < 0) valNum = 0;
     if (valNum > total) valNum = total;
     
@@ -351,7 +361,9 @@ const updateRusakShortage = (item, val) => {
 
 const updateHilangShortage = (item, val) => {
     const total = getShortageMax(item);
-    let valNum = Number(val) || 0;
+    let valStr = String(val);
+    if (valStr.includes(',')) valStr = valStr.replace(',', '.');
+    let valNum = Number(valStr) || 0;
     if (valNum < 0) valNum = 0;
     if (valNum > total) valNum = total;
     
@@ -389,7 +401,11 @@ const isFormValid = () => {
     return items.value.every(item => {
         if (isReceivedNoteRequired(item)) {
             const hasNote = item.received_note && item.received_note.trim() !== '';
-            const allocated = Number(item.shortage_rusak || 0) + Number(item.shortage_hilang || 0);
+            let r_rusak = item.shortage_rusak;
+            let r_hilang = item.shortage_hilang;
+            if (typeof r_rusak === 'string') r_rusak = r_rusak.replace(',', '.');
+            if (typeof r_hilang === 'string') r_hilang = r_hilang.replace(',', '.');
+            const allocated = Number(r_rusak || 0) + Number(r_hilang || 0);
             const total = getShortageMax(item);
             return hasNote && allocated === total;
         }
@@ -488,8 +504,8 @@ function handleItemsLoaded(itemsLoaded) {
             code: item.code,
             name: item.name,
             unit: item.unit,
-            quantity_received: item.quantity_received,
-            quantity_actually_received: item.quantity_received, // Default to received quantity
+            quantity_received: item.quantity_received ? parseFloat(item.quantity_received) : 0,
+            quantity_actually_received: item.quantity_received ? parseFloat(item.quantity_received) : 0, // Default to received quantity
             note: item.note,
             received_note: "",
             shortage_rusak: 0,
@@ -523,12 +539,12 @@ onMounted(() => {
                 code: item.item?.code || '',
                 name: item.item?.name || '',
                 unit: item.item?.unit || {},
-                quantity_received: item.quantity_received,
-                quantity_actually_received: item.quantity_actually_received || item.quantity_received,
+                quantity_received: item.quantity_received ? parseFloat(item.quantity_received) : 0,
+                quantity_actually_received: item.quantity_actually_received ? parseFloat(item.quantity_actually_received) : (item.quantity_received ? parseFloat(item.quantity_received) : 0),
                 note: item.note || '',
                 received_note: item.received_note || '',
-                shortage_rusak: rusak,
-                shortage_hilang: hilang,
+                shortage_rusak: parseFloat(rusak),
+                shortage_hilang: parseFloat(hilang),
                 is_preloaded: true,
             });
             bindWatcher(row);
@@ -576,28 +592,42 @@ function updateRequest() {
     }
 
     form.items = items.value.map((r) => {
+        let qr = r.quantity_received;
+        let qar = r.quantity_actually_received;
+        if (typeof qr === 'string') qr = qr.replace(',', '.');
+        if (typeof qar === 'string') qar = qar.replace(',', '.');
+        const numQr = qr ? Number(qr) : 0;
+        const numQar = qar ? Number(qar) : 0;
+
+        let r_rusak = r.shortage_rusak;
+        let r_hilang = r.shortage_hilang;
+        if (typeof r_rusak === 'string') r_rusak = r_rusak.replace(',', '.');
+        if (typeof r_hilang === 'string') r_hilang = r_hilang.replace(',', '.');
+        const numRusak = r_rusak ? Number(r_rusak) : 0;
+        const numHilang = r_hilang ? Number(r_hilang) : 0;
+
         const itemPayload = {
             uid: r.uid,
             item_id: r.item_id?.id ?? null,
-            quantity_received: r.quantity_received,
-            quantity_actually_received: r.quantity_actually_received,
+            quantity_received: numQr,
+            quantity_actually_received: numQar,
             note: r.note ?? null,
             received_note: r.received_note ?? null,
         };
 
         if (hasShortage(r)) {
             const list = [];
-            if (Number(r.shortage_rusak || 0) > 0) {
+            if (numRusak > 0) {
                 list.push({
                     reason: 'rusak',
-                    quantity: Number(r.shortage_rusak),
+                    quantity: numRusak,
                     description: r.received_note || ''
                 });
             }
-            if (Number(r.shortage_hilang || 0) > 0) {
+            if (numHilang > 0) {
                 list.push({
                     reason: 'hilang',
-                    quantity: Number(r.shortage_hilang),
+                    quantity: numHilang,
                     description: r.received_note || ''
                 });
             }
