@@ -785,7 +785,7 @@
                             </div>
                             <div>
                                 <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Masuk</div>
-                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ totalMasukDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit || 'pcs' }}</span></div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ totalMasukDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit?.short_name || selectedRow?.item?.unit?.name || 'pcs' }}</span></div>
                             </div>
                         </div>
 
@@ -798,7 +798,7 @@
                             </div>
                             <div>
                                 <div class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Total Keluar</div>
-                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ totalKeluarDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit || 'pcs' }}</span></div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ totalKeluarDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit?.short_name || selectedRow?.item?.unit?.name || 'pcs' }}</span></div>
                             </div>
                         </div>
 
@@ -811,7 +811,7 @@
                             </div>
                             <div>
                                 <div class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Sisa Stok</div>
-                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ sisaStokDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit || 'pcs' }}</span></div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ sisaStokDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit?.short_name || selectedRow?.item?.unit?.name || 'pcs' }}</span></div>
                             </div>
                         </div>
                     </div>

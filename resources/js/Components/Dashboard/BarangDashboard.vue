@@ -675,6 +675,11 @@ const frequentItemsOptions = computed(() => ({
     xaxis: {
         categories:
             props.mostFrequentlyUsedItems?.map((item) => item.name) || [],
+        labels: {
+            formatter: function (val) {
+                return val !== undefined && val !== null ? parseFloat(parseFloat(val).toFixed(2)) : val;
+            }
+        }
     },
     colors: ["#1B84FF", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#F59E0B"],
     dataLabels: { enabled: false },
