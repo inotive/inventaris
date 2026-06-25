@@ -262,6 +262,7 @@ class PurchaseRequestController extends Controller
             return [
                 'id' => $gudangDept->id,
                 'name' => 'Gudang',
+                'branch_id' => $b->id,
                 'branch' => $b,
             ];
         })->sortBy(fn($d) => $d['branch']->name)->values();
@@ -432,6 +433,7 @@ class PurchaseRequestController extends Controller
             return [
                 'id' => $gudangDept->id,
                 'name' => 'Gudang',
+                'branch_id' => $b->id,
                 'branch' => $b,
             ];
         })->sortBy(fn($d) => $d['branch']->name)->values();

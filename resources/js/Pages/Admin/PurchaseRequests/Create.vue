@@ -440,7 +440,7 @@ const triggerUpdate = () => {
 const selectedDepartment = computed(() =>
     props.departments.find((d) => d.id == form.department_id)
 );
-const selectedBranchId = computed(() => selectedDepartment.value?.branch_id ?? null);
+const selectedBranchId = computed(() => selectedDepartment.value?.branch_id ?? selectedDepartment.value?.branch?.id ?? null);
 
 // Function to get filtered options for a specific row (excluding already selected items and mismatched branch)
 const getFilteredOptions = (currentRowIndex) => {
