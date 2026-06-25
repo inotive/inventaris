@@ -287,7 +287,7 @@
                                 <div
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
-                                    <span class="font-medium">{{ item.quantity_transferred }}</span>
+                                    <span class="font-medium">{{ parseFloat(item.quantity_transferred) }}</span>
                                     {{ item.item?.unit?.short_name || '' }}
                                 </div>
                             </td>
@@ -297,7 +297,7 @@
                                 <div
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
-                                    <span class="font-medium">{{ item.quantity_received }}</span>
+                                    <span class="font-medium">{{ parseFloat(item.quantity_received) }}</span>
                                     {{ item.item?.unit?.short_name || '' }}
                                 </div>
                             </td>
@@ -308,7 +308,7 @@
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
                                     <span :class="getDisposalQty(item, 'rusak') > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
-                                        {{ getDisposalQty(item, 'rusak') }}
+                                        {{ parseFloat(getDisposalQty(item, 'rusak')) }}
                                     </span>
                                     {{ item.item?.unit?.short_name || '' }}
                                 </div>
@@ -320,7 +320,7 @@
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
                                     <span :class="getDisposalQty(item, 'hilang') > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
-                                        {{ getDisposalQty(item, 'hilang') }}
+                                        {{ parseFloat(getDisposalQty(item, 'hilang')) }}
                                     </span>
                                     {{ item.item?.unit?.short_name || '' }}
                                 </div>
@@ -390,11 +390,11 @@
                                                     <div class="text-sm text-gray-500">{{ item.item?.code || '-' }}</div>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {{ item.quantity_transferred }}
+                                                    {{ parseFloat(item.quantity_transferred) }}
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <span class="font-medium">{{ item.quantity_received || 0 }}</span>
-                                                    <span class="text-gray-400">/ {{ item.quantity_transferred }}</span>
+                                                    <span class="font-medium">{{ parseFloat(item.quantity_received || 0) }}</span>
+                                                    <span class="text-gray-400">/ {{ parseFloat(item.quantity_transferred) }}</span>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap">
                                                     <div class="flex items-center gap-2">
@@ -414,7 +414,7 @@
                                                         </span>
                                                     </div>
                                                     <div class="text-xs text-gray-500 mt-1">
-                                                        Sisa: {{ (item.quantity_transferred || 0) - (item.quantity_received || 0) }}
+                                                        Sisa: {{ parseFloat((item.quantity_transferred || 0) - (item.quantity_received || 0)) }}
                                                     </div>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -442,7 +442,7 @@
                                                         <div class="flex items-center gap-2 text-sm font-semibold text-amber-700">
                                                             <span>⚠️ Rincian Kekurangan Barang</span>
                                                             <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
-                                                                Kekurangan: {{ getShortageQty(index) }} {{ item.item?.unit?.short_name || 'pcs' }}
+                                                                Kekurangan: {{ parseFloat(getShortageQty(index)) }} {{ item.item?.unit?.short_name || 'pcs' }}
                                                             </span>
                                                         </div>
                                                         

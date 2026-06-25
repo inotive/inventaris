@@ -213,20 +213,20 @@
                             <td class="px-3 py-2">{{ idx + 1 }}</td>
                             <td class="px-3 py-2">{{ it.item_name }}</td>
                             <td class="px-3 py-2 font-mono">{{ it.item_code }}</td>
-                            <td class="px-3 py-2">{{ it.quantity_ordered }}</td>
+                            <td class="px-3 py-2">{{ parseFloat(it.quantity_ordered) }}</td>
                             <td class="px-3 py-2">
                                 <span :class="it.quantity_received > 0 ? 'text-green-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_received || 0 }}
+                                    {{ parseFloat(it.quantity_received || 0) }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">
                                 <span :class="it.quantity_damaged > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_damaged || 0 }}
+                                    {{ parseFloat(it.quantity_damaged || 0) }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">
                                 <span :class="it.quantity_lost > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_lost || 0 }}
+                                    {{ parseFloat(it.quantity_lost || 0) }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">{{ formatCurrency(it.cost) }}</td>
@@ -326,13 +326,13 @@
                                                 <div class="text-sm text-gray-500">{{ item.item_code }}</div>
                                             </td>
                                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                {{ item.quantity_ordered }}
+                                                {{ parseFloat(item.quantity_ordered) }}
                                             </td>
                                             <td class="px-4 py-3 whitespace-nowrap">
                                                 <!-- Show current received quantity for partial status -->
                                                 <div v-if="po.status_delivered === 'partial'" class="text-xs text-gray-600 mb-2">
-                                                    <span class="font-medium">Sudah diterima: {{ item.quantity_received || 0 }}</span>
-                                                    <span class="text-gray-400">/ {{ item.quantity_ordered }}</span>
+                                                    <span class="font-medium">Sudah diterima: {{ parseFloat(item.quantity_received || 0) }}</span>
+                                                    <span class="text-gray-400">/ {{ parseFloat(item.quantity_ordered) }}</span>
                                                 </div>
 
                                                 <div class="flex items-center gap-1">
@@ -354,7 +354,7 @@
 
                                                 <!-- Show remaining quantity for partial status -->
                                                 <div v-if="po.status_delivered === 'partial'" class="text-xs text-gray-500 mt-1">
-                                                    Sisa: {{ (item.quantity_ordered || 0) - (item.quantity_received || 0) }}
+                                                    Sisa: {{ parseFloat((item.quantity_ordered || 0) - (item.quantity_received || 0)) }}
                                                 </div>
                                             </td>
                                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -382,7 +382,7 @@
                                                     <div class="flex items-center gap-2 text-sm font-semibold text-amber-700">
                                                         <span>⚠️ Rincian Kekurangan Barang</span>
                                                         <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
-                                                            Kekurangan: {{ getShortageQty(index) }} {{ item.unit }}
+                                                            Kekurangan: {{ parseFloat(getShortageQty(index)) }} {{ item.unit }}
                                                         </span>
                                                     </div>
                                                     

@@ -152,8 +152,8 @@
                             <td class="px-3 py-2">{{ idx + 1 }}</td>
                             <td class="px-3 py-2">{{ it.item?.name }}</td>
                             <td class="px-3 py-2 font-mono">{{ it.item?.code }}</td>
-                            <td class="px-3 py-2">{{ it.quantity_requested }}</td>
-                            <td class="px-3 py-2">{{ it.quantity_approved || '-' }}</td>
+                            <td class="px-3 py-2">{{ it.quantity_requested ? parseFloat(it.quantity_requested) : 0 }}</td>
+                            <td class="px-3 py-2">{{ it.quantity_approved ? parseFloat(it.quantity_approved) : '-' }}</td>
                             <td class="px-3 py-2">{{ it.item?.unit?.short_name }}</td>
                             <td class="px-3 py-2">{{ it.note || '-' }}</td>
                         </tr>
@@ -224,11 +224,11 @@
                             <tr v-for="(ap) in approvals" :key="ap.id" class="border-b">
                                 <td class="p-2">{{ ap.item?.name }}</td>
                                 <td class="p-2 font-mono">{{ ap.item?.code }}</td>
-                                <td class="p-2">{{ ap.quantity_requested }} <span class="px-1">{{
+                                <td class="p-2">{{ ap.quantity_requested ? parseFloat(ap.quantity_requested) : 0 }} <span class="px-1">{{
                                         ap.item?.unit?.short_name }}</span></td>
                                 <td class="p-2">
-                                    <input type="number" min="0" class="w-28 h-9 px-2 rounded border"
-                                        v-model.number="ap.quantity_approved" />
+                                    <input type="text" inputmode="decimal" class="w-28 h-9 px-2 rounded border text-center"
+                                        v-model="ap.quantity_approved" />
                                     <span class="px-1">{{ ap.item?.unit?.short_name }}</span>
                                 </td>
                                 <td class="p-2">
@@ -378,7 +378,7 @@
                                     <tr v-for="(item, idx) in poForm.items" :key="idx" class="border-b">
                                         <td class="p-2">{{ item.item?.name }}</td>
                                         <td class="p-2 font-mono">{{ item.item?.code }}</td>
-                                        <td class="p-2">{{ item.quantity }} {{ item.item?.unit?.short_name }}</td>
+                                        <td class="p-2">{{ item.quantity ? parseFloat(item.quantity) : 0 }} {{ item.item?.unit?.short_name }}</td>
                                         <td class="p-2">
                                             <input type="number" min="0" step="0.01"
                                                 v-model.number="item.unit_price"
@@ -614,19 +614,32 @@ function submitRejected() {
 }
 
 function openApprove() {
-    approvals.value = (pr.items || []).map(it => ({
-        id: it.id,
-        item: it.item,
-        quantity_requested: it.quantity_requested,
-        quantity_approved: it.quantity_approved ?? it.quantity_requested,
-        note: it.note || '',
-    }))
+    approvals.value = (pr.items || []).map(it => {
+        const qty = it.quantity_approved ?? it.quantity_requested;
+        return {
+            id: it.id,
+            item: it.item,
+            quantity_requested: it.quantity_requested,
+            quantity_approved: qty ? parseFloat(qty).toString().replace('.', ',') : '',
+            note: it.note || '',
+        }
+    })
     showApprove.value = true
 }
 
 function submitApprove() {
+    const sanitizedApprovals = approvals.value.map(it => {
+        let val = it.quantity_approved;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        return {
+            ...it,
+            quantity_approved: parseFloat(val) || 0,
+        };
+    });
     router.post(route('purchase-requests.approve', pr.id),
-        { approvals: approvals.value },
+        { approvals: sanitizedApprovals },
         { preserveScroll: true, onFinish: () => {
             showApprove.value = false;
             window.location.reload();

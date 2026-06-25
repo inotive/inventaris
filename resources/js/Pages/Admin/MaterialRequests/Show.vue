@@ -42,19 +42,19 @@
                                 <td class="p-2 font-mono">
                                     {{ ap.item_code }}
                                 </td>
-                                <td class="p-2">
-                                    {{ ap.quantity_requested }}
-                                    <span class="px-1">{{ ap.unit }}</span>
-                                </td>
-                                <td class="p-2">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        class="px-2 w-28 h-9 rounded border"
-                                        v-model.number="ap.quantity_approved"
-                                    />
-                                    <span class="px-1">{{ ap.unit }}</span>
-                                </td>
+                                 <td class="p-2">
+                                     {{ parseFloat(ap.quantity_requested) }}
+                                     <span class="px-1">{{ ap.unit }}</span>
+                                 </td>
+                                 <td class="p-2">
+                                     <input
+                                         type="text"
+                                         inputmode="decimal"
+                                         class="px-2 w-28 h-9 rounded border text-center"
+                                         v-model="ap.quantity_approved"
+                                     />
+                                     <span class="px-1">{{ ap.unit }}</span>
+                                 </td>
                                 <td class="p-2">
                                     <input
                                         type="text"
@@ -268,11 +268,11 @@
                                 {{ it.item_code }}
                             </td>
                             <td class="px-3 py-2">
-                                {{ it.quantity_requested }}
+                                {{ it.quantity_requested ? parseFloat(it.quantity_requested) : 0 }}
                                 <span class="px-2">{{ it.unit }}</span>
                             </td>
                             <td class="px-3 py-2">
-                                {{ it.quantity_approved }}
+                                {{ it.quantity_approved ? parseFloat(it.quantity_approved) : '' }}
                                 <span class="px-2">{{ it.unit }}</span>
                             </td>
                             <td class="px-3 py-2">{{ it.note }}</td>
@@ -488,22 +488,36 @@ function closeConfirmRejected() {
 }
 
 function openApprove() {
-    approvals.value = (props.items || []).map((it) => ({
-        id: it.id,
-        item_name: it.item_name,
-        item_code: it.item_code,
-        unit: it.unit,
-        quantity_requested: it.quantity_requested,
-        quantity_approved: it.quantity_approved ?? it.quantity_requested,
-        note: it.note || "",
-    }));
+    approvals.value = (props.items || []).map((it) => {
+        const qty = it.quantity_approved ?? it.quantity_requested;
+        return {
+            id: it.id,
+            item_name: it.item_name,
+            item_code: it.item_code,
+            unit: it.unit,
+            quantity_requested: it.quantity_requested,
+            quantity_approved: qty ? parseFloat(qty).toString().replace('.', ',') : '',
+            note: it.note || "",
+        };
+    });
     showApprove.value = true;
 }
 
 function submitApprove() {
+    const sanitizedApprovals = approvals.value.map((it) => {
+        let val = it.quantity_approved;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        return {
+            ...it,
+            quantity_approved: parseFloat(val) || 0,
+        };
+    });
+
     router.post(
         route("material-requests.approve", props.mr.id),
-        { approvals: approvals.value },
+        { approvals: sanitizedApprovals },
         {
             preserveScroll: true,
             onFinish: () => {

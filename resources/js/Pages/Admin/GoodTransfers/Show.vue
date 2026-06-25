@@ -140,22 +140,22 @@
                             <td class="px-3 py-2">{{ idx + 1 }}</td>
                             <td class="px-3 py-2">{{ it.item_name }}</td>
                             <td class="px-3 py-2 font-mono">{{ it.item_code }}</td>
-                            <td class="px-3 py-2">{{ it.quantity_transferred }}</td>
+                            <td class="px-3 py-2">{{ parseFloat(it.quantity_transferred) }}</td>
                             <td class="px-3 py-2">
                                 <span v-if="it.quantity_received !== null && it.quantity_received !== undefined"
                                       :class="it.quantity_received > 0 ? 'text-green-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_received || 0 }}
+                                    {{ parseFloat(it.quantity_received || 0) }}
                                 </span>
                                 <span v-else class="text-gray-400">-</span>
                             </td>
                             <td class="px-3 py-2">
                                 <span :class="it.quantity_damaged > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_damaged || 0 }}
+                                    {{ parseFloat(it.quantity_damaged || 0) }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">
                                 <span :class="it.quantity_lost > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_lost || 0 }}
+                                    {{ parseFloat(it.quantity_lost || 0) }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">{{ it.unit }}</td>
@@ -245,7 +245,7 @@
                                                     <div class="text-sm text-gray-500">{{ item.item_code }}</div>
                                                 </td>
                                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    <input type="number" :value="item.quantity_transferred" readonly
+                                                    <input type="number" :value="parseFloat(item.quantity_transferred)" readonly
                                                         class="w-20 px-2 py-1 border rounded-md bg-gray-100 text-gray-700 border-gray-300 focus:outline-none" />
                                                 </td>
                                                 <td class="px-4 py-3 whitespace-nowrap">
@@ -274,7 +274,7 @@
                                                         <div class="flex items-center gap-2 text-sm font-semibold text-amber-700">
                                                             <span>⚠️ Rincian Kekurangan Barang</span>
                                                             <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
-                                                                Kekurangan: {{ getShortageQty(index) }} {{ item.unit }}
+                                                                Kekurangan: {{ parseFloat(getShortageQty(index)) }} {{ item.unit }}
                                                             </span>
                                                         </div>
                                                         
