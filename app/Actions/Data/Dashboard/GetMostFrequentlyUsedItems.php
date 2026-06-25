@@ -21,7 +21,7 @@ class GetMostFrequentlyUsedItems
             ->map(function ($item) {
                 return [
                     'name' => $item->name,
-                    'usage' => (int) $item->total_usage
+                    'usage' => (float) $item->total_usage
                 ];
             });
     }

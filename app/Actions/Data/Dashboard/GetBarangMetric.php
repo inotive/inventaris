@@ -34,7 +34,7 @@ class GetBarangMetric
         })->count();
 
         return [
-            'total_stock' => (int) $totalStock,
+            'total_stock' => (float) $totalStock,
             'low_stock_items' => (int) $lowStockItems,
             'out_of_stock' => (int) $outOfStockItems,
             'total_transactions' => (int) ItemStock::count(),

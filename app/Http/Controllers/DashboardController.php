@@ -119,7 +119,7 @@ class DashboardController extends Controller
 
         $metrics = [
             'active_employees' => Employee::count(),
-            'total_items_stock' => (int) $totalItemsStock,
+            'total_items_stock' => (float) $totalItemsStock,
             'low_stock_items' => $lowStockItemsCount,
             'today_activities' => $safeExecute(GetTodayActivities::class, 0, $today),
         ];
@@ -163,7 +163,7 @@ class DashboardController extends Controller
         ]);
 
         // All items
-        $lowStockItems = $safeExecute(GetLowStockItems::class, [], 50);
+        $lowStockItems = $safeExecute(GetLowStockItems::class, [], null);
 
         // Most frequently used items
         $mostFrequentlyUsedItems = $safeExecute(GetMostFrequentlyUsedItems::class, [], 6);
