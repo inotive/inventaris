@@ -13,32 +13,32 @@ return new class extends Migration
     {
         Schema::table('purchase_request_items', function (Blueprint $table) {
             $table->decimal('quantity_requested', 18, 4)->change();
-            $table->decimal('quantity_approved', 18, 4)->change();
+            $table->decimal('quantity_approved', 18, 4)->nullable()->change();
         });
 
         Schema::table('purchase_order_items', function (Blueprint $table) {
             $table->decimal('quantity_ordered', 18, 4)->change();
-            $table->decimal('quantity_received', 18, 4)->change();
+            $table->decimal('quantity_received', 18, 4)->default(0)->change();
         });
 
         Schema::table('good_receipt_items', function (Blueprint $table) {
             $table->decimal('quantity_received', 18, 4)->change();
-            $table->decimal('quantity_transferred', 18, 4)->change();
+            $table->decimal('quantity_transferred', 18, 4)->default(0)->change();
         });
 
         Schema::table('good_transfer_items', function (Blueprint $table) {
             $table->decimal('quantity_transferred', 18, 4)->change();
-            $table->decimal('quantity_received', 18, 4)->change();
+            $table->decimal('quantity_received', 18, 4)->default(0)->change();
         });
 
         Schema::table('good_issue_items', function (Blueprint $table) {
             $table->decimal('quantity_issued', 18, 4)->change();
-            $table->decimal('quantity_approved', 18, 4)->change();
+            $table->decimal('quantity_approved', 18, 4)->nullable()->change();
         });
 
         Schema::table('material_request_items', function (Blueprint $table) {
             $table->decimal('quantity_requested', 18, 4)->change();
-            $table->decimal('quantity_approved', 18, 4)->change();
+            $table->decimal('quantity_approved', 18, 4)->nullable()->change();
         });
 
         Schema::table('item_disposals', function (Blueprint $table) {
