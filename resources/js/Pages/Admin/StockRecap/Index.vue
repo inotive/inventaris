@@ -756,22 +756,34 @@
                 class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
             >
                 <div
-                    class="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50"
+                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50"
                 >
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">
                             Detail Transaksi: {{ selectedRow?.item?.name }}
                         </h3>
                         <p v-if="selectedRow?.branch_name" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            Gudang Cabang {{ selectedRow.branch_name }} • Periode Aktif
+                            Gudang Cabang {{ selectedRow.branch_name }}
                         </p>
                     </div>
-                    <button
-                        @click="showTotalPersediaanModal = false"
-                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    >
-                        ✕
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label for="detail-month-filter" class="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Periode:</label>
+                            <input
+                                id="detail-month-filter"
+                                type="month"
+                                v-model="selectedMonth"
+                                @change="handleDetailMonthChange"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                            />
+                        </div>
+                        <button
+                            @click="showTotalPersediaanModal = false"
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
                 <div class="p-6 overflow-y-auto flex-1">
                     <!-- Summary Cards -->
@@ -1139,6 +1151,17 @@ const showTotalPersediaanModal = ref(false);
 const selectedRow = ref(null);
 const detailTransactions = ref([]);
 const loadingDetail = ref(false);
+const selectedMonth = ref('');
+
+function getInitialMonth() {
+    if (filtersLocal.value.date_from) {
+        return filtersLocal.value.date_from.substring(0, 7);
+    }
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+}
 
 // Pagination for detail transactions
 const detailCurrentPage = ref(1);
@@ -1218,6 +1241,7 @@ async function fetchTransactionDetail(itemId, type) {
             type: type,
             date_from: filtersLocal.value.date_from || '',
             date_to: filtersLocal.value.date_to || '',
+            month: selectedMonth.value || '',
         });
 
         const response = await fetch(`/api/stock-recap/detail?${params}`);
@@ -1233,26 +1257,36 @@ async function fetchTransactionDetail(itemId, type) {
 
 function openSaldoAwalModal(row) {
     selectedRow.value = row;
+    selectedMonth.value = getInitialMonth();
     showSaldoAwalModal.value = true;
     fetchTransactionDetail(row.item.id, 'saldo_awal');
 }
 
 function openStokMasukModal(row) {
     selectedRow.value = row;
+    selectedMonth.value = getInitialMonth();
     showStokMasukModal.value = true;
     fetchTransactionDetail(row.item.id, 'stok_masuk');
 }
 
 function openStokKeluarModal(row) {
     selectedRow.value = row;
+    selectedMonth.value = getInitialMonth();
     showStokKeluarModal.value = true;
     fetchTransactionDetail(row.item.id, 'stok_keluar');
 }
 
 function openTotalPersediaanModal(row) {
     selectedRow.value = row;
+    selectedMonth.value = getInitialMonth();
     showTotalPersediaanModal.value = true;
     fetchTransactionDetail(row.item.id, 'total_persediaan');
+}
+
+function handleDetailMonthChange() {
+    if (selectedRow.value) {
+        fetchTransactionDetail(selectedRow.value.item.id, 'total_persediaan');
+    }
 }
 
 const showAdjustModal = ref(false);

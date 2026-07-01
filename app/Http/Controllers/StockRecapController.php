@@ -209,10 +209,16 @@ class StockRecapController extends Controller
         $type = $request->input('type');
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
+        $month = $request->input('month');
 
         // Set default date range
-        $tanggalAwal = $dateFrom ? \Carbon\Carbon::parse($dateFrom)->startOfDay() : now()->startOfMonth();
-        $tanggalAkhir = $dateTo ? \Carbon\Carbon::parse($dateTo)->endOfDay() : now()->endOfDay();
+        if ($month) {
+            $tanggalAwal = \Carbon\Carbon::parse($month . '-01')->startOfMonth();
+            $tanggalAkhir = \Carbon\Carbon::parse($month . '-01')->endOfMonth();
+        } else {
+            $tanggalAwal = $dateFrom ? \Carbon\Carbon::parse($dateFrom)->startOfDay() : now()->startOfMonth();
+            $tanggalAkhir = $dateTo ? \Carbon\Carbon::parse($dateTo)->endOfDay() : now()->endOfDay();
+        }
 
         $query = ItemStock::where('item_id', $itemId);
 
