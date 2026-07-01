@@ -1,7 +1,7 @@
 <template>
     <Head title="Rekap Stok" />
 
-    <div class="flex overflow-hidden flex-col gap-3 px-3 h-full">
+    <div class="flex overflow-hidden flex-col gap-3 px-3 h-full w-full max-w-full min-w-0">
         <div class="flex justify-between items-center h-10">
             <Breadcrumb :items="breadcrumbs" />
             <div>
@@ -15,7 +15,7 @@
         </div>
 
         <div
-            class="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-white/[0.03]"
+            class="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-white/[0.03] w-full max-w-full min-w-0"
         >
             <div
                 class="flex flex-col gap-2 px-8 h-16 sm:flex-row sm:items-center sm:justify-between"
@@ -164,7 +164,7 @@
                 </div>
             </div>
 
-            <div class="overflow-auto overflow-x-auto" data-simplebar>
+            <div class="overflow-auto overflow-x-auto w-full max-w-full min-w-0" data-simplebar>
                 <table class="min-w-full text-sm border-collapse">
                     <thead>
                         <tr>
