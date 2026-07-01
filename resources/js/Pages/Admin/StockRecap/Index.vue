@@ -385,9 +385,8 @@
                         </template>
                     </tbody>
                 </table>
-                <Pagination :pagination="stockIns" />
             </div>
-
+            <Pagination :pagination="stockIns" />
         </div>
 
         <!-- Modal Saldo Awal -->
