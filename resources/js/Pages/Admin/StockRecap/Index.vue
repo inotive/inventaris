@@ -768,14 +768,21 @@
                     </div>
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-2">
-                            <label for="detail-month-filter" class="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Periode:</label>
-                            <input
-                                id="detail-month-filter"
-                                type="month"
-                                v-model="selectedMonth"
-                                @change="handleDetailMonthChange"
+                            <label class="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Periode:</label>
+                            <select
+                                v-model="selectedMonthPart"
+                                @change="handleMonthYearChange"
                                 class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                            />
+                            >
+                                <option v-for="m in monthsList" :key="m.value" :value="m.value">{{ m.label }}</option>
+                            </select>
+                            <select
+                                v-model="selectedYearPart"
+                                @change="handleMonthYearChange"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                            >
+                                <option v-for="y in yearsList" :key="y" :value="String(y)">{{ y }}</option>
+                            </select>
                         </div>
                         <button
                             @click="showTotalPersediaanModal = false"
@@ -1152,6 +1159,32 @@ const selectedRow = ref(null);
 const detailTransactions = ref([]);
 const loadingDetail = ref(false);
 const selectedMonth = ref('');
+const selectedMonthPart = ref('');
+const selectedYearPart = ref('');
+
+const monthsList = [
+    { value: '01', label: 'Januari' },
+    { value: '02', label: 'Februari' },
+    { value: '03', label: 'Maret' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'Mei' },
+    { value: '06', label: 'Juni' },
+    { value: '07', label: 'Juli' },
+    { value: '08', label: 'Agustus' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'Desember' }
+];
+
+const yearsList = computed(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let y = currentYear - 5; y <= currentYear + 2; y++) {
+        years.push(y);
+    }
+    return years;
+});
 
 function getInitialMonth() {
     if (filtersLocal.value.date_from) {
@@ -1255,30 +1288,37 @@ async function fetchTransactionDetail(itemId, type) {
     }
 }
 
+function initModalMonth() {
+    const initial = getInitialMonth();
+    selectedMonth.value = initial;
+    selectedYearPart.value = initial.split('-')[0];
+    selectedMonthPart.value = initial.split('-')[1];
+}
+
 function openSaldoAwalModal(row) {
     selectedRow.value = row;
-    selectedMonth.value = getInitialMonth();
+    initModalMonth();
     showSaldoAwalModal.value = true;
     fetchTransactionDetail(row.item.id, 'saldo_awal');
 }
 
 function openStokMasukModal(row) {
     selectedRow.value = row;
-    selectedMonth.value = getInitialMonth();
+    initModalMonth();
     showStokMasukModal.value = true;
     fetchTransactionDetail(row.item.id, 'stok_masuk');
 }
 
 function openStokKeluarModal(row) {
     selectedRow.value = row;
-    selectedMonth.value = getInitialMonth();
+    initModalMonth();
     showStokKeluarModal.value = true;
     fetchTransactionDetail(row.item.id, 'stok_keluar');
 }
 
 function openTotalPersediaanModal(row) {
     selectedRow.value = row;
-    selectedMonth.value = getInitialMonth();
+    initModalMonth();
     showTotalPersediaanModal.value = true;
     fetchTransactionDetail(row.item.id, 'total_persediaan');
 }
@@ -1287,6 +1327,11 @@ function handleDetailMonthChange() {
     if (selectedRow.value) {
         fetchTransactionDetail(selectedRow.value.item.id, 'total_persediaan');
     }
+}
+
+function handleMonthYearChange() {
+    selectedMonth.value = `${selectedYearPart.value}-${selectedMonthPart.value}`;
+    handleDetailMonthChange();
 }
 
 const showAdjustModal = ref(false);
