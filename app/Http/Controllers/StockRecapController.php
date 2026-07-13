@@ -77,9 +77,9 @@ class StockRecapController extends Controller
                         ->whereColumn('sub_items.category_id', 'items.category_id')
                         ->whereColumn('sub_items.unit_id', 'items.unit_id')
                         ->whereRaw('(
-                            COALESCE((SELECT SUM(CASE WHEN type IN ("In", "adjust_in", "transfer_in") THEN amount ELSE -amount END) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND item_stocks.created_at < ?), 0) +
-                            COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND type IN ("In", "adjust_in", "transfer_in") AND item_stocks.created_at BETWEEN ? AND ?), 0) -
-                            COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND type IN ("Out", "adjust_out", "transfer_out") AND item_stocks.created_at BETWEEN ? AND ?), 0)
+                            COALESCE((SELECT SUM(CASE WHEN type IN ("In", "in", "adjust_in", "transfer_in", "return_in") THEN amount ELSE -amount END) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND item_stocks.created_at < ?), 0) +
+                            COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND type IN ("In", "in", "adjust_in", "transfer_in", "return_in") AND item_stocks.created_at BETWEEN ? AND ?), 0) -
+                            COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND type IN ("Out", "out", "adjust_out", "transfer_out") AND item_stocks.created_at BETWEEN ? AND ?), 0)
                         ) > 0', [$tanggalAwal, $tanggalAwal, $tanggalAkhir, $tanggalAwal, $tanggalAkhir]);
                 });
             })
@@ -108,7 +108,7 @@ class StockRecapController extends Controller
             // stok_awal (qty) before start date
             ->selectSub(function ($q) use ($tanggalAwal) {
                 $q->from('item_stocks')
-                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'adjust_in', 'transfer_in') THEN amount ELSE -amount END), 0)")
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
                     ->whereColumn('item_stocks.item_id', 'items.id')
                     ->where('item_stocks.created_at', '<', $tanggalAwal);
             }, 'stok_awal')
@@ -117,7 +117,7 @@ class StockRecapController extends Controller
                 $q->from('item_stocks')
                     ->selectRaw('COALESCE(SUM(amount), 0)')
                     ->whereColumn('item_stocks.item_id', 'items.id')
-                    ->whereIn('type', ['In', 'adjust_in', 'transfer_in'])
+                    ->whereIn('type', ['In', 'in', 'adjust_in', 'transfer_in', 'return_in'])
                     ->whereBetween('item_stocks.created_at', [$tanggalAwal, $tanggalAkhir]);
             }, 'stok_masuk')
             // stok_keluar (qty) within range
@@ -125,7 +125,7 @@ class StockRecapController extends Controller
                 $q->from('item_stocks')
                     ->selectRaw('COALESCE(SUM(amount), 0)')
                     ->whereColumn('item_stocks.item_id', 'items.id')
-                    ->whereIn('type', ['Out', 'adjust_out', 'transfer_out'])
+                    ->whereIn('type', ['Out', 'out', 'adjust_out', 'transfer_out'])
                     ->whereBetween('item_stocks.created_at', [$tanggalAwal, $tanggalAkhir]);
             }, 'stok_keluar')
             ->get();
