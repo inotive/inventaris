@@ -156,7 +156,7 @@
                                     :label-key="'name'"
                                     label="Cari Barang"
                                     @tag="addTag"
-                                    class="w-full"
+                                    class="w-full" :disabled="!form.department_id"
                                 >
                                     <template #item="{ item }">
                                         <div class="flex flex-col py-1">
@@ -170,8 +170,11 @@
                                         </div>
                                     </template>
                                     <template #no-options>
-                                        <div class="text-sm text-gray-500 p-2">
-                                            Semua barang telah dipilih di baris lain
+                                        <div v-if="!form.department_id" class="text-sm text-gray-500 p-2 text-center">
+                                            Silakan pilih cabang terlebih dahulu
+                                        </div>
+                                        <div v-else class="text-sm text-gray-500 p-2 text-center">
+                                            Semua barang telah dipilih
                                         </div>
                                     </template>
                                 </Select>
@@ -464,7 +467,7 @@ const getFilteredOptions = (currentRowIndex) => {
 
     return options.value.filter(option => {
         const notSelected = !selectedItemIds.includes(option.id);
-        const branchMatch = option.branch_id === selectedBranchId.value;
+        const branchMatch = option.branch_id == selectedBranchId.value;
         return notSelected && branchMatch;
     });
 };
