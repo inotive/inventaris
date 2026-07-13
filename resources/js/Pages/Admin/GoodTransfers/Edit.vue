@@ -186,61 +186,6 @@
                                             <span class="font-medium text-gray-900 dark:text-gray-100 text-sm">{{ item.name }}</span>
                                             <span class="text-xs text-gray-500 dark:text-gray-400">{{ item.code || '-' }}</span>
                                         </div>
-                                    
-    <!-- Modal Detail Stok Per Gudang -->
-    <Modal
-        :show="showStockModal"
-        @close="showStockModal = false"
-        title="Detail Stok Per Gudang"
-        close-text="Tutup"
-        max-width="lg"
-    >
-        <div class="space-y-4">
-            <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-1.5 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-gray-500 dark:text-gray-400">Nama Barang:</span>
-                    <span class="font-semibold text-gray-950 dark:text-white">{{ selectedStockDetails.itemName }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-500 dark:text-gray-400">Kode Barang:</span>
-                    <span class="font-mono text-gray-950 dark:text-white">{{ selectedStockDetails.itemCode }}</span>
-                </div>
-                <div class="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-1.5 mt-1.5">
-                    <span class="text-gray-500 dark:text-gray-400 font-medium">Total Stok Keseluruhan:</span>
-                    <span class="font-bold text-blue-600 dark:text-blue-400">{{ selectedStockDetails.totalStock }} {{ selectedStockDetails.unit }}</span>
-                </div>
-            </div>
-
-            <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-xs">
-                    <thead class="bg-gray-50 dark:bg-gray-900/80">
-                        <tr>
-                            <th class="px-4 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Gudang / Cabang</th>
-                            <th class="px-4 py-2 text-right font-semibold text-gray-500 dark:text-gray-400">Stok</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-800">
-                        <tr v-if="selectedStockDetails.breakdown.length === 0">
-                            <td colspan="2" class="px-4 py-3 text-center text-gray-500">Tidak ada data breakdown</td>
-                        </tr>
-                        <tr
-                            v-else
-                            v-for="b in selectedStockDetails.breakdown"
-                            :key="b.branch_id"
-                            class="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                        >
-                            <td class="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{{ b.branch_name }}</td>
-                            <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">
-                                <span :class="b.stock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'">
-                                    {{ b.stock }} {{ selectedStockDetails.unit }}
-                                </span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </Modal>
 </template>
                                 </Select>
                                 <!-- Pesan error validasi untuk item_id -->
@@ -463,6 +408,62 @@
             </div>
         </div>
     </div>
+
+                                    
+    <!-- Modal Detail Stok Per Gudang -->
+    <Modal
+        :show="showStockModal"
+        @close="showStockModal = false"
+        title="Detail Stok Per Gudang"
+        close-text="Tutup"
+        max-width="lg"
+    >
+        <div class="space-y-4">
+            <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Nama Barang:</span>
+                    <span class="font-semibold text-gray-950 dark:text-white">{{ selectedStockDetails.itemName }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Kode Barang:</span>
+                    <span class="font-mono text-gray-950 dark:text-white">{{ selectedStockDetails.itemCode }}</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-1.5 mt-1.5">
+                    <span class="text-gray-500 dark:text-gray-400 font-medium">Total Stok Keseluruhan:</span>
+                    <span class="font-bold text-blue-600 dark:text-blue-400">{{ selectedStockDetails.totalStock }} {{ selectedStockDetails.unit }}</span>
+                </div>
+            </div>
+
+            <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-xs">
+                    <thead class="bg-gray-50 dark:bg-gray-900/80">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Gudang / Cabang</th>
+                            <th class="px-4 py-2 text-right font-semibold text-gray-500 dark:text-gray-400">Stok</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-800">
+                        <tr v-if="selectedStockDetails.breakdown.length === 0">
+                            <td colspan="2" class="px-4 py-3 text-center text-gray-500">Tidak ada data breakdown</td>
+                        </tr>
+                        <tr
+                            v-else
+                            v-for="b in selectedStockDetails.breakdown"
+                            :key="b.branch_id"
+                            class="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                            <td class="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{{ b.branch_name }}</td>
+                            <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">
+                                <span :class="b.stock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'">
+                                    {{ b.stock }} {{ selectedStockDetails.unit }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </Modal>
 </template>
 
 <script setup>

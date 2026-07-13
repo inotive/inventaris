@@ -308,6 +308,7 @@
         </div>
     </div>
 
+
     <!-- Modal Detail Stok Per Gudang -->
     <Modal
         :show="showStockModal"
@@ -429,7 +430,7 @@ const options = ref(
         id: i.id,
         name: i.name,
         code: i.code,
-        stock: parseFloat(i.stock),
+        stock: i.stock ? (i.stock.last_stock !== undefined ? parseFloat(i.stock.last_stock) : parseFloat(i.stock)) : 0,
         unit: i.unit,
         branch_id: i.branch_id,
     }))
