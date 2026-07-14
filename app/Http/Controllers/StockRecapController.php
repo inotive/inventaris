@@ -254,7 +254,7 @@ class StockRecapController extends Controller
                 case 'stok_keluar':
                     return !$item->is_in && $createdAt->between($tanggalAwal, $tanggalAkhir);
                 case 'total_persediaan':
-                    return $createdAt->lte($tanggalAkhir);
+                    return $createdAt->between($tanggalAwal, $tanggalAkhir);
                 default:
                     return $createdAt->between($tanggalAwal, $tanggalAkhir);
             }
