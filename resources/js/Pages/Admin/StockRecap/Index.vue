@@ -434,7 +434,7 @@
                         <tbody>
                             <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800">
                                 <td class="px-4 py-3">{{ detailFrom + idx }}</td>
-                                <td class="px-4 py-3">{{ tx.created_at }}</td>
+                                <td class="px-4 py-3">{{ formatDate(tx.created_at) }}</td>
                                 <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
@@ -553,7 +553,7 @@
                         <tbody>
                             <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800">
                                 <td class="px-4 py-3">{{ detailFrom + idx }}</td>
-                                <td class="px-4 py-3">{{ tx.created_at }}</td>
+                                <td class="px-4 py-3">{{ formatDate(tx.created_at) }}</td>
                                 <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
@@ -672,7 +672,7 @@
                         <tbody>
                             <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800">
                                 <td class="px-4 py-3">{{ detailFrom + idx }}</td>
-                                <td class="px-4 py-3">{{ tx.created_at }}</td>
+                                <td class="px-4 py-3">{{ formatDate(tx.created_at) }}</td>
                                 <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
@@ -768,20 +768,19 @@
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-2">
                             <label class="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Periode:</label>
-                            <select
-                                v-model="selectedMonthPart"
-                                @change="handleMonthYearChange"
+                            <input
+                                type="date"
+                                v-model="detailDateFrom"
+                                @change="handleDetailMonthChange"
                                 class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                             >
-                                <option v-for="m in monthsList" :key="m.value" :value="m.value">{{ m.label }}</option>
-                            </select>
-                            <select
-                                v-model="selectedYearPart"
-                                @change="handleMonthYearChange"
+                            <span class="text-gray-500 dark:text-gray-400">-</span>
+                            <input
+                                type="date"
+                                v-model="detailDateTo"
+                                @change="handleDetailMonthChange"
                                 class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                             >
-                                <option v-for="y in yearsList" :key="y" :value="String(y)">{{ y }}</option>
-                            </select>
                         </div>
                         <button
                             @click="showTotalPersediaanModal = false"
@@ -857,7 +856,6 @@
                                 <td class="px-4 py-3 align-middle">
                                     <div class="flex flex-col">
                                         <span class="font-medium text-gray-900 dark:text-white">{{ formatDate(tx.created_at) }}</span>
-                                        <span class="text-xs text-gray-500 mt-0.5">{{ formatTime(tx.created_at) }}</span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 align-middle">
@@ -1157,43 +1155,8 @@ const showTotalPersediaanModal = ref(false);
 const selectedRow = ref(null);
 const detailTransactions = ref([]);
 const loadingDetail = ref(false);
-const selectedMonth = ref('');
-const selectedMonthPart = ref('');
-const selectedYearPart = ref('');
-
-const monthsList = [
-    { value: '01', label: 'Januari' },
-    { value: '02', label: 'Februari' },
-    { value: '03', label: 'Maret' },
-    { value: '04', label: 'April' },
-    { value: '05', label: 'Mei' },
-    { value: '06', label: 'Juni' },
-    { value: '07', label: 'Juli' },
-    { value: '08', label: 'Agustus' },
-    { value: '09', label: 'September' },
-    { value: '10', label: 'Oktober' },
-    { value: '11', label: 'November' },
-    { value: '12', label: 'Desember' }
-];
-
-const yearsList = computed(() => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let y = currentYear - 5; y <= currentYear + 2; y++) {
-        years.push(y);
-    }
-    return years;
-});
-
-function getInitialMonth() {
-    if (filtersLocal.value.date_from) {
-        return filtersLocal.value.date_from.substring(0, 7);
-    }
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
-}
+const detailDateFrom = ref('');
+const detailDateTo = ref('');
 
 // Pagination for detail transactions
 const detailCurrentPage = ref(1);
@@ -1246,11 +1209,7 @@ function formatDate(dateTimeStr) {
     return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function formatTime(dateTimeStr) {
-    if (!dateTimeStr) return '';
-    const date = new Date(dateTimeStr);
-    return date.toTimeString().split(' ')[0];
-}
+
 
 function goToDetailPage(page) {
     if (page >= 1 && page <= detailTotalPages.value) {
@@ -1270,9 +1229,8 @@ async function fetchTransactionDetail(itemId, type) {
         const params = new URLSearchParams({
             item_id: itemId,
             type: type,
-            date_from: filtersLocal.value.date_from || '',
-            date_to: filtersLocal.value.date_to || '',
-            month: selectedMonth.value || '',
+            date_from: detailDateFrom.value || '',
+            date_to: detailDateTo.value || '',
         });
 
         const response = await fetch(`/api/stock-recap/detail?${params}`);
@@ -1289,10 +1247,8 @@ async function fetchTransactionDetail(itemId, type) {
 }
 
 function initModalMonth() {
-    const initial = getInitialMonth();
-    selectedMonth.value = initial;
-    selectedYearPart.value = initial.split('-')[0];
-    selectedMonthPart.value = initial.split('-')[1];
+    detailDateFrom.value = '';
+    detailDateTo.value = '';
 }
 
 function openSaldoAwalModal(row) {
@@ -1329,10 +1285,6 @@ function handleDetailMonthChange() {
     }
 }
 
-function handleMonthYearChange() {
-    selectedMonth.value = `${selectedYearPart.value}-${selectedMonthPart.value}`;
-    handleDetailMonthChange();
-}
 
 const showAdjustModal = ref(false);
 const adjustForm = useForm({

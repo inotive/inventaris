@@ -32,9 +32,8 @@ class StockRecapController extends Controller
 
 
         // Set default date range if not provided (use full datetime boundaries)
-        $tanggalAwal = $filters['date_from'] ? \Carbon\Carbon::parse($filters['date_from'])->startOfDay() : now()->startOfMonth();
+        $tanggalAwal = $filters['date_from'] ? \Carbon\Carbon::parse($filters['date_from'])->startOfDay() : \Carbon\Carbon::create(2000, 1, 1)->startOfDay();
         $tanggalAkhir = $filters['date_to'] ? \Carbon\Carbon::parse($filters['date_to'])->endOfDay() : now()->endOfDay();
-
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
         $canViewGlobal = Auth::user()->can('stock_recap.view_global') || $isSuperadmin;
         $userBranchId = Auth::user()->employee->branch_id ?? null;
@@ -209,16 +208,9 @@ class StockRecapController extends Controller
         $type = $request->input('type');
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
-        $month = $request->input('month');
-
         // Set default date range
-        if ($month) {
-            $tanggalAwal = \Carbon\Carbon::parse($month . '-01')->startOfMonth();
-            $tanggalAkhir = \Carbon\Carbon::parse($month . '-01')->endOfMonth();
-        } else {
-            $tanggalAwal = $dateFrom ? \Carbon\Carbon::parse($dateFrom)->startOfDay() : now()->startOfMonth();
-            $tanggalAkhir = $dateTo ? \Carbon\Carbon::parse($dateTo)->endOfDay() : now()->endOfDay();
-        }
+        $tanggalAwal = $dateFrom ? \Carbon\Carbon::parse($dateFrom)->startOfDay() : \Carbon\Carbon::create(2000, 1, 1)->startOfDay();
+        $tanggalAkhir = $dateTo ? \Carbon\Carbon::parse($dateTo)->endOfDay() : now()->endOfDay();
 
         // Fetch ALL transactions for the item up to $tanggalAkhir
         // to accurately calculate the running stock in chronological order
