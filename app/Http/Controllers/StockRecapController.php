@@ -220,56 +220,77 @@ class StockRecapController extends Controller
             $tanggalAkhir = $dateTo ? \Carbon\Carbon::parse($dateTo)->endOfDay() : now()->endOfDay();
         }
 
-        $query = ItemStock::where('item_id', $itemId);
+        // Fetch ALL transactions for the item up to $tanggalAkhir
+        // to accurately calculate the running stock in chronological order
+        $allTransactions = ItemStock::with('source')
+            ->where('item_id', $itemId)
+            ->where('created_at', '<=', $tanggalAkhir)
+            ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
-        // Filter based on type
-        switch ($type) {
-            case 'saldo_awal':
-                // Transactions before start date
-                $query->where('created_at', '<', $tanggalAwal);
-                break;
-            case 'stok_masuk':
-                // In transactions within range
-                $query->whereIn('type', ['In', 'in', 'adjust_in', 'transfer_in', 'return_in'])
-                    ->whereBetween('item_stocks.created_at', [$tanggalAwal, $tanggalAkhir]);
-                break;
-            case 'stok_keluar':
-                // Out transactions within range
-                $query->whereIn('type', ['Out', 'out', 'adjust_out', 'transfer_out'])
-                    ->whereBetween('item_stocks.created_at', [$tanggalAwal, $tanggalAkhir]);
-                break;
-            case 'total_persediaan':
-                // All transactions up to end date
-                $query->where('created_at', '<=', $tanggalAkhir);
-                break;
-            default:
-                // All transactions within range
-                $query->whereBetween('created_at', [$tanggalAwal, $tanggalAkhir]);
-        }
+        $runningStock = 0;
+        
+        $processedTransactions = $allTransactions->map(function ($stock) use (&$runningStock) {
+            $is_in = in_array(strtolower((string) $stock->type), ['in', 'adjust_in', 'transfer_in', 'return_in']);
+            $amount = (float) $stock->amount;
+            
+            $initial = $runningStock;
+            if ($is_in) {
+                $runningStock += $amount;
+            } else {
+                $runningStock -= $amount;
+            }
 
-        $transactions = $query->with('source')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($stock) {
-                return [
-                    'id' => $stock->id,
-                    'type' => in_array(strtolower((string) $stock->type), ['in', 'adjust_in', 'transfer_in', 'return_in']) ? 'In' : 'Out',
-                    'original_type' => $stock->type,
-                    'source_type' => $this->getType($stock),
-                    'source_id' => $stock->source_id,
-                    'reference' => $this->getReference($stock),
-                    'initial_stock' => $stock->initial_stock,
-                    'amount' => $stock->amount,
-                    'last_stock' => $stock->last_stock,
-                    'note' => $stock->note ?? '-',
-                    'transaction_value' => $this->getTransactionValue($stock),
-                    'created_at' => $stock->created_at->format('Y-m-d H:i:s'),
-                ];
-            });
+            return (object) [
+                'stock' => $stock,
+                'is_in' => $is_in,
+                'initial_stock' => $initial,
+                'last_stock' => $runningStock,
+            ];
+        });
+
+        // Filter based on requested type
+        $filteredTransactions = $processedTransactions->filter(function ($item) use ($type, $tanggalAwal, $tanggalAkhir) {
+            $createdAt = $item->stock->created_at;
+            
+            switch ($type) {
+                case 'saldo_awal':
+                    return $createdAt->lt($tanggalAwal);
+                case 'stok_masuk':
+                    return $item->is_in && $createdAt->between($tanggalAwal, $tanggalAkhir);
+                case 'stok_keluar':
+                    return !$item->is_in && $createdAt->between($tanggalAwal, $tanggalAkhir);
+                case 'total_persediaan':
+                    return $createdAt->lte($tanggalAkhir);
+                default:
+                    return $createdAt->between($tanggalAwal, $tanggalAkhir);
+            }
+        });
+
+        // Format for output and reverse order (newest first)
+        $transactions = $filteredTransactions->reverse()->values()->map(function ($item) {
+            $stock = $item->stock;
+            return [
+                'id' => $stock->id,
+                'type' => $item->is_in ? 'In' : 'Out',
+                'original_type' => $stock->type,
+                'source_type' => $this->getType($stock),
+                'source_id' => $stock->source_id,
+                'reference' => $this->getReference($stock),
+                'initial_stock' => $item->initial_stock,
+                'amount' => (float) $stock->amount,
+                'last_stock' => $item->last_stock,
+                'note' => $stock->note ?? '-',
+                'transaction_value' => $this->getTransactionValue($stock),
+                'created_at' => $stock->created_at->format('Y-m-d H:i:s'),
+            ];
+        });
 
         return response()->json([
             'transactions' => $transactions,
             'total' => $transactions->count(),
+            'true_sisa_stok' => $runningStock
         ]);
     }
 

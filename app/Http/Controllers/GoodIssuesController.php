@@ -299,8 +299,10 @@ class GoodIssuesController extends Controller
                 'notes' => $goodIssue->requirement ?? '',
             ],
             'items' => $goodIssue->items->map(function ($item) {
-                // Get current stock
-                $currentStock = $item->item?->stock?->last_stock ?? 0;
+                // Get current stock dynamically to avoid backdating bugs
+                $currentStock = \App\Models\ItemStock::where('item_id', $item->item_id)
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0) as sisa_stok")
+                    ->value('sisa_stok');
 
                 return [
                     'id' => $item->id,
@@ -399,7 +401,9 @@ class GoodIssuesController extends Controller
                     'item_code' => $item->item?->code ?? '',
                     'qty' => $item->quantity_issued ?? 0,
                     'amount' => $item->quantity_issued ?? 0,
-                    'stock' => $item->item?->stock ?? 0,
+                    'stock' => \App\Models\ItemStock::where('item_id', $item->item_id)
+                        ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0) as sisa_stok")
+                        ->value('sisa_stok'),
                     'unit' => $item->item?->unit ?? (object)[],
                     'notes' => $item->note ?? '',
                     'note' => $item->note ?? '',

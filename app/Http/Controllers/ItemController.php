@@ -43,11 +43,16 @@ class ItemController extends Controller
         $canViewGlobal = Auth::user()->can('items.view_global') || $isSuperadmin;
         
         $query = Item::query()
-            ->with(['branch', 'category', 'unit', 'stocks', 'stock'])
+            ->with(['branch', 'category', 'unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->leftJoin('item_categories as ic', 'ic.id', '=', 'items.category_id')
             ->leftJoin('units as u', 'u.id', '=', 'items.unit_id')
             ->leftJoin('branches as b', 'b.id', '=', 'items.branch_id')
-            ->select('items.*')
             ->when(!$canViewGlobal && empty($filters['branch_id']), function ($query) use ($userBranchId) {
                 return $query->where('items.branch_id', $userBranchId);
             });
@@ -129,11 +134,11 @@ class ItemController extends Controller
                     'category_id' => $gt->category_id,
                     'branch_id' => $gt->branch_id,
                     'branch' => $gt->branch?->name ?? null,
-                    'stock' => $gt->stocks?->first()?->last_stock ?? 0,
+                    'stock' => $gt->true_stock ?? 0,
                     'min_stock' => $gt->min_stock ?? 0,
                     'unit' => $gt->unit?->short_name ?? $gt->unit?->name ?? '-',
                     'unit_id' => $gt->unit_id,
-                    'last_stock' => $gt->stock?->last_stock ?? 0,
+                    'last_stock' => $gt->true_stock ?? 0,
                     'created_at' => $gt->created_at->locale('id')->translatedFormat('d F Y'),
                 ];
             }),

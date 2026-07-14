@@ -202,9 +202,15 @@ class MaterialRequestController extends Controller
         // Filter items based on user's department branch
         $canCreateGlobal = Auth::user()->can('material_requests.create_global') || $isSuperadmin;
 
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
-                return $query->where('branch_id', $userBranchId);
+                return $query->where('items.branch_id', $userBranchId);
             })
             ->orderBy('name')
             ->get()
@@ -213,7 +219,7 @@ class MaterialRequestController extends Controller
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
-                    'stock' => $item->stock?->last_stock ?? 0,
+                    'stock' => $item->true_stock ?? 0,
                     'unit' => $item->unit,
                 ];
             });
@@ -350,7 +356,15 @@ class MaterialRequestController extends Controller
         ]);
 
         // Get all items for the select options
-        $allItems = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->get();
+        $allItems = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Admin/MaterialRequests/Edit', [
             'mr' => [
@@ -378,7 +392,7 @@ class MaterialRequestController extends Controller
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
-                    'stock' => $item->stock?->last_stock ?? 0,
+                    'stock' => $item->true_stock ?? 0,
                     'unit' => $item->unit,
                 ];
             }),
@@ -541,7 +555,13 @@ class MaterialRequestController extends Controller
             return response()->json(['items' => []]);
         }
 
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->where('branch_id', $department->branch_id)
             ->orderBy('name')
             ->get()
@@ -550,7 +570,7 @@ class MaterialRequestController extends Controller
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
-                    'stock' => $item->stock?->last_stock ?? 0,
+                    'stock' => $item->true_stock ?? 0,
                     'unit' => $item->unit,
                 ];
             });
@@ -620,7 +640,13 @@ class MaterialRequestController extends Controller
         $branches = \App\Models\Branch::orderBy('name', 'asc')->get();
 
         // Query all items with the same code (ignoring branch suffix) or name
-        $items = Item::with(['branch', 'stock'])
+        $items = Item::with(['branch'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->where(function ($query) use ($code, $name) {
                 // Strip branch suffix like -B1, -B12 to get the base code prefix
                 $baseCode = $code;
@@ -641,7 +667,7 @@ class MaterialRequestController extends Controller
         // Create a lookup map of branch_id => stock
         $itemStocksByBranch = [];
         foreach ($items as $it) {
-            $itemStocksByBranch[$it->branch_id] = (float) ($it->stock?->last_stock ?? 0);
+            $itemStocksByBranch[$it->branch_id] = (float) ($it->true_stock ?? 0);
         }
 
         // Build the breakdown for ALL branches to be transparent and clear

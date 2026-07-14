@@ -1233,11 +1233,10 @@ const totalKeluarDetail = computed(() => {
     return parseFloat(sum.toFixed(4));
 });
 
+const trueSisaStokDetail = ref(0);
+
 const sisaStokDetail = computed(() => {
-    if (detailTransactions.value.length > 0) {
-        return parseFloat(parseFloat(detailTransactions.value[0].last_stock).toFixed(4));
-    }
-    return 0;
+    return parseFloat(parseFloat(trueSisaStokDetail.value).toFixed(4));
 });
 
 function formatDate(dateTimeStr) {
@@ -1279,9 +1278,11 @@ async function fetchTransactionDetail(itemId, type) {
         const response = await fetch(`/api/stock-recap/detail?${params}`);
         const data = await response.json();
         detailTransactions.value = data.transactions || [];
+        trueSisaStokDetail.value = data.true_sisa_stok || 0;
     } catch (error) {
         console.error('Error fetching transaction detail:', error);
         detailTransactions.value = [];
+        trueSisaStokDetail.value = 0;
     } finally {
         loadingDetail.value = false;
     }

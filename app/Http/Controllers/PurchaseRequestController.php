@@ -276,11 +276,21 @@ class PurchaseRequestController extends Controller
 
         $canCreateGlobal = Auth::user()->can('purchase_requests.create_global') || $isSuperadmin;
 
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->orderBy('name')
             ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
                 return $query->where('items.branch_id', $userBranchId);
-            })->get();
+            })->get()
+            ->map(function ($item) {
+                $item->stock = $item->true_stock;
+                return $item;
+            });
 
 
 
@@ -438,7 +448,19 @@ class PurchaseRequestController extends Controller
             ];
         })->sortBy(fn($d) => $d['branch']->name)->values();
         $employees = Employee::orderBy('name')->get();
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->get();
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($item) {
+                $item->stock = $item->true_stock;
+                return $item;
+            });
         $materialRequests = MaterialRequest::with(['items.item.unit', 'department.branch'])
             ->orderByDesc('request_no')
             ->get()

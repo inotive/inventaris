@@ -134,11 +134,21 @@ class GoodTransferController extends Controller
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
         $canCreateGlobal = Auth::user()->can('good_transfers.create_global') || $isSuperadmin;
 
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->orderBy('name')
             ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
                 return $query->where('items.branch_id', $userBranchId);
-            })->get();
+            })->get()
+            ->map(function ($item) {
+                $item->stock = $item->true_stock;
+                return $item;
+            });
 
         $roles = Auth::user()->getRoleNames()->first();
 
@@ -370,7 +380,19 @@ class GoodTransferController extends Controller
         $goodTransfer->load(['items.item.unit', 'sentBy', 'receivedBy']);
         $branches = Branch::orderBy('id')->get();
         $employees = Employee::orderBy('name')->get();
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->get();
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($item) {
+                $item->stock = $item->true_stock;
+                return $item;
+            });
         $roles = Auth::user()->getRoleNames()->first();
 
         return Inertia::render('Admin/GoodTransfers/Edit', [
@@ -673,7 +695,13 @@ class GoodTransferController extends Controller
 
             $branchItem = null;
             if ($fromBranchId) {
-                $branchItem = Item::with(['unit', 'stock:id,item_id,last_stock'])
+                $branchItem = Item::with(['unit'])
+                    ->select('items.*')
+                    ->selectSub(function ($query) {
+                        $query->from('item_stocks')
+                            ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                            ->whereColumn('item_stocks.item_id', 'items.id');
+                    }, 'true_stock')
                     ->where('branch_id', $fromBranchId)
                     ->where(function ($q) use ($poItemRecord) {
                         if ($poItemRecord->code) {
@@ -682,6 +710,10 @@ class GoodTransferController extends Controller
                             $q->where('name', $poItemRecord->name);
                         }
                     })->first();
+                
+                if ($branchItem) {
+                    $branchItem->stock = $branchItem->true_stock;
+                }
             }
 
             $resolvedItem = $branchItem ?? $poItemRecord;
