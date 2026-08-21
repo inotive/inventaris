@@ -48,7 +48,10 @@ class StockOutController extends Controller
         $canViewGlobal = Auth::user()->can('stock_out.view_global') || $isSuperadmin;
 
         // Query transactions
-        $query = ItemStock::with(['item', 'item.unit', 'item.branch'])
+        // whereHas('item') mengecualikan transaksi yang itemnya sudah di-soft delete,
+        // agar relasi item tidak null di frontend.
+        $query = ItemStock::whereHas('item')
+            ->with(['item', 'item.unit', 'item.branch'])
             ->whereIn('type', ['out', 'Out', 'adjust_out'])
             ->when(!$canViewGlobal && empty($filters['branch_id']), function ($query) use ($branches) {
                 // Return items in user's branch
@@ -133,7 +136,7 @@ class StockOutController extends Controller
             'sortDirection' => $sortDirection,
             'groupBy' => in_array($groupBy, ['ordered_by'], true) ? $groupBy : null,
             'sidebarCounts' => [
-                'total' => ItemStock::whereIn('type', ['out', 'Out', 'adjust_out'])->count(),
+                'total' => ItemStock::whereIn('type', ['out', 'Out', 'adjust_out'])->whereHas('item')->count(),
             ],
         ]);
     }

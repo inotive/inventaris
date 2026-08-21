@@ -155,6 +155,7 @@ Route::middleware([
     Route::post('/good-issues/{good_issue}/approve', [GoodIssuesController::class, 'approve'])->name('good-issues.approve');
     Route::resource('/good-issues', GoodIssuesController::class);
 
+    Route::post('/items/bulk-destroy', [ItemController::class, 'bulkDestroy'])->name('items.bulk-destroy');
     Route::resource('/items', ItemController::class);
     Route::resource('/stock-in', StockInController::class);
     Route::resource('/stock-out', StockOutController::class);

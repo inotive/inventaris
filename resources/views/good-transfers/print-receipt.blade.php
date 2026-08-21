@@ -394,9 +394,9 @@
                 @forelse($goodTransfer->items as $index => $item)
                 <tr>
                     <td class="center">{{ $index + 1 }}</td>
-                    <td>{{ $item->item->name }}</td>
+                    <td>{{ $item->item?->name ?? $item->item_name ?? '-' }}</td>
                     <td class="center">{{ (float)$item->quantity_transferred }}</td>
-                    <td class="center">{{ $item->item->unit->name ?? $item->unit ?? 'Unit' }}</td>
+                    <td class="center">{{ $item->item?->unit?->name ?? $item->unit ?? 'Unit' }}</td>
                     <td>
                         {{ $item->note }}
                         @if($item->note_received)

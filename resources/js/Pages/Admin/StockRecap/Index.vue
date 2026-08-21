@@ -297,7 +297,7 @@
                                         <td v-for="branch in branches" :key="branch.id" class="px-3 py-3 text-center min-w-[140px]">
                                             <button
                                                 v-if="row.stocks[branch.id]"
-                                                @click="openTotalPersediaanModal({ item: { name: row.item.name, id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
+                                                @click="openTotalPersediaanModal({ item: { name: row.item?.name ?? '-', id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
                                                 class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                             >
                                                 {{ parseFloat(row.stocks[branch.id].qty) }}
@@ -359,7 +359,7 @@
                                 <td v-for="branch in branches" :key="branch.id" class="px-3 py-3 text-center min-w-[140px]">
                                     <button
                                         v-if="row.stocks[branch.id]"
-                                        @click="openTotalPersediaanModal({ item: { name: row.item.name, id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
+                                        @click="openTotalPersediaanModal({ item: { name: row.item?.name ?? '-', id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
                                         class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                     >
                                         {{ parseFloat(row.stocks[branch.id].qty) }}
@@ -1265,33 +1265,33 @@ function openSaldoAwalModal(row) {
     selectedRow.value = row;
     initModalMonth();
     showSaldoAwalModal.value = true;
-    fetchTransactionDetail(row.item.id, 'saldo_awal');
+    fetchTransactionDetail(row.item?.id, 'saldo_awal');
 }
 
 function openStokMasukModal(row) {
     selectedRow.value = row;
     initModalMonth();
     showStokMasukModal.value = true;
-    fetchTransactionDetail(row.item.id, 'stok_masuk');
+    fetchTransactionDetail(row.item?.id, 'stok_masuk');
 }
 
 function openStokKeluarModal(row) {
     selectedRow.value = row;
     initModalMonth();
     showStokKeluarModal.value = true;
-    fetchTransactionDetail(row.item.id, 'stok_keluar');
+    fetchTransactionDetail(row.item?.id, 'stok_keluar');
 }
 
 function openTotalPersediaanModal(row) {
     selectedRow.value = row;
     initModalMonth();
     showTotalPersediaanModal.value = true;
-    fetchTransactionDetail(row.item.id, 'total_persediaan');
+    fetchTransactionDetail(row.item?.id, 'total_persediaan');
 }
 
 function handleDetailMonthChange() {
     if (selectedRow.value) {
-        fetchTransactionDetail(selectedRow.value.item.id, 'total_persediaan');
+        fetchTransactionDetail(selectedRow.value.item?.id, 'total_persediaan');
     }
 }
 

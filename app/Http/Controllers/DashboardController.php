@@ -105,8 +105,10 @@ class DashboardController extends Controller
         };
 
         // Dashboard metrics
-        // Get total stock from latest ItemStock records using subquery
-        $totalItemsStock = ItemStock::whereIn('id', function ($query) {
+        // Get total stock from latest ItemStock records using subquery.
+        // whereHas('item') mengecualikan barang terarsip (soft delete) agar
+        // konsisten dengan perhitungan low_stock.
+        $totalItemsStock = ItemStock::whereHas('item')->whereIn('id', function ($query) {
             $query->selectRaw('MAX(id)')
                 ->from('item_stocks')
                 ->groupBy('item_id');

@@ -10,6 +10,7 @@ use App\Models\GoodTransfer;
 use App\Models\Item;
 use App\Models\ItemDisposal;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ReceiveGoodTranfer
 {
@@ -50,10 +51,23 @@ class ReceiveGoodTranfer
         foreach ($request['quantities'] as $quantity) {
             // Get the good transfer item to find the actual item_id
             $goodTransferItem = $goodTransfer->items()->find($quantity['item_id']);
-            $toBranchItem = $goodTransfer->toBranch->items()->where('code', $goodTransferItem->item->code)->first();
+
+            // Lewati baris yang barangnya sudah diarsipkan (soft delete)
+            // agar penerimaan tidak crash karena relasi item null.
+            if (!$goodTransferItem || !$goodTransferItem->item) {
+                Log::warning('ReceiveGoodTransfer: baris transfer dilewati karena barang sudah diarsipkan', [
+                    'good_transfer_id' => $goodTransfer->id,
+                    'good_transfer_item_id' => $quantity['item_id'] ?? null,
+                ]);
+                continue;
+            }
+
+            // Cari item di cabang tujuan, termasuk yang terarsip (withTrashed),
+            // agar kode barang yang sudah di-soft delete tetap bisa diterima.
+            $toBranchItem = $goodTransfer->toBranch->items()->withTrashed()->where('code', $goodTransferItem->item->code)->first();
 
             if (!$toBranchItem) {
-                $toBranchItem = $goodTransfer->toBranch->items()->where('name', $goodTransferItem->item->name)->first();
+                $toBranchItem = $goodTransfer->toBranch->items()->withTrashed()->where('name', $goodTransferItem->item->name)->first();
             }
 
             if (!$toBranchItem) {

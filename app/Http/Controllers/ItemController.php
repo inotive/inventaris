@@ -176,6 +176,13 @@ class ItemController extends Controller
                 $generatedCode = 'ITM-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
             } while (Item::where('code', $generatedCode)->exists());
             $validated['code'] = $generatedCode;
+        } else {
+            // Kode unik divalidasi hanya terhadap barang AKTIF; barang yang
+            // sudah diarsipkan (soft delete) tidak mengunci kodenya.
+            $duplicate = Item::where('code', $validated['code'])->exists();
+            if ($duplicate) {
+                return back()->withInput()->with('error', 'Kode barang sudah digunakan oleh barang lain yang masih aktif.');
+            }
         }
 
         $validated['min_stock'] = $validated['min_stock'] ?? 0;
@@ -234,38 +241,63 @@ class ItemController extends Controller
         }
     }
 
+    private function deleteItemGroup(string $code): ?bool
+    {
+        $items = Item::where('code', $code)->get();
+        if ($items->isEmpty()) {
+            return null;
+        }
+
+        $hasHistory = $items->contains(fn ($row) =>
+            $row->stocks()->exists() || $row->transfers()->exists() || $row->movements()->exists() ||
+            $row->goodIssueItems()->exists() || $row->purchaseRequestItems()->exists() ||
+            $row->goodReceiptItems()->exists() || $row->purchaseOrderItems()->exists() ||
+            $row->materialRequestItems()->exists()
+        );
+
+        DB::transaction(function () use ($items, $hasHistory) {
+            foreach ($items as $row) {
+                $hasHistory ? $row->delete() : $row->forceDelete();
+            }
+        });
+
+        return $hasHistory;
+    }
+
     public function destroy(Item $item)
     {
         try {
-            $items = Item::where('code', $item->code)->get();
+            $this->deleteItemGroup($item->code);
 
-            DB::transaction(function () use ($items) {
-                foreach ($items as $row) {
-                    $hasStock = $row->stocks()->exists();
-                    $hasTransfers = $row->transfers()->exists();
-                    $hasMovements = $row->movements()->exists();
-                    $hasGoodIssueItems = $row->goodIssueItems()->exists();
-                    $hasPurchaseRequestItems = $row->purchaseRequestItems()->exists();
-                    $hasGoodReceiptItems = $row->goodReceiptItems()->exists();
-                    $hasPurchaseOrderItems = $row->purchaseOrderItems()->exists();
-                    $hasMaterialRequestItems = $row->materialRequestItems()->exists();
-
-                    if (
-                        $hasStock || $hasTransfers || $hasMovements || $hasGoodIssueItems ||
-                        $hasPurchaseRequestItems || $hasGoodReceiptItems || $hasPurchaseOrderItems ||
-                        $hasMaterialRequestItems
-                    ) {
-                        throw new \RuntimeException('Data barang tidak dapat dihapus karena sedang digunakan');
-                    }
-
-                    $row->delete();
-                }
-            });
-
-            return back()->with('success', 'Barang berhasil dihapus');
+            return back()->with('success', 'Berhasil menghapus barang');
         } catch (Throwable $e) {
             Log::error('Delete Item failed', ['error' => $e->getMessage()]);
             return back()->with('error', $e->getMessage() ?: 'Gagal menghapus barang');
+        }
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'codes' => ['required', 'array', 'min:1'],
+            'codes.*' => ['string'],
+        ]);
+
+        try {
+            $deletedCount = 0;
+
+            foreach (array_unique($validated['codes']) as $code) {
+                $archived = $this->deleteItemGroup($code);
+                if ($archived === null) {
+                    continue;
+                }
+                $deletedCount++;
+            }
+
+            return back()->with('success', "Berhasil menghapus {$deletedCount} barang");
+        } catch (Throwable $e) {
+            Log::error('Bulk delete Item failed', ['error' => $e->getMessage()]);
+            return back()->with('error', 'Gagal menghapus barang terpilih: ' . $e->getMessage());
         }
     }
 

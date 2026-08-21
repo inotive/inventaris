@@ -19,16 +19,6 @@
             <div class="flex flex-col h-16 gap-2 px-8 sm:flex-row sm:items-center sm:justify-between">
                 <div class="font-bold text-gray-700 md:text-xl dark:text-gray-300">Daftar Barang</div>
                 <div class="flex items-center gap-3">
-                    <Select
-                        v-model="filtersLocal.branch_id"
-                        label="Pilih cabang"
-                        class="w-56"
-                        :items="branchesWithAll"
-                    >
-                        <template #item="{ item }">
-                            <span>{{ item.name }}</span>
-                        </template>
-                    </Select>
                     <select
                         v-model="groupByLocal"
                         class="px-3 py-2.5 max-w-xs text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 focus:border-blue-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
@@ -41,10 +31,41 @@
                 </div>
             </div>
 
+            <div
+                v-if="can('items.delete') && selectedCodes.size > 0"
+                class="flex items-center justify-between px-8 py-2 text-sm bg-blue-50 border-b border-blue-100 dark:bg-blue-900/20 dark:border-blue-900"
+            >
+                <span class="font-medium text-blue-700 dark:text-blue-300">{{ selectedCodes.size }} barang dipilih</span>
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        @click="clearSelection"
+                        class="px-3 py-1.5 text-sm text-gray-600 rounded-md border border-gray-300 hover:bg-gray-100 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        type="button"
+                        @click="bulkDelete"
+                        class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-md hover:bg-red-700"
+                    >
+                        Hapus Terpilih
+                    </button>
+                </div>
+            </div>
+
             <div class="overflow-auto overflow-x-auto" data-simplebar>
                 <table class="min-w-full text-sm table-fixed">
                     <thead>
                         <tr>
+                            <th v-if="can('items.delete')" style="width: 40px" class="px-2 py-2 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
+                                <input
+                                    type="checkbox"
+                                    :checked="allOnPageSelected"
+                                    @change="toggleSelectAll"
+                                    class="w-4 h-4 rounded border-gray-300"
+                                />
+                            </th>
                             <th style="width: 70px" class="px-2 py-2 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
                                 <div class="text-sm font-medium text-gray-600 dark:text-gray-300">No.</div>
                             </th>
@@ -89,6 +110,7 @@
                             </th>
                         </tr>
                         <tr>
+                            <th v-if="can('items.delete')" class="px-2 py-1 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900"></th>
                             <th class="px-2 py-1 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900"></th>
                             <th class="px-2 py-1 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900">
                                 <input
@@ -126,7 +148,17 @@
                                     class="w-full px-2 py-1 text-sm text-gray-800 bg-transparent border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:placeholder:text-white/90 focus:border-blue-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
                                 />
                             </th>
-                            <th class="px-2 py-1 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900"></th>
+                            <th class="px-2 py-1 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900">
+                                <select
+                                    v-model="filtersLocal.branch_id"
+                                    class="w-full px-2 py-1 text-sm text-gray-800 bg-transparent border border-gray-200 rounded-lg dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 focus:border-blue-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                                >
+                                    <option value="" class="bg-gray-200 opacity-50">Semua Cabang</option>
+                                    <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                                        {{ branch.name }}
+                                    </option>
+                                </select>
+                            </th>
                             <th class="px-2 py-1 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900"></th>
                             <th class="px-2 py-1 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900"></th>
                             <th class="px-2 py-1 border-gray-200 bg-gray-50 border-y dark:border-gray-600 dark:bg-gray-900">
@@ -138,13 +170,13 @@
                     </thead>
                     <tbody>
                         <tr v-if="!items.data || items.data.length === 0">
-                            <td colspan="9" class="py-8 text-center text-gray-500">Tidak ada barang ditemukan.</td>
+                            <td :colspan="colCount" class="py-8 text-center text-gray-500">Tidak ada barang ditemukan.</td>
                         </tr>
 
                         <template v-else-if="isGrouped">
                             <template v-for="(rows, gkey) in groupedData" :key="gkey">
                                 <tr>
-                                    <td :colspan="9" class="px-4 py-2 font-semibold text-gray-600 bg-gray-50 dark:bg-gray-800/40 dark:text-gray-300">
+                                    <td :colspan="colCount" class="px-4 py-2 font-semibold text-gray-600 bg-gray-50 dark:bg-gray-800/40 dark:text-gray-300">
                                         <button class="inline-flex items-center gap-2" @click="toggleGroupCollapse(gkey)">
                                             <span class="text-sm">{{ isCollapsed(gkey) ? "▶" : "▼" }}</span>
                                             <span>{{ groupLabel(gkey) }}</span>
@@ -154,6 +186,14 @@
                                 </tr>
                                 <template v-if="!isCollapsed(gkey)">
                                     <tr v-for="(row, idx) in rows" :key="row.id" class="border-b border-gray-200 dark:border-gray-700">
+                                        <td v-if="can('items.delete')" class="px-2 py-2 text-center">
+                                            <input
+                                                type="checkbox"
+                                                :checked="isCodeSelected(row.code)"
+                                                @change="toggleCode(row.code)"
+                                                class="w-4 h-4 rounded border-gray-300"
+                                            />
+                                        </td>
                                         <td class="w-16 px-2 py-2 text-center dark:text-white">{{ idx + 1 }}.</td>
                                         <td class="px-2 py-2 text-center dark:text-white">{{ row.code }}</td>
                                         <td class="px-2 py-2 text-center dark:text-white">
@@ -179,7 +219,7 @@
                                                 <button v-if="can('items.edit')" @click="openEditModal(row)">
                                                     <EditIcon class="text-yellow-500" />
                                                 </button>
-                                                <button v-if="can('items.delete')" type="button" @click="openConfirmModal(row)">
+                                                <button v-if="can('items.delete')" type="button" @click="confirmDelete(row)">
                                                     <TrashIcon class="text-red-500" />
                                                 </button>
                                             </div>
@@ -191,6 +231,14 @@
 
                         <template v-else>
                             <tr v-for="(row, idx) in items.data" :key="row.id" class="border-b border-gray-200 dark:border-gray-700">
+                                <td v-if="can('items.delete')" class="px-2 py-2 text-center">
+                                    <input
+                                        type="checkbox"
+                                        :checked="isCodeSelected(row.code)"
+                                        @change="toggleCode(row.code)"
+                                        class="w-4 h-4 rounded border-gray-300"
+                                    />
+                                </td>
                                 <td class="w-16 px-2 py-2 text-center dark:text-white">
                                     {{ idx + (items.current_page - 1) * items.per_page + 1 }}.
                                 </td>
@@ -225,7 +273,7 @@
                                         <button v-if="can('items.edit')" @click="openEditModal(row)">
                                             <EditIcon class="text-yellow-500" />
                                         </button>
-                                        <button v-if="can('items.delete')" type="button" @click="openConfirmModal(row)">
+                                        <button v-if="can('items.delete')" type="button" @click="confirmDelete(row)">
                                             <TrashIcon class="text-red-500" />
                                         </button>
                                     </div>
@@ -343,17 +391,6 @@
                         </div>
                     </div>
                 </Modal>
-
-                <ConfirmModal
-                    :show="isConfirmModalOpen"
-                    :question="`Yakin ingin menghapus`"
-                    :selected="`${selectedItem?.name}`"
-                    title="Hapus Barang"
-                    confirmText="Ya, Hapus!"
-                    maxWidth="md"
-                    @close="closeConfirmModal"
-                    @confirm="destroyData"
-                />
             </div>
 
             <Pagination :pagination="items" @page-change="changePage" @per-page-change="perPageChanged" />
@@ -370,11 +407,11 @@ import ShowIcon from "@/Components/icons/ShowIcon.vue";
 import EditIcon from "@/Components/icons/EditIcon.vue";
 import TrashIcon from "@/Components/icons/TrashIcon.vue";
 import Modal from "@/Components/common/Modal.vue";
-import ConfirmModal from "@/Components/common/ConfirmModal.vue";
 import Pagination from "@/Components/common/Pagination.vue";
 import { useAuth } from "@/Composables/useAuth";
 import { Head, Link, useForm, router } from "@inertiajs/vue3";
 import { ref, watch, computed } from "vue";
+import Swal from "sweetalert2";
 
 const { user, is, can } = useAuth();
 
@@ -463,16 +500,82 @@ watch(() => form.category_id, () => {
 
 // destroy
 const selectedItem = ref(null);
-const isConfirmModalOpen = ref(false);
-const openConfirmModal = (item) => { selectedItem.value = item; isConfirmModalOpen.value = true; };
-const closeConfirmModal = () => { selectedItem.value = null; isConfirmModalOpen.value = false; };
-const destroyData = () => {
+
+function confirmDelete(row) {
     if (!can("items.delete")) return;
-    router.delete(route("items.destroy", selectedItem.value.id), {
-        onSuccess: () => { closeConfirmModal(); },
-        preserveScroll: true,
+    selectedItem.value = row;
+    Swal.fire({
+        icon: "warning",
+        title: "Hapus Barang",
+        text: `Yakin ingin menghapus "${row.name}"? Jika barang memiliki riwayat transaksi, barang akan diarsipkan (bukan dihapus permanen).`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, Hapus!",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#dc2626",
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        router.delete(route("items.destroy", row.id), {
+            preserveScroll: true,
+            onSuccess: () => { selectedItem.value = null; },
+        });
     });
-};
+}
+
+// bulk select & bulk delete (selection is keyed by item code so every branch row of the same item is selected together)
+const selectedCodes = ref(new Set());
+
+const uniqueCodes = computed(() => {
+    const codes = (props.items.data || []).map((r) => r.code).filter((c) => !!c);
+    return [...new Set(codes)];
+});
+
+const allOnPageSelected = computed(() =>
+    uniqueCodes.value.length > 0 && uniqueCodes.value.every((c) => selectedCodes.value.has(c))
+);
+
+function isCodeSelected(code) {
+    return !!code && selectedCodes.value.has(code);
+}
+
+function toggleCode(code) {
+    if (!code) return;
+    const next = new Set(selectedCodes.value);
+    if (next.has(code)) next.delete(code); else next.add(code);
+    selectedCodes.value = next;
+}
+
+function toggleSelectAll() {
+    if (allOnPageSelected.value) {
+        selectedCodes.value = new Set();
+    } else {
+        selectedCodes.value = new Set(uniqueCodes.value);
+    }
+}
+
+function clearSelection() {
+    selectedCodes.value = new Set();
+}
+
+async function bulkDelete() {
+    if (!can("items.delete") || selectedCodes.value.size === 0) return;
+
+    const codes = [...selectedCodes.value];
+    const result = await Swal.fire({
+        icon: "warning",
+        title: "Hapus Barang Terpilih",
+        text: `Anda akan menghapus ${codes.length} barang (di semua cabang). Barang yang memiliki riwayat transaksi akan diarsipkan, bukan dihapus permanen. Lanjutkan?`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, Hapus!",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#dc2626",
+    });
+    if (!result.isConfirmed) return;
+
+    router.post(route("items.bulk-destroy"), { codes }, {
+        preserveScroll: true,
+        onSuccess: () => { clearSelection(); },
+    });
+}
 
 const filtersLocal = ref({
     q: props.filters.q ?? "",
@@ -484,7 +587,7 @@ const filtersLocal = ref({
     category_id: props.filters.category_id ?? "",
 });
 
-const branchesWithAll = computed(() => [{ id: "", name: "Semua Cabang" }, ...(props.branches || [])]);
+const colCount = computed(() => (can("items.delete") ? 10 : 9));
 
 const sortBy = ref(props.sortBy || "created_at");
 const sortDirection = ref(props.sortDirection || "desc");
@@ -549,6 +652,7 @@ function toggleGroupCollapse(key) {
 }
 
 function fetchItems({ sortBy: sb, sortDirection: sd } = {}) {
+    clearSelection();
     router.get(
         route("items.index"),
         { ...filtersLocal.value, groupBy: effectiveGroup.value || null, sortBy: sb ?? sortBy.value, sortDirection: sd ?? sortDirection.value },
@@ -590,6 +694,7 @@ function clearFilters() {
 }
 
 function changePage(page) {
+    clearSelection();
     router.get(
         route("items.index"),
         { ...filtersLocal.value, groupBy: effectiveGroup.value || null, sortBy: sortBy.value, sortDirection: sortDirection.value, page },
@@ -598,6 +703,7 @@ function changePage(page) {
 }
 
 function perPageChanged(perPage) {
+    clearSelection();
     router.get(
         route("items.index"),
         { ...filtersLocal.value, groupBy: effectiveGroup.value || null, sortBy: sortBy.value, sortDirection: sortDirection.value, per_page: perPage, page: 1 },

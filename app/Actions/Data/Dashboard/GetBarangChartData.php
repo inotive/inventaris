@@ -41,8 +41,10 @@ class GetBarangChartData
 
         $result['chartData'] = $chartData;
 
-        // Get total stock from latest ItemStock records using subquery
-        $totalStock = ItemStock::whereIn('id', function ($query) {
+        // Get total stock from latest ItemStock records using subquery.
+        // whereHas('item') mengecualikan barang terarsip (soft delete) agar
+        // konsisten dengan perhitungan low_stock / out_of_stock.
+        $totalStock = ItemStock::whereHas('item')->whereIn('id', function ($query) {
             $query->selectRaw('MAX(id)')
                 ->from('item_stocks')
                 ->groupBy('item_id');

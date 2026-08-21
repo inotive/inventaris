@@ -48,6 +48,33 @@
                 </div>
             </div>
 
+            <div
+                v-if="po.status_invoice === 'lunas' && po.has_deleted_items"
+                class="flex flex-wrap items-center gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm dark:border-amber-900 dark:bg-amber-900/20"
+            >
+                <span class="text-amber-700 dark:text-amber-300">
+                    Salah satu barang di PO ini sudah dihapus. Tampilkan total:
+                </span>
+                <div class="flex items-center gap-1 rounded-md border border-amber-300 bg-white p-0.5 dark:border-amber-700 dark:bg-gray-800">
+                    <button
+                        type="button"
+                        @click="showBeforeDelete = true"
+                        :class="showBeforeDelete ? 'bg-amber-600 text-white' : 'text-amber-700 dark:text-amber-300'"
+                        class="rounded px-2 py-1 text-xs font-medium"
+                    >
+                        Sebelum Dihapus
+                    </button>
+                    <button
+                        type="button"
+                        @click="showBeforeDelete = false"
+                        :class="!showBeforeDelete ? 'bg-amber-600 text-white' : 'text-amber-700 dark:text-amber-300'"
+                        class="rounded px-2 py-1 text-xs font-medium"
+                    >
+                        Setelah Dihapus
+                    </button>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div>
                     <div class="text-xs text-gray-500">No. PO</div>
@@ -75,7 +102,7 @@
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Subtotal</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(po.subtotal || 0) }}</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(displayTotals.subtotal || 0) }}</div>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Diskon</div>
@@ -83,7 +110,7 @@
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">PPN ({{ po.tax_percent || 11 }}%)</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(po.ppn || 0) }}</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(displayTotals.ppn || 0) }}</div>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Biaya Lain-Lain</div>
@@ -91,7 +118,7 @@
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Total Akhir</div>
-                    <div class="font-bold text-blue-600 dark:text-blue-400">{{ formatCurrency(po.total) }}</div>
+                    <div class="font-bold text-blue-600 dark:text-blue-400">{{ formatCurrency(displayTotals.total) }}</div>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Jumlah Dibayar</div>
@@ -99,7 +126,7 @@
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Sisa Pembayaran</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency((po.total || 0) - (po.paid_amount || 0)) }}</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency((displayTotals.total || 0) - (po.paid_amount || 0)) }}</div>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Status Pembayaran</div>
@@ -211,7 +238,15 @@
                         <tr v-for="(it, idx) in po.items" :key="it.id"
                             class="border-b border-gray-200 dark:border-gray-700">
                             <td class="px-3 py-2">{{ idx + 1 }}</td>
-                            <td class="px-3 py-2">{{ it.item_name }}</td>
+                            <td class="px-3 py-2">
+                                {{ it.item_name }}
+                                <span
+                                    v-if="it.is_deleted"
+                                    class="ml-1 inline-block rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                >
+                                    Dihapus
+                                </span>
+                            </td>
                             <td class="px-3 py-2 font-mono">{{ it.item_code }}</td>
                             <td class="px-3 py-2">{{ parseFloat(it.quantity_ordered) }}</td>
                             <td class="px-3 py-2">
@@ -627,6 +662,16 @@ const props = defineProps({
 
 const po = props.po
 const activities = props.activities
+
+// For Lunas orders with a deleted item, toggle between the original ("before delete")
+// and recalculated ("after delete") totals; other orders just use the totals from the backend.
+const showBeforeDelete = ref(true)
+const displayTotals = computed(() => {
+    if (po.status_invoice === 'lunas' && po.has_deleted_items) {
+        return showBeforeDelete.value ? po.totals_before_delete : po.totals_after_delete
+    }
+    return { subtotal: po.subtotal, ppn: po.ppn, total: po.total }
+})
 
 // Modal state
 const showReceiveModal = ref(false)

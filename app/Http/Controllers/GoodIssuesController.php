@@ -298,7 +298,7 @@ class GoodIssuesController extends Controller
                 'status' => $goodIssue->status ?? 'draft',
                 'notes' => $goodIssue->requirement ?? '',
             ],
-            'items' => $goodIssue->items->map(function ($item) {
+            'items' => $goodIssue->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 // Get current stock dynamically to avoid backdating bugs
                 $currentStock = \App\Models\ItemStock::where('item_id', $item->item_id)
                     ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0) as sisa_stok")
@@ -393,7 +393,7 @@ class GoodIssuesController extends Controller
                 'status' => $goodIssue->status ?? 'draft',
                 'notes' => $goodIssue->requirement ?? '',
             ],
-            'items' => $goodIssue->items->map(function ($item) {
+            'items' => $goodIssue->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,
@@ -449,7 +449,12 @@ class GoodIssuesController extends Controller
                     'requirement' => $data['requirement'] ?? null,
                 ]);
 
-                $goodIssue->items()->delete();
+                // Hapus hanya baris dengan barang AKTIF; baris yang barangnya
+                // sudah diarsipkan (soft delete) dipertahankan agar riwayat
+                // dokumen tidak berubah.
+                $goodIssue->items()
+                    ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+                    ->delete();
 
                 foreach ($data['items'] as $itemData) {
                     $goodIssue->items()->create([

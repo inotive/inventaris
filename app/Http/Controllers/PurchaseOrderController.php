@@ -171,7 +171,7 @@ class PurchaseOrderController extends Controller
                     'request_no' => $pr->request_no,
                     'department_id' => $pr->department_id,
                     'requirement' => $pr->requirement,
-                    'items' => $pr->items->map(function ($item) {
+                    'items' => $pr->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                         return [
                             'id' => $item->id,
                             'item_id' => $item->item_id,
@@ -314,19 +314,45 @@ class PurchaseOrderController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk melihat Purchase Order dari cabang ini.');
         }
 
-        $purchaseOrder->load(['request', 'applicant', 'branch', 'items.item.unit']);
+        $purchaseOrder->load([
+            'request',
+            'applicant',
+            'branch',
+            'items.item' => function ($query) {
+                $query->withTrashed()->with('unit');
+            },
+        ]);
 
-        $subtotal = $purchaseOrder->items->sum(function ($item) {
-            return $item->quantity_ordered * ($item->cost ?? 0);
-        });
+        $isLunas = $purchaseOrder->status_invoice === \App\Models\PurchaseOrder::STATUS_INVOICE_LUNAS;
+
+        $isDeletedItem = fn ($item) => $item->item === null || $item->item->trashed();
+        $activeItems = $purchaseOrder->items->filter(fn ($item) => !$isDeletedItem($item))->values();
+        $hasDeletedItems = $purchaseOrder->items->contains($isDeletedItem);
+
         $discount = $purchaseOrder->discount ?? 0;
         $otherCost = $purchaseOrder->other_cost ?? 0;
         $taxPercent = $purchaseOrder->tax_percent ?? 11;
-        
-        // PPN is calculated from (Subtotal - Discount)
-        $taxableAmount = max(0, $subtotal - $discount);
-        $ppn = $taxableAmount * ($taxPercent / 100);
-        $total = $taxableAmount + $ppn + $otherCost;
+
+        $calcTotals = function ($items) use ($discount, $otherCost, $taxPercent) {
+            $subtotal = $items->sum(fn ($item) => $item->quantity_ordered * ($item->cost ?? 0));
+            // PPN is calculated from (Subtotal - Discount)
+            $taxableAmount = max(0, $subtotal - $discount);
+            $ppn = $taxableAmount * ($taxPercent / 100);
+            return [
+                'subtotal' => $subtotal,
+                'ppn' => $ppn,
+                'total' => $taxableAmount + $ppn + $otherCost,
+            ];
+        };
+
+        // Lunas orders keep the deleted item's row visible (historical record already settled),
+        // so the original ("before delete") and recalculated ("after delete") totals are both sent
+        // for the frontend toggle. Non-lunas orders hide deleted-item rows and only show the
+        // recalculated total, matching what's actually displayed in the item table.
+        $totalsBeforeDelete = $calcTotals($purchaseOrder->items);
+        $totalsAfterDelete = $calcTotals($activeItems);
+        $displayItems = $isLunas ? $purchaseOrder->items : $activeItems;
+        $displayTotals = $isLunas ? $totalsBeforeDelete : $totalsAfterDelete;
 
         $activities = \App\Models\PurchaseOrderActivity::where('purchase_order_id', $purchaseOrder->id)
             ->with('createdBy:id,name')
@@ -352,23 +378,26 @@ class PurchaseOrderController extends Controller
                 'paid_amount' => $purchaseOrder->paid_amount,
                 'discount' => $discount,
                 'other_cost' => $otherCost,
-                'subtotal' => $subtotal,
+                'subtotal' => $displayTotals['subtotal'],
                 'tax_percent' => $taxPercent,
-                'ppn' => $ppn,
-                'total' => $total,
+                'ppn' => $displayTotals['ppn'],
+                'total' => $displayTotals['total'],
                 'note' => $purchaseOrder->note,
                 'ordered_by' => $purchaseOrder->applicant?->name,
                 'branch' => $purchaseOrder->branch?->name ?? '-',
                 'branch_id' => $purchaseOrder->branch_id,
                 'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
-                'items' => (function () use ($purchaseOrder) {
+                'has_deleted_items' => $hasDeletedItems,
+                'totals_before_delete' => $isLunas ? $totalsBeforeDelete : null,
+                'totals_after_delete' => $isLunas ? $totalsAfterDelete : null,
+                'items' => (function () use ($displayItems, $purchaseOrder, $isDeletedItem) {
                     $goodReceipts = \App\Models\GoodReceipt::where('order_id', $purchaseOrder->id)->pluck('id');
                     $disposals = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
                         ->whereIn('source_id', $goodReceipts)
                         ->with('item')
                         ->get();
 
-                    return $purchaseOrder->items->map(function ($item) use ($disposals) {
+                    return $displayItems->values()->map(function ($item) use ($disposals, $isDeletedItem) {
                         $itemName = $item->item?->name;
                         $itemDisposals = $disposals->filter(function ($disposal) use ($itemName) {
                             return optional($disposal->item)->name === $itemName;
@@ -388,6 +417,7 @@ class PurchaseOrderController extends Controller
                             'note_received' => $item->note_received,
                             'quantity_damaged' => $qtyRusak,
                             'quantity_lost' => $qtyHilang,
+                            'is_deleted' => $isDeletedItem($item),
                         ];
                     });
                 })(),
@@ -443,7 +473,7 @@ class PurchaseOrderController extends Controller
                     'request_no' => $pr->request_no,
                     'department_id' => $pr->department_id,
                     'requirement' => $pr->requirement,
-                    'items' => $pr->items->map(function ($item) {
+                    'items' => $pr->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                         return [
                             'id' => $item->id,
                             'item_id' => $item->item_id,
@@ -476,7 +506,7 @@ class PurchaseOrderController extends Controller
                 'other_cost' => $purchaseOrder->other_cost ?? 0,
                 'tax_percent' => $purchaseOrder->tax_percent ?? 11,
                 'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
-                'items' => $purchaseOrder->items->map(function ($item) {
+                'items' => $purchaseOrder->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                     return [
                         'id' => $item->id,
                         'item_id' => $item->item_id,
@@ -540,7 +570,12 @@ class PurchaseOrderController extends Controller
                     'tax_percent' => $data['tax_percent'] ?? 11,
                 ]);
 
-                $purchaseOrder->items()->delete();
+                // Hapus hanya baris dengan barang AKTIF; baris yang barangnya
+                // sudah diarsipkan (soft delete) dipertahankan agar riwayat
+                // dokumen tidak berubah saat PO diedit.
+                $purchaseOrder->items()
+                    ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+                    ->delete();
 
                 foreach ($data['items'] as $item) {
                     $purchaseOrder->items()->create([
@@ -622,7 +657,7 @@ class PurchaseOrderController extends Controller
                 'ordered_by' => $purchaseOrder->applicant?->name,
                 'branch' => $purchaseOrder->applicant?->branch,
                 'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
-                'items' => $purchaseOrder->items->map(function ($item) {
+                'items' => $purchaseOrder->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                     return [
                         'id' => $item->id,
                         'item_name' => $item->item?->name,
@@ -781,8 +816,12 @@ class PurchaseOrderController extends Controller
                 $purchaseOrder->update(['status_delivered' => $statusDelivered]);
 
                 foreach ($data['quantities'] as $quantityData) {
-                    $item = $purchaseOrder->items()->with('item')->where('id', $quantityData['item_id'])->first();
-                    if (!$item) {
+                    // withTrashed: barang bisa saja diarsipkan setelah PO dibuat
+                    $item = $purchaseOrder->items()
+                        ->with(['item' => fn ($q) => $q->withTrashed()])
+                        ->where('id', $quantityData['item_id'])
+                        ->first();
+                    if (!$item || !$item->item) {
                         continue;
                     }
 

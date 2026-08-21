@@ -47,7 +47,10 @@ class StockInController extends Controller
         $canViewGlobal = Auth::user()->can('stock_in.view_global') || $isSuperadmin;
 
         // Query transactions
+        // whereHas('item') mengecualikan transaksi yang itemnya sudah di-soft delete,
+        // agar relasi item tidak null di frontend.
         $query = ItemStock::whereIn('type', ['in', 'In', 'adjust_in'])
+            ->whereHas('item')
             ->with(['source', 'item.unit', 'item.branch'])
             ->when(!$canViewGlobal && empty($filters['branch_id']), function ($query) use ($branches) {
                 return $query->whereHas('item', function ($query) use ($branches) {
@@ -122,7 +125,7 @@ class StockInController extends Controller
             'groupBy' => in_array($groupBy, ['ordered_by'], true) ? $groupBy : null,
             // Sidebar counters
             'sidebarCounts' => [
-                'total' => ItemStock::whereIn('type', ['in', 'In', 'adjust_in'])->count(),
+                'total' => ItemStock::whereIn('type', ['in', 'In', 'adjust_in'])->whereHas('item')->count(),
             ],
         ]);
     }

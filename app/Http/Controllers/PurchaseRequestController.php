@@ -307,7 +307,7 @@ class PurchaseRequestController extends Controller
                     'department_id' => $mr->department_id,
                     'branch_id' => $mr->department?->branch_id,
                     'requirement' => $mr->requirement,
-                    'items' => $mr->items->map(function ($it) {
+                    'items' => $mr->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                         return [
                             'id' => $it->id,
                             'item_id' => $it->item_id,
@@ -394,7 +394,7 @@ class PurchaseRequestController extends Controller
             'department' => $purchaseRequest->department,
             'employee' => $purchaseRequest->requester,
             'material_request' => $purchaseRequest->request,
-            'items' => $purchaseRequest->items->map(function ($it) {
+            'items' => $purchaseRequest->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                 return [
                     'id' => $it->id,
                     'item_id' => $it->item_id,
@@ -471,7 +471,7 @@ class PurchaseRequestController extends Controller
                     'department_id' => $mr->department_id,
                     'branch_id' => $mr->department?->branch_id,
                     'requirement' => $mr->requirement,
-                    'items' => $mr->items->map(function ($it) {
+                    'items' => $mr->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                         return [
                             'id' => $it->id,
                             'item_id' => $it->item_id,
@@ -501,7 +501,7 @@ class PurchaseRequestController extends Controller
             'request_id' => $purchaseRequest->request_id,
             'requirement' => $purchaseRequest->requirement,
             'status' => $purchaseRequest->status,
-            'items' => $purchaseRequest->items->map(function ($it) {
+            'items' => $purchaseRequest->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                 return [
                     'id' => $it->id,
                     'item_id' => $it->item_id,
@@ -555,8 +555,12 @@ class PurchaseRequestController extends Controller
                     'requirement' => $validated['requirement'],
                 ]);
 
-                // Delete existing items
-                $purchaseRequest->items()->delete();
+                // Hapus hanya baris dengan barang AKTIF; baris yang barangnya
+                // sudah diarsipkan (soft delete) dipertahankan agar riwayat
+                // dokumen tidak berubah.
+                $purchaseRequest->items()
+                    ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+                    ->delete();
 
                 // Create new items
                 foreach ($validated['requests'] as $requestItem) {

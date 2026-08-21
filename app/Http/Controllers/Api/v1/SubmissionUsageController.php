@@ -65,7 +65,8 @@ class SubmissionUsageController extends Controller
                 'id' => $goodIssue->department->id ?? null,
                 'name' => $goodIssue->department->name ?? null,
             ],
-            'items' => $goodIssue->items->map(function ($item) {
+            // Filter baris yang barangnya sudah diarsipkan (soft delete)
+            'items' => $goodIssue->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,

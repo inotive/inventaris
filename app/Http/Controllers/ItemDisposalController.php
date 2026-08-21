@@ -30,7 +30,10 @@ class ItemDisposalController extends Controller
         $canViewGlobal = Auth::user()->hasRole("Superadmin") || Auth::user()->can("item_disposals.view_global");
         $userBranchId = Auth::user()->employee->branch_id ?? null;
 
-        $query = ItemDisposal::with(['item.category', 'item.unit', 'item.branch', 'reporter'])
+        // whereHas('item') mengecualikan disposasi barang terarsip (soft delete)
+        // agar konsisten dengan modul stok masuk/keluar.
+        $query = ItemDisposal::whereHas('item')
+            ->with(['item.category', 'item.unit', 'item.branch', 'reporter'])
             ->where('reason', 'rusak')
             ->orderBy('disposal_date', 'desc')
             ->orderBy('id', 'desc');

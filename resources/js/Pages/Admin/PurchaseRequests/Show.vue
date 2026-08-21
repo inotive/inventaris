@@ -676,7 +676,7 @@ function confirmConvertToPO() {
     // Initialize PO form with approved items and auto-generated PO number
     poForm.value.order_no = props.orderNo || ''
     poForm.value.items = (pr.items || [])
-        .filter(item => item.quantity_approved > 0)
+        .filter(item => item.quantity_approved > 0 && item.item)
         .map(item => ({
             item: item.item,
             quantity: item.quantity_approved,
@@ -745,12 +745,14 @@ function submitPO() {
         discount: poForm.value.discount,
         other_cost: poForm.value.other_cost,
         tax_percent: poForm.value.tax_percent,
-        items: poForm.value.items.map(item => ({
-            item_id: item.item.id,
-            quantity_ordered: item.quantity,
-            cost: item.unit_price,
-            note: ''
-        }))
+        items: poForm.value.items
+            .filter(item => item.item)
+            .map(item => ({
+                item_id: item.item.id,
+                quantity_ordered: item.quantity,
+                cost: item.unit_price,
+                note: ''
+            }))
     }, {
         onSuccess: () => {
             showPOForm.value = false

@@ -406,6 +406,8 @@ class StockRecapController extends Controller
 
     private function getTransactionValue($stock)
     {
-        return $stock->amount * $stock->item->price;
+        // Guard: relasi item bisa null jika barang sudah diarsipkan (soft delete).
+        // Kolom price tidak ada di tabel items, sehingga nilai transaksi selalu 0.
+        return $stock->amount * ($stock->item?->price ?? 0);
     }
 }

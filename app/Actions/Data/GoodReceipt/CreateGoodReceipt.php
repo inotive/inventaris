@@ -90,7 +90,14 @@ class CreateGoodReceipt
                 'note'        => 'Penerimaan barang berhasil diterima oleh ' . Auth::user()->employee?->name . ' dari ' . $name,
             ];
 
-            $originalItem = Item::find($item['item_id']);
+            // withTrashed: barang bisa saja diarsipkan setelah PO dibuat;
+            // snapshot original tetap dibutuhkan agar penerimaan tidak crash.
+            $originalItem = Item::withTrashed()->find($item['item_id']);
+
+            if (!$originalItem) {
+                continue;
+            }
+
             $receiverBranchId = Auth::user()->employee?->branch_id;
 
             // Find matching item in receiver's branch

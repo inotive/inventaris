@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Data\GoodReceipt\CreateGoodReceipt;
 use App\Actions\Data\GoodTransfer\ReceiveGoodTranfer;
+use App\Actions\Data\Item\RecalculateItemStocks;
 use App\Actions\Data\Item\UpdateStockItem;
 use App\Actions\Data\PurchaseOrder\CreatePurchaseOrderLogActivities;
 use App\Http\Requests\GoodReceipt\CreateGoodReceiptRequest;
@@ -246,7 +247,8 @@ class GoodReceiptController extends Controller
             }
 
 
-            $items = $order->items->map(function ($item) {
+            // Filter baris yang barangnya sudah diarsipkan (soft delete)
+            $items = $order->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,
@@ -264,7 +266,8 @@ class GoodReceiptController extends Controller
                 return response()->json(['error' => 'Good transfer not found'], 404);
             }
 
-            $items = $transfer->items->map(function ($item) use ($transfer) {
+            // Filter baris yang barangnya sudah diarsipkan (soft delete)
+            $items = $transfer->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) use ($transfer) {
                 $toBranchItem = Item::where('code', $item->item->code)->where('branch_id', $transfer->to_branch)->first();
                 $itemId = $toBranchItem ? $toBranchItem->id : $item->item_id;
 
@@ -339,7 +342,7 @@ class GoodReceiptController extends Controller
 
             $dataItem = collect($items);
 
-            $quantities = $transfer->items->map(function ($item) use ($dataItem, $transfer) {
+            $quantities = $transfer->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) use ($dataItem, $transfer) {
                 $toBranchItem = $transfer->toBranch->items()->where('code', $item->item->code)->first();
                 $targetItemId = $toBranchItem ? $toBranchItem->id : $item->item_id;
 
@@ -388,12 +391,15 @@ class GoodReceiptController extends Controller
         $goodReceipt->items()->delete();
         $goodReceipt->items()->createMany($request->items);
 
-        // Update stock
-        $goodReceipt->items->each(function ($item) {
-            $item->item->stock->update([
-                'last_stock' => $item->item->stock->last_stock + $item->quantity_received,
-            ]);
-        });
+        // Update stock: reload ulang dari database (collection lama sudah stale
+        // setelah delete + createMany), lewati baris dengan barang terarsip,
+        // lalu hitung ulang stok berurutan via action agar konsisten.
+        $recalc = app(RecalculateItemStocks::class);
+        $goodReceipt->items()->with('item')->get()
+            ->filter(fn ($item) => $item->item !== null)
+            ->pluck('item_id')
+            ->unique()
+            ->each(fn ($itemId) => $recalc->execute((int) $itemId));
 
         return redirect()->route('good-receipts.index');
     }
@@ -411,6 +417,8 @@ class GoodReceiptController extends Controller
             'activities.createdBy',
             'disposals.item'
         ])->findOrFail($id);
+
+        $goodReceipt->setRelation('items', $goodReceipt->items->filter(fn ($it) => $it->item !== null)->values());
 
         $departments = Department::query()->select('id', 'name')->orderBy('name')->get();
 
@@ -450,6 +458,8 @@ class GoodReceiptController extends Controller
             'items.item.unit',
             'disposals'
         ])->findOrFail($id);
+
+        $goodReceipt->setRelation('items', $goodReceipt->items->filter(fn ($it) => $it->item !== null)->values());
 
         $departments = Department::query()->select('id', 'name')->orderBy('name')->get();
 

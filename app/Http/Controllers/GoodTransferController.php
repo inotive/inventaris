@@ -305,7 +305,7 @@ class GoodTransferController extends Controller
                 'receipt_attachment_path' => $goodTransfer->goodReceipt?->attachment_path,
                 'receipt_attachment_name' => $goodTransfer->goodReceipt?->attachment_name,
             ],
-            'items' => $goodTransfer->items->map(function ($item) use ($goodTransfer) {
+            'items' => $goodTransfer->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) use ($goodTransfer) {
                 $goodReceipt = $goodTransfer->goodReceipt;
                 $rusak = 0;
                 $hilang = 0;
@@ -407,7 +407,7 @@ class GoodTransferController extends Controller
                 'purpose' => $goodTransfer->purpose,
                 'status' => $goodTransfer->status,
             ],
-            'items' => $goodTransfer->items->map(function ($item) {
+            'items' => $goodTransfer->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,
@@ -486,7 +486,12 @@ class GoodTransferController extends Controller
                     'po_no' => $data['po_no'] ?? null,
                 ]);
 
-                $goodTransfer->items()->delete();
+                // Hapus hanya baris dengan barang AKTIF; baris yang barangnya
+                // sudah diarsipkan (soft delete) dipertahankan agar riwayat
+                // dokumen tidak berubah.
+                $goodTransfer->items()
+                    ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+                    ->delete();
 
                 foreach ($data['items'] as $item) {
                     $goodTransfer->items()->create([

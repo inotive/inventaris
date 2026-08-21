@@ -330,7 +330,7 @@ class MaterialRequestController extends Controller
                 'status' => $materialRequest->status,
                 'purchase_requests' => $materialRequest->purchaseRequest()->pluck('request_no')->toArray(),
             ],
-            'items' => $materialRequest->items->map(function ($item) {
+            'items' => $materialRequest->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_name' => $item->item?->name,
@@ -376,7 +376,7 @@ class MaterialRequestController extends Controller
                 'status' => $materialRequest->status,
                 'requirement' => $materialRequest->requirement,
             ],
-            'items' => $materialRequest->items->map(function ($it) {
+            'items' => $materialRequest->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                 return [
                     'id' => $it->id,
                     'item_id' => $it->item?->id,
@@ -441,7 +441,11 @@ class MaterialRequestController extends Controller
         $data['requested_by'] = $data['employee_id'];
         $materialRequest->update($data);
 
-        $materialRequest->items()->delete();
+        // Hapus hanya baris dengan barang AKTIF; baris yang barangnya sudah
+        // diarsipkan (soft delete) dipertahankan agar riwayat dokumen tidak berubah.
+        $materialRequest->items()
+            ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+            ->delete();
 
         foreach ($data['requests'] as $r) {
             $materialRequest->items()->create([
@@ -593,7 +597,8 @@ class MaterialRequestController extends Controller
             return response()->json(['items' => []]);
         }
 
-        $items = $materialRequest->items->map(function ($mrItem) {
+        // Filter baris yang barangnya sudah diarsipkan (soft delete)
+        $items = $materialRequest->items->filter(fn ($mrItem) => $mrItem->item !== null)->values()->map(function ($mrItem) {
             return [
                 'id' => $mrItem->item->id,
                 'name' => $mrItem->item->name,
