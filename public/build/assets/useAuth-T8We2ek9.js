@@ -1,1 +1,0 @@
-import{a$ as t}from"./app-CbJERV8M.js";function a(){const s=t(),r=s.props.auth?.user??null,n=s.props.auth?.roles??[],e=s.props.auth?.permissions??[];return{user:r,roles:n,permissions:e,is:o=>n.includes(o),can:o=>e.includes(o)}}export{a as u};
