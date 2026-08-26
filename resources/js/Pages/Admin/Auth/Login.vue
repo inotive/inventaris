@@ -212,21 +212,21 @@
                                         :key="index"
                                         class="flex flex-col justify-center items-center flex-shrink-0 space-y-6 w-full min-h-[500px] text-center"
                                     >
-                                        <!-- Logo/Image -->
+                                        <!-- Slide Image -->
                                         <div
                                             class="flex items-center justify-center"
                                         >
                                             <img
                                                 v-if="slide.img_url"
                                                 :src="slide.img_url"
-                                                alt="Logo"
-                                                class="object-contain opacity-95 drop-shadow-2xl w-250 h-250"
+                                                :alt="slide.title || 'Gambar'"
+                                                class="object-cover rounded-xl shadow-lg max-h-64 w-80 max-w-full opacity-95"
                                             />
                                             <img
                                                 v-else
                                                 src="/images/logo/bg-login.png"
-                                                alt="Logo"
-                                                class="object-contain opacity-95 drop-shadow-2xl w-250 h-250"
+                                                :alt="slide.title || 'Gambar'"
+                                                class="object-cover rounded-xl shadow-lg max-h-64 w-80 max-w-full opacity-95"
                                             />
                                         </div>
 
