@@ -18,7 +18,7 @@
                                 <p
                                     class="font-semibold text-gray-500 dark:text-gray-400"
                                 >
-                                    Backoffice Sinergi Putra Borneo
+                                    Backoffice Inventaris
                                 </p>
                             </div>
                             <div>
@@ -347,7 +347,7 @@ const slides = ref(
                   category: "Manajemen Inventaris",
                   title: "Kelola Stok",
                   description:
-                      "Pantau dan kelola stok barang secara real-time. Sinergi Putra Borneo memastikan setiap barang tercatat dengan akurat dan mudah ditelusuri.",
+                      "Pantau dan kelola stok barang secara real-time. Sistem Inventaris memastikan setiap barang tercatat dengan akurat dan mudah ditelusuri.",
                   img_url: "/images/logo/carousel-inventory-1.jpg",
               },
               {

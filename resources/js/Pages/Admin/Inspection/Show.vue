@@ -1372,7 +1372,7 @@ function printInspection() {
         </head>
         <body>
             <div class="header">
-                <div class="logo">PT. SINERGI PUTRA BORNEO</div>
+                <div class="logo">INVENTARIS</div>
                 <div class="subtitle">BackOffice Website</div>
             </div>
 
@@ -1422,7 +1422,7 @@ function printInspection() {
             ${employeeContent}
 
             <div class="footer">
-                <p>© ${new Date().getFullYear()} Sinergi Putra Borneo - BackOffice Website</p>
+                <p>© ${new Date().getFullYear()} Inventaris - BackOffice Website</p>
                 <p>Dicetak pada: ${formatDateTime(new Date().toISOString())}</p>
             </div>
         </body>
@@ -1476,7 +1476,7 @@ function exportInspection() {
         <body>
             <div class="container">
                 <div class="header">
-                    <div class="logo">PT. SINERGI PUTRA BORNEO</div>
+                    <div class="logo">INVENTARIS</div>
                     <div class="subtitle">BackOffice Website</div>
                 </div>
 
@@ -1549,7 +1549,7 @@ function exportInspection() {
                 </table>
 
                 <div class="footer">
-                    <p><strong>© ${new Date().getFullYear()} Sinergi Putra Borneo</strong></p>
+                    <p><strong>© ${new Date().getFullYear()} Inventaris</strong></p>
                     <p>BackOffice Website - Versi 1.0.0</p>
                     <p>Diekspor pada: ${formatDateTime(new Date().toISOString())}</p>
                 </div>

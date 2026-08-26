@@ -1,10 +1,6 @@
 <template>
     <Link href="/" class="lg:hidden flex items-center gap-2">
-        <img 
-            src="/images/logo-spb-hitam.png" 
-            alt="Logo Sinergi Putra Borneo" 
-            class="h-10 object-contain"
-        />
+        <span class="text-xl font-bold text-gray-800 dark:text-white">Inventaris</span>
     </Link>
 </template>
 

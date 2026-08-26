@@ -15,14 +15,9 @@
     >
         <div class="flex justify-center items-center py-6 px-4">
             <Link href="/dashboard" v-if="!isMobileOpen" class="flex items-center justify-center overflow-hidden">
-                <img 
-                    src="/images/logo-spb-hitam.png" 
-                    alt="Logo Sinergi Putra Borneo" 
-                    :class="[
-                        'transition-all duration-300 ease-in-out object-contain',
-                        isExpanded || isHovered || isMobileOpen ? 'w-48' : 'w-10'
-                    ]"
-                />
+                <span :class="['transition-all duration-300 ease-in-out font-bold text-gray-800 dark:text-white', isExpanded || isHovered || isMobileOpen ? 'text-xl' : 'text-sm']">
+                    {{ isExpanded || isHovered || isMobileOpen ? 'Inventaris' : 'INV' }}
+                </span>
             </Link>
         </div>
         <div

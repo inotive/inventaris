@@ -315,13 +315,12 @@
         <!-- Header -->
         <div class="header-section">
             <div class="logo-container">
-                <img src="{{ asset('images/logo-spb-hitam.png') }}" alt="Sinergi Putra Borneo" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';">
-                <div id="logo-fallback" style="display: none; font-size: 14px; font-weight: bold; color: #4f81bd; letter-spacing: 1px;">
-                    SINERGI PUTRA BORNEO
+                <div id="logo-fallback" style="display: block; font-size: 18px; font-weight: bold; color: #4f81bd; letter-spacing: 1px;">
+                    INVENTARIS
                 </div>
             </div>
             <div class="company-info">
-                <div class="company-name">PT SINERGI PUTRA BORNEO</div>
+                <div class="company-name">INVENTARIS</div>
                 <div class="company-address">
                     Jl. Sinarmas Land Boulevard Cluster Hyland Blok U7 No. 16, Batu Ampar<br>
                     Kota Balikpapan Kalimantan Timur 76136<br>

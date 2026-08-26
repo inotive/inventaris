@@ -45,7 +45,7 @@
         $approverSignatureUrl = $approverSignatureUrl ?? null;
     @endphp
     <div class="header">
-        <div class="logo">PT. SINERGI PUTRA BORNEO</div>
+        <div class="logo">INVENTARIS</div>
         <div class="subtitle">BackOffice Website</div>
     </div>
 
@@ -190,7 +190,7 @@
     @endif
 
     <div class="footer">
-        <p>&copy; {{ date('Y') }} Sinergi Putra Borneo - BackOffice Website</p>
+        <p>&copy; {{ date('Y') }} Inventaris - BackOffice Website</p>
         <p>Diexport pada: {{ now()->format('d-m-Y H:i') }}</p>
     </div>
 </body>

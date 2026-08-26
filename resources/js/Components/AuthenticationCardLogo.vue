@@ -3,11 +3,7 @@ import { Link } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <Link href="/">
-        <img 
-            src="/images/logo-spb-hitam.png" 
-            alt="Logo Sinergi Putra Borneo" 
-            class="w-64 object-contain"
-        />
+    <Link href="/" class="flex justify-center">
+        <span class="text-2xl font-bold text-gray-800 dark:text-white">Inventaris</span>
     </Link>
 </template>
