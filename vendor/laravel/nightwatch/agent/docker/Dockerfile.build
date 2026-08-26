@@ -1,7 +1,0 @@
-FROM boxproject/box:4.6.8
-
-RUN install-php-extensions pcntl
-
-WORKDIR /app
-
-CMD ["compile"]
