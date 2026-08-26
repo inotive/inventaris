@@ -28,7 +28,7 @@ class ProcurementCreateRequest extends FormRequest
             'note' => 'nullable|string',
             'items' => 'required|array',
             'items.*.item_id' => 'required|exists:items,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.quantity' => 'required|numeric|min:0.0001',
             // 'items.*.note' => 'nullable|string',
         ];
     }

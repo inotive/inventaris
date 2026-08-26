@@ -1,0 +1,45 @@
+name: Deploy to Hostinger Shared Hosting
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  web-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Get latest code
+        uses: actions/checkout@v4
+    
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build Project
+        run: npm run build
+
+      # PROSES DEPLOY VIA FTP KE HOSTINGER
+      - name: Sync Files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          
+          # Folder asal hasil kompilasi di server virtual GitHub
+          local-dir: ./public/build/ 
+          
+          # SOLUSI: Karena akun FTP baru sudah dikunci langsung di dalam folder 'build',
+          # kita cukup menuliskan './' agar file langsung dituangkan di tempat robot berdiri.
+          server-dir: ./ 
+          
+          # Menyapu bersih file build lama di Hostinger secara aman
+          dangerous-clean-slate: true

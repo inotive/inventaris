@@ -96,12 +96,12 @@ const dropdownWrapper = ref(null);
 const dropdownStyle = ref({});
 
 const selectedItem = computed(
-    () => props.items.find((i) => i.id === props.modelValue) || null
+    () => props.items.find((i) => i.id == props.modelValue) || null
 );
 
 const selectedLabel = computed(() => {
     if (selectedItem.value) return selectedItem.value[props.labelKey];
-    if (typeof props.modelValue === "string" && props.modelValue)
+    if (typeof props.modelValue === "string" && props.modelValue && isNaN(Number(props.modelValue)))
         return props.modelValue;
     return props.label;
 });
@@ -199,7 +199,7 @@ function selectItem(item) {
 }
 
 function isSelected(item) {
-    return props.modelValue === item.id;
+    return props.modelValue == item.id;
 }
 
 // Tutup dropdown jika klik di luar

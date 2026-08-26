@@ -29,8 +29,8 @@ class GetItemProportions
             ];
         }
 
-        $labels = $items->pluck('name')->toArray();
-        $data = $items->pluck('stock')->toArray();
+        $labels = $items->pluck('name')->values()->toArray();
+        $data = $items->pluck('stock')->map(fn($val) => (int) $val)->values()->toArray();
 
         // Generate warna untuk setiap item
         $colors = ['#1B84FF', '#F59E0B', '#10B981', '#8B5CF6', '#EF4444', '#06B6D4', '#84CC16', '#F97316'];

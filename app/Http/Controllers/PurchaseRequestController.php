@@ -114,10 +114,11 @@ class PurchaseRequestController extends Controller
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
+        $canViewGlobal = Auth::user()->can('purchase_requests.view_global') || $isSuperadmin;
 
         $query = PurchaseRequest::query()
-            ->with(['request:id,request_no', 'department:id,name', 'requester:id,name', 'approver:id,name'])
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
+            ->with(['request:id,request_no', 'department.branch', 'requester:id,name', 'approver:id,name'])
+            ->when(!$canViewGlobal, function ($query) use ($departmentIds) {
                 return $query->whereIn('department_id', $departmentIds);
             });
 
@@ -200,13 +201,20 @@ class PurchaseRequestController extends Controller
         $canEdit = Auth::user()->can('purchase_requests.edit');
         $canDelete = Auth::user()->can('purchase_requests.delete');
         $canView = Auth::user()->can('purchase_requests.view');
-        $canCreate = Auth::user()->can('purchase_requests.create');
+        $canViewGlobal = Auth::user()->can('purchase_requests.view_global') || $isSuperadmin;
 
-
-        $departments = Department::query()->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
-            return $query->whereIn('id', $departmentIds);
-        })->select('id', 'name')->orderBy('name')->get();
-        $employees = Employee::query()->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
+        $departments = Department::where('name', 'Gudang')->with('branch')
+            ->when(!$canViewGlobal, function ($query) use ($departmentIds) {
+                return $query->whereIn('id', $departmentIds);
+            })
+            ->get()
+            ->map(function ($d) {
+                return [
+                    'id' => $d->id,
+                    'name' => $d->branch ? $d->branch->name : $d->name,
+                ];
+            })->sortBy('name')->values();
+        $employees = Employee::query()->when(!$canViewGlobal, function ($query) use ($departmentIds) {
             return $query->whereIn('department_id', $departmentIds);
         })->select('id', 'name')->orderBy('name')->get();
 
@@ -219,7 +227,7 @@ class PurchaseRequestController extends Controller
                     'id' => $mr->id,
                     'request_no' => $mr->request_no,
                     'mr_no' => $mr->request?->request_no,
-                    'department' => $mr->department?->name,
+                    'department' => $mr->department?->branch?->name ?? $mr->department?->name,
                     'requested_by' => $mr->requester?->name,
                     'requested_at' => $mr->requested_at->locale('id')->translatedFormat('d F Y'),
                     'status' => $mr->status,
@@ -239,14 +247,25 @@ class PurchaseRequestController extends Controller
             'can_edit' => $canEdit,
             'can_delete' => $canDelete,
             'can_view' => $canView,
-            'can_create' => $canCreate,
+            'can_create' => Auth::user()->can('purchase_requests.create'),
         ]);
     }
 
     public function create()
     {
         $requestNo = PurchaseRequest::generateRequestNo();
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch_id' => $b->id,
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $employees = Employee::orderBy('name')->get();
 
         $user = Auth::user()->load(['employee', 'employee.department']);
@@ -255,15 +274,29 @@ class PurchaseRequestController extends Controller
         $branches = Branch::where('id', $userBranchId)->pluck('id');
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
 
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->when(!$isSuperadmin && empty($filters['branch_id']), function ($query) use ($branches) {
-            return $query->whereIn('items.branch_id', $branches);
-        })->get();
+        $canCreateGlobal = Auth::user()->can('purchase_requests.create_global') || $isSuperadmin;
+
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->orderBy('name')
+            ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
+                return $query->where('items.branch_id', $userBranchId);
+            })->get()
+            ->map(function ($item) {
+                $item->stock = $item->true_stock;
+                return $item;
+            });
 
 
 
-        $materialRequests = MaterialRequest::with(['items.item.unit'])
+        $materialRequests = MaterialRequest::with(['items.item.unit', 'department.branch'])
             ->orderByDesc('request_no')
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departmentIds) {
+            ->when(!$canCreateGlobal, function ($query) use ($departmentIds) {
                 return $query->whereIn('material_requests.department_id', $departmentIds);
             })
             ->get()
@@ -272,8 +305,9 @@ class PurchaseRequestController extends Controller
                     'id' => $mr->id,
                     'request_no' => $mr->request_no,
                     'department_id' => $mr->department_id,
+                    'branch_id' => $mr->department?->branch_id,
                     'requirement' => $mr->requirement,
-                    'items' => $mr->items->map(function ($it) {
+                    'items' => $mr->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                         return [
                             'id' => $it->id,
                             'item_id' => $it->item_id,
@@ -301,7 +335,7 @@ class PurchaseRequestController extends Controller
     {
         $data = $request->validate([
             'request_id' => ['nullable', 'exists:material_requests,id'],
-            'request_no' => ['required', 'string', 'unique:purchase_requests,request_no'],
+            'request_no' => ['nullable', 'string', 'unique:purchase_requests,request_no'],
             'requested_at' => ['required', 'date', 'before_or_equal:today'],
             'department_id' => ['required', 'exists:departments,id'],
             'employee_id' => ['required', 'exists:employees,id'],
@@ -311,6 +345,10 @@ class PurchaseRequestController extends Controller
             'requests.*.request' => ['required_with:requests', 'integer', 'min:1'],
             'requests.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        if (empty($data['request_no'])) {
+            $data['request_no'] = PurchaseRequest::generateRequestNo($data['requested_at']);
+        }
 
         try {
             app(CreatePurchaseRequest::class)->execute($data);
@@ -331,9 +369,10 @@ class PurchaseRequestController extends Controller
     {
         $purchaseRequest = PurchaseRequest::with([
             'items.item.unit',
-            'department',
+            'department.branch',
             'requester',
-            'request'
+            'request',
+            'approver'
         ])->findOrFail($id);
 
         $canApprove = Auth::user()->can('purchase_requests.approve', $purchaseRequest);
@@ -343,7 +382,9 @@ class PurchaseRequestController extends Controller
         $pr = [
             'id' => $purchaseRequest->id,
             'request_no' => $purchaseRequest->request_no,
-            'requested_at' => Carbon::parse($purchaseRequest->requested_at)->format('Y-m-d'),
+            'requested_at' => Carbon::parse($purchaseRequest->requested_at)->locale('id')->translatedFormat('d F Y'),
+            'approved_by' => $purchaseRequest->approver?->name,
+            'approved_at' => $purchaseRequest->approved_at ? Carbon::parse($purchaseRequest->approved_at)->locale('id')->translatedFormat('d F Y H:i') : null,
             'department_id' => $purchaseRequest->department_id,
             'employee_id' => $purchaseRequest->requested_by,
             'request_id' => $purchaseRequest->request_id,
@@ -353,7 +394,7 @@ class PurchaseRequestController extends Controller
             'department' => $purchaseRequest->department,
             'employee' => $purchaseRequest->requester,
             'material_request' => $purchaseRequest->request,
-            'items' => $purchaseRequest->items->map(function ($it) {
+            'items' => $purchaseRequest->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                 return [
                     'id' => $it->id,
                     'item_id' => $it->item_id,
@@ -380,19 +421,47 @@ class PurchaseRequestController extends Controller
                 ];
             });
 
+        $canCreatePO = Auth::user()->can('purchase_orders.create') || Auth::user()->can('purchase_orders.create_global') || Auth::user()->hasRole('Superadmin');
+        $orderNo = \App\Models\PurchaseOrder::generateOrderNo();
+
         return Inertia::render('Admin/PurchaseRequests/Show', [
             'pr' => $pr,
             'activities' => $activities,
             'can_approve' => $canApprove,
+            'can_create_po' => $canCreatePO,
+            'orderNo' => $orderNo,
         ]);
     }
 
     public function edit($id)
     {
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch_id' => $b->id,
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $employees = Employee::orderBy('name')->get();
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->get();
-        $materialRequests = MaterialRequest::with(['items.item.unit'])
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($item) {
+                $item->stock = $item->true_stock;
+                return $item;
+            });
+        $materialRequests = MaterialRequest::with(['items.item.unit', 'department.branch'])
             ->orderByDesc('request_no')
             ->get()
             ->map(function ($mr) {
@@ -400,8 +469,9 @@ class PurchaseRequestController extends Controller
                     'id' => $mr->id,
                     'request_no' => $mr->request_no,
                     'department_id' => $mr->department_id,
+                    'branch_id' => $mr->department?->branch_id,
                     'requirement' => $mr->requirement,
-                    'items' => $mr->items->map(function ($it) {
+                    'items' => $mr->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                         return [
                             'id' => $it->id,
                             'item_id' => $it->item_id,
@@ -431,7 +501,7 @@ class PurchaseRequestController extends Controller
             'request_id' => $purchaseRequest->request_id,
             'requirement' => $purchaseRequest->requirement,
             'status' => $purchaseRequest->status,
-            'items' => $purchaseRequest->items->map(function ($it) {
+            'items' => $purchaseRequest->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                 return [
                     'id' => $it->id,
                     'item_id' => $it->item_id,
@@ -485,8 +555,12 @@ class PurchaseRequestController extends Controller
                     'requirement' => $validated['requirement'],
                 ]);
 
-                // Delete existing items
-                $purchaseRequest->items()->delete();
+                // Hapus hanya baris dengan barang AKTIF; baris yang barangnya
+                // sudah diarsipkan (soft delete) dipertahankan agar riwayat
+                // dokumen tidak berubah.
+                $purchaseRequest->items()
+                    ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+                    ->delete();
 
                 // Create new items
                 foreach ($validated['requests'] as $requestItem) {

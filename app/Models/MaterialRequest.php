@@ -22,6 +22,11 @@ class MaterialRequest extends Model
         'status',
     ];
 
+    protected $casts = [
+        'requested_at' => 'datetime',
+        'approved_at' => 'datetime',
+    ];
+
     public function department()
     {
         return $this->belongsTo(Department::class);
@@ -67,11 +72,13 @@ class MaterialRequest extends Model
     public static function generateRequestNo($requestDate = null): string
     {
         $date = $requestDate ? Carbon::parse($requestDate) : now();
-        $ym = $date->format('Ym');
-        $prefix = 'MR-' . $ym . '-';
+        $month = $date->format('m');
+        $year  = $date->format('Y');
+        $prefix = 'MR-SPB-';
+        $suffix = '-' . $month . '-' . $year;
 
         $last = static::query()
-            ->where('request_no', 'like', $prefix . '%')
+            ->where('request_no', 'like', $prefix . '%' . $suffix)
             ->orderBy('request_no', 'desc')
             ->value('request_no');
 
@@ -82,6 +89,6 @@ class MaterialRequest extends Model
             $seq = $lastSeq + 1;
         }
 
-        return $prefix . str_pad((string)$seq, 4, '0', STR_PAD_LEFT);
+        return $prefix . str_pad((string)$seq, 3, '0', STR_PAD_LEFT) . $suffix;
     }
 }

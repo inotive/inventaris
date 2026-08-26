@@ -35,14 +35,16 @@ class GetBarangChartData
         // Fill in actual data
         foreach ($monthlyData as $row) {
             $monthIndex = $row->month - 1; // Convert to 0-based index
-            $chartData['series']['masuk'][$monthIndex] = (int) $row->masuk;
-            $chartData['series']['keluar'][$monthIndex] = (int) $row->keluar;
+            $chartData['series']['masuk'][$monthIndex] = (float) $row->masuk;
+            $chartData['series']['keluar'][$monthIndex] = (float) $row->keluar;
         }
 
         $result['chartData'] = $chartData;
 
-        // Get total stock from latest ItemStock records using subquery
-        $totalStock = ItemStock::whereIn('id', function ($query) {
+        // Get total stock from latest ItemStock records using subquery.
+        // whereHas('item') mengecualikan barang terarsip (soft delete) agar
+        // konsisten dengan perhitungan low_stock / out_of_stock.
+        $totalStock = ItemStock::whereHas('item')->whereIn('id', function ($query) {
             $query->selectRaw('MAX(id)')
                 ->from('item_stocks')
                 ->groupBy('item_id');
@@ -62,7 +64,7 @@ class GetBarangChartData
         })->count();
 
         $result['metric'] = [
-            'total_stock' => (int) $totalStock,
+            'total_stock' => (float) $totalStock,
             'low_stock_items' => (int) $lowStockItems,
             'out_of_stock' => (int) $outOfStockItems,
             'total_transactions' => (int) ItemMovement::count(),

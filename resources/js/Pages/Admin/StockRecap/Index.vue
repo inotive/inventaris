@@ -1,7 +1,7 @@
 <template>
     <Head title="Rekap Stok" />
 
-    <div class="flex overflow-hidden flex-col gap-3 px-3 h-full">
+    <div class="flex overflow-hidden flex-col gap-3 px-3 h-full w-full max-w-full min-w-0">
         <div class="flex justify-between items-center h-10">
             <Breadcrumb :items="breadcrumbs" />
             <div>
@@ -15,7 +15,7 @@
         </div>
 
         <div
-            class="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-white/[0.03]"
+            class="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-white/[0.03] w-full max-w-full min-w-0"
         >
             <div
                 class="flex flex-col gap-2 px-8 h-16 sm:flex-row sm:items-center sm:justify-between"
@@ -26,114 +26,117 @@
                     Rekap Stok Barang
                 </div>
                 <div class="flex gap-3 items-center">
-                    <div>
-                        <select
-                            v-model="groupByLocal"
-                            class="px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                        >
-                            <option value="">Kelompokan Berdasarkan</option>
-                            <option value="warehouse">Group: Cabang</option>
-                            <option value="source">
-                                Group: Kategori
-                            </option>
-                        </select>
-                    </div>
-                    <div class="relative" data-date-filter>
+                    <!-- Collapsed Filter Button & Dropdown -->
+                    <div class="relative" data-filters-dropdown>
                         <button
-                            @click="toggleDateFilter"
+                            @click="showFiltersDropdown = !showFiltersDropdown"
                             type="button"
-                            class="flex items-center gap-2 px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            class="flex items-center gap-2 px-4 h-10 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
                         >
-                            <span>Filter Tanggal</span>
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="currentColor"
-                                class="size-4"
-                            >
-                                <path
-                                    d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z"
-                                />
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
                             </svg>
+                            <span>Filter</span>
+                            <!-- Badge for active filter count -->
+                            <span v-if="activeFiltersCount > 0" class="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-500 rounded-full">
+                                {{ activeFiltersCount }}
+                            </span>
                         </button>
 
-                        <!-- Date Filter Dropdown -->
+                        <!-- Dropdown Content -->
                         <div
-                            v-if="showDateFilter"
-                            class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                            v-if="showFiltersDropdown"
+                            class="absolute right-0 z-50 mt-2 w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-800 space-y-4"
                             @click.stop
                         >
-                            <div class="p-4 space-y-4">
-                                <!-- Tanggal Awal -->
-                                <div>
-                                    <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Tanggal Awal
-                                    </label>
-                                    <div class="relative">
-                                        <input
-                                            v-model="tempDateFrom"
-                                            type="date"
-                                            class="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                        <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                viewBox="0 0 24 24"
-                                                fill="currentColor"
-                                                class="size-4"
-                                            >
-                                                <path
-                                                    d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z"
-                                                />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
+                            <!-- Kelompokkan -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelompokkan</label>
+                                <select
+                                    v-model="groupByLocal"
+                                    class="w-full px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                >
+                                    <option value="">Kelompokan Berdasarkan</option>
+                                    <option value="source">Group: Kategori</option>
+                                </select>
+                            </div>
 
-                                <!-- Tanggal Akhir -->
-                                <div>
-                                    <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Tanggal Akhir
-                                    </label>
-                                    <div class="relative">
-                                        <input
-                                            v-model="tempDateTo"
-                                            type="date"
-                                            class="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                        <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                viewBox="0 0 24 24"
-                                                fill="currentColor"
-                                                class="size-4"
-                                            >
-                                                <path
-                                                    d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z"
-                                                />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
+                            <!-- Kategori -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kategori</label>
+                                <select
+                                    v-model="filtersLocal.category_id"
+                                    class="w-full px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                >
+                                    <option value="">Semua Kategori</option>
+                                    <option v-for="category in categories" :key="category.id" :value="category.id">
+                                        {{ category.name }}
+                                    </option>
+                                </select>
+                            </div>
 
-                                <!-- Action Buttons -->
-                                <div class="flex gap-2 pt-2">
-                                    <button
-                                        @click="applyDateFilter"
-                                        class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                                    >
-                                        Terapkan
-                                    </button>
-                                    <button
-                                        @click="clearDateFilter"
-                                        class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500"
-                                    >
-                                        Hapus
-                                    </button>
-                                </div>
+                            <!-- Satuan -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Satuan</label>
+                                <select
+                                    v-model="filtersLocal.unit_id"
+                                    class="w-full px-3 h-10 text-sm text-gray-800 bg-transparent rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                >
+                                    <option value="">Semua Satuan</option>
+                                    <option v-for="unit in units" :key="unit.id" :value="unit.id">
+                                        {{ unit.name }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Tanggal Awal -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Awal</label>
+                                <input
+                                    v-model="tempDateFrom"
+                                    type="date"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                />
+                            </div>
+
+                            <!-- Tanggal Akhir -->
+                            <div class="space-y-1.5">
+                                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Akhir</label>
+                                <input
+                                    v-model="tempDateTo"
+                                    type="date"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                />
+                            </div>
+
+                            <!-- Checkbox Hide Empty -->
+                            <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Sembunyikan Stok 0</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" v-model="filtersLocal.hide_empty" class="sr-only peer" @change="fetchRequests({})">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <!-- Action Buttons for Dates -->
+                            <div class="flex gap-2 pt-2">
+                                <button
+                                    @click="applyDateFilter"
+                                    class="flex-1 px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none"
+                                >
+                                    Terapkan Tanggal
+                                </button>
+                                <button
+                                    @click="clearDateFilter"
+                                    class="flex-1 px-4 py-2 text-xs font-bold text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                >
+                                    Reset
+                                </button>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Search Input -->
                     <div class="relative py-2">
                         <div
                             class="absolute left-4 top-1/2 text-gray-400 -translate-y-1/2"
@@ -161,28 +164,12 @@
                 </div>
             </div>
 
-            <div class="overflow-auto overflow-x-auto" data-simplebar>
-                <table class="min-w-full text-sm table-fixed">
-                    <colgroup>
-                        <col style="width: 50px" />
-                        <col style="width: 250px" />
-                        <col style="width: 120px" />
-                        <!-- <col /> -->
-                        <col style="width: 70px" />
-                        <!-- <col style="width: 200px" /> -->
-                        <col style="width: 140px" />
-                        <col style="width: 100px" />
-                        <!-- <col style="width: 140px" /> -->
-                        <col style="width: 100px" />
-                        <!-- <col style="width: 140px" />
-                        <col style="width: 140px" /> -->
-                        <col style="width: 100px" />
-                        <col style="width: 120px" />
-                    </colgroup>
+            <div class="overflow-auto overflow-x-auto w-full max-w-full min-w-0" data-simplebar>
+                <table class="min-w-full text-sm border-collapse">
                     <thead>
                         <tr>
                             <th
-                                class="py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky left-0 z-30 py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[50px] max-w-[50px] w-[50px]"
                             >
                                 <div
                                     class="px-3 font-medium text-gray-600 dark:text-gray-300"
@@ -191,16 +178,18 @@
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky z-30 py-2.5 bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[220px] max-w-[220px] w-[220px]"
+                                style="left: 50px"
                             >
                                 <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
+                                    class="px-3 font-medium text-gray-600 dark:text-gray-300 text-left"
                                 >
                                     Nama Barang
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky z-30 py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[160px] max-w-[160px] w-[160px]"
+                                style="left: 270px"
                             >
                                 <div
                                     class="px-3 font-medium text-gray-600 dark:text-gray-300"
@@ -209,7 +198,8 @@
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky z-30 py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[100px] max-w-[100px] w-[100px]"
+                                style="left: 430px"
                             >
                                 <div
                                     class="px-3 font-medium text-gray-600 dark:text-gray-300"
@@ -218,52 +208,19 @@
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                v-for="branch in branches"
+                                :key="branch.id"
+                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[140px]"
                             >
                                 <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
+                                    class="px-3 font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap"
                                 >
-                                    Cabang
+                                    {{ branch.name }}
                                 </div>
                             </th>
                             <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
-                            >
-                                <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
-                                >
-                                    Saldo Awal
-                                </div>
-                            </th>
-                            <!-- <th colspan="2" class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">Saldo Awal</div>
-                            </th> -->
-                            <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
-                            >
-                                <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
-                                >
-                                    Stok Masuk
-                                </div>
-                            </th>
-                            <!-- <th colspan="2" class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">Stok Masuk</div>
-                            </th> -->
-                            <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
-                            >
-                                <div
-                                    class="px-3 font-medium text-gray-600 dark:text-gray-300"
-                                >
-                                    Stok Keluar
-                                </div>
-                            </th>
-                            <!-- <th colspan="2" class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">Stok Keluar</div>
-                            </th> -->
-                            <th
-                                class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800"
+                                class="sticky z-30 py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[120px] max-w-[120px] w-[120px]"
+                                style="right: 80px"
                             >
                                 <div
                                     class="px-3 font-medium text-gray-600 dark:text-gray-300"
@@ -271,99 +228,13 @@
                                     Total Persediaan
                                 </div>
                             </th>
-                            <!-- <th colspan="2" class="py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">Total Persediaan</div>
-                            </th> -->
-                        </tr>
-                        <tr>
-                            <th
-                                class="px-2 py-2 bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <th
-                                class="px-2 py-2 bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
+                            <th 
+                                class="sticky right-0 z-30 py-2.5 text-center bg-gray-100 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-800 min-w-[80px] max-w-[80px] w-[80px]"
                             >
-                                <input
-                                    v-model="filtersLocal.q"
-                                    type="text"
-                                    placeholder="Cari Barang"
-                                    class="px-3 w-full h-10 text-xs rounded border-gray-300 sm:text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                />
+                                <div class="px-3 font-medium text-gray-600 dark:text-gray-300">
+                                    Aksi
+                                </div>
                             </th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            >
-                                <select
-                                    v-model="filtersLocal.category_id"
-                                    class="px-2 w-full h-8 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                >
-                                    <option value="">Semua Kategori</option>
-                                    <option
-                                        v-for="category in categories"
-                                        :key="category.id"
-                                        :value="category.id"
-                                    >
-                                        {{ category.name }}
-                                    </option>
-                                </select>
-                            </th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            >
-                                <select
-                                    v-model="filtersLocal.unit_id"
-                                    class="px-2 w-full h-8 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                >
-                                    <option value="">Semua Satuan</option>
-                                    <option
-                                        v-for="unit in units"
-                                        :key="unit.id"
-                                        :value="unit.id"
-                                    >
-                                        {{ unit.name }}
-                                    </option>
-                                </select>
-                            </th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            >
-                                <select
-                                    v-model="filtersLocal.branch_id"
-                                    class="px-2 w-full h-8 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                >
-                                    <option value="">Semua Cabang</option>
-                                    <option
-                                        v-for="branch in branches"
-                                        :key="branch.id"
-                                        :value="branch.id"
-                                    >
-                                        {{ branch.name }}
-                                    </option>
-                                </select>
-                            </th>
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <!-- <th class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">Transaksi (Rp)</div>
-                            </th> -->
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <!-- <th class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">Transaksi (Rp)</div>
-                            </th> -->
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <!-- <th class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">Transaksi (Rp)</div>
-                            </th> -->
-                            <th
-                                class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900"
-                            ></th>
-                            <!-- <th class="px-2 py-2 text-center bg-gray-50 border-gray-200 border-y dark:border-gray-600 dark:bg-gray-900">
-                                <div class="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">Transaksi (Rp)</div>
-                            </th> -->
                         </tr>
                     </thead>
                     <tbody>
@@ -371,7 +242,7 @@
                             v-if="!stockIns?.data || stockIns.data.length === 0"
                         >
                             <td
-                                colspan="9"
+                                :colspan="6 + branches.length"
                                 class="py-8 text-center text-gray-500"
                             >
                                 Tidak ada data
@@ -380,12 +251,14 @@
                         <template v-else-if="isGrouped">
                             <template v-for="(rows, gkey) in groupedData" :key="gkey">
                                 <tr>
-                                    <td :colspan="9" class="px-4 py-2 font-semibold text-gray-600 bg-gray-50 dark:bg-gray-800/40 dark:text-gray-300">
-                                        <button class="inline-flex items-center gap-2" @click="toggleGroupCollapse(gkey)">
-                                            <span class="text-sm">{{ isCollapsed(gkey) ? "▶" : "▼" }}</span>
-                                            <span>{{ groupLabel(gkey) }}</span>
-                                            <span class="ml-1 text-sm font-medium text-gray-500">({{ rows.length }})</span>
-                                        </button>
+                                    <td :colspan="6 + branches.length" class="px-4 py-2 font-semibold text-gray-600 bg-gray-50 dark:bg-gray-800/40 dark:text-gray-300">
+                                        <div class="sticky left-4 inline-block">
+                                            <button class="inline-flex items-center gap-2" @click="toggleGroupCollapse(gkey)">
+                                                <span class="text-sm">{{ isCollapsed(gkey) ? "▶" : "▼" }}</span>
+                                                <span>{{ groupLabel(gkey) }}</span>
+                                                <span class="ml-1 text-sm font-medium text-gray-500">({{ rows.length }})</span>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 <template v-if="!isCollapsed(gkey)">
@@ -394,73 +267,56 @@
                                         :key="row.id"
                                         class="border-b border-gray-200 dark:border-gray-700"
                                     >
-                                        <td class="px-3 py-3">
+                                        <td class="sticky left-0 z-10 px-3 py-3 bg-white dark:bg-gray-800 min-w-[50px] max-w-[50px] w-[50px]">
                                             {{ serialMap[row.id] ?? "-" }}
                                         </td>
-                                        <td class="px-3 py-3">
+                                        <td 
+                                            class="sticky z-10 px-3 py-3 bg-white dark:bg-gray-800 min-w-[220px] max-w-[220px] w-[220px]"
+                                            style="left: 50px"
+                                        >
                                             <div
                                                 class="font-medium text-gray-800 dark:text-gray-200"
                                             >
                                                 {{ row.item?.name }}
                                             </div>
-                                            <div
-                                                class="mt-1 flex flex-wrap gap-1 text-[10px] text-gray-500"
-                                            >
-                                                <span
-                                                    v-for="b in row.item?.brands || []"
-                                                    :key="'b-' + b"
-                                                    class="px-2 py-0.5 bg-gray-100 rounded-full dark:bg-white/10"
-                                                    >{{ b }}</span
-                                                >
-                                                <span
-                                                    v-for="t in row.item?.types || []"
-                                                    :key="'t-' + t"
-                                                    class="px-2 py-0.5 bg-gray-100 rounded-full dark:bg.white/10"
-                                                    >{{ t }}</span
-                                                >
-                                            </div>
                                         </td>
-                                        <td class="px-3 py-3 text-center">
+                                        <td 
+                                            class="sticky z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[160px] max-w-[160px] w-[160px]"
+                                            style="left: 270px"
+                                        >
                                             <span class="inline-flex px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-100 rounded dark:bg-blue-900/30 dark:text-blue-300">
                                                 {{ row.item?.category || '-' }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-3 text-center">
+                                        <td 
+                                            class="sticky z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[100px] max-w-[100px] w-[100px]"
+                                            style="left: 430px"
+                                        >
                                             {{ row.item?.unit || '-' }}
                                         </td>
-                                        <td class="px-3 py-3 text-center">
-                                            {{ row.branch || '-' }}
-                                        </td>
-                                        <td class="px-3 py-3 text-center">
+                                        <td v-for="branch in branches" :key="branch.id" class="px-3 py-3 text-center min-w-[140px]">
                                             <button
-                                                @click="openSaldoAwalModal(row)"
+                                                v-if="row.stocks[branch.id]"
+                                                @click="openTotalPersediaanModal({ item: { name: row.item?.name ?? '-', id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
                                                 class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                             >
-                                                {{ row.saldo_awal.qty }}
+                                                {{ parseFloat(row.stocks[branch.id].qty) }}
                                             </button>
+                                            <span v-else class="text-gray-400">0</span>
                                         </td>
-                                        <td class="px-3 py-3 text-center">
-                                            <button
-                                                @click="openStokMasukModal(row)"
-                                                class="text-green-600 hover:text-green-800 hover:underline cursor-pointer"
-                                            >
-                                                {{ row.in.qty }}
-                                            </button>
+                                        <td 
+                                            class="sticky z-10 px-3 py-3 text-center font-semibold text-purple-600 bg-white dark:bg-gray-800 min-w-[120px] max-w-[120px] w-[120px]"
+                                            style="right: 80px"
+                                        >
+                                            {{ parseFloat(row.total_persediaan) }}
                                         </td>
-                                        <td class="px-3 py-3 text-center">
-                                            <button
-                                                @click="openStokKeluarModal(row)"
-                                                class="text-red-600 hover:text-red-800 hover:underline cursor-pointer"
-                                            >
-                                                {{ row.out.qty }}
-                                            </button>
-                                        </td>
-                                        <td class="px-3 py-3 text-center">
-                                            <button
-                                                @click="openTotalPersediaanModal(row)"
-                                                class="text-purple-600 hover:text-purple-800 hover:underline cursor-pointer"
-                                            >
-                                                {{ row.ending.qty }}
+                                        <td 
+                                            class="sticky right-0 z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[80px] max-w-[80px] w-[80px]"
+                                        >
+                                            <button v-if="can.adjust" @click="openAdjustModal(row)" class="text-blue-500 hover:text-blue-700" title="Sesuaikan Stok">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
                                             </button>
                                         </td>
                                     </tr>
@@ -473,87 +329,64 @@
                                 :key="row.id"
                                 class="border-b border-gray-200 dark:border-gray-700"
                             >
-                                <td class="px-3 py-3">
+                                <td class="sticky left-0 z-10 px-3 py-3 bg-white dark:bg-gray-800 min-w-[50px] max-w-[50px] w-[50px]">
                                     {{ serialMap[row.id] ?? "-" }}
                                 </td>
-                                <td class="px-3 py-3">
+                                <td 
+                                    class="sticky z-10 px-3 py-3 bg-white dark:bg-gray-800 min-w-[220px] max-w-[220px] w-[220px]"
+                                    style="left: 50px"
+                                >
                                     <div
                                         class="font-medium text-gray-800 dark:text-gray-200"
                                     >
-                                        {{ row.item?.name }} <span v-if="!isSuperadmin">({{ row.branch }})</span>
-
-                                    </div>
-                                    <div
-                                        class="mt-1 flex flex-wrap gap-1 text-[10px] text-gray-500"
-                                    >
-                                        <span
-                                            v-for="b in row.item?.brands || []"
-                                            :key="'b-' + b"
-                                            class="px-2 py-0.5 bg-gray-100 rounded-full dark:bg-white/10"
-                                            >{{ b }}</span
-                                        >
-                                        <span
-                                            v-for="t in row.item?.types || []"
-                                            :key="'t-' + t"
-                                            class="px-2 py-0.5 bg-gray-100 rounded-full dark:bg.white/10"
-                                            >{{ t }}</span
-                                        >
+                                        {{ row.item?.name }}
                                     </div>
                                 </td>
-                                <td class="px-3 py-3 text-center">
+                                <td 
+                                    class="sticky z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[160px] max-w-[160px] w-[160px]"
+                                    style="left: 270px"
+                                >
                                     <span class="inline-flex px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-100 rounded dark:bg-blue-900/30 dark:text-blue-300">
                                         {{ row.item?.category || '-' }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-3 text-center">
+                                <td 
+                                    class="sticky z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[100px] max-w-[100px] w-[100px]"
+                                    style="left: 430px"
+                                >
                                     {{ row.item?.unit || '-' }}
                                 </td>
-                                <td class="px-3 py-3 text-center">
-                                    {{ row.branch || '-' }}
-                                </td>
-                                <td class="px-3 py-3 text-center">
+                                <td v-for="branch in branches" :key="branch.id" class="px-3 py-3 text-center min-w-[140px]">
                                     <button
-                                        @click="openSaldoAwalModal(row)"
+                                        v-if="row.stocks[branch.id]"
+                                        @click="openTotalPersediaanModal({ item: { name: row.item?.name ?? '-', id: row.stocks[branch.id].item_id }, branch_name: branch.name })"
                                         class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                     >
-                                        {{ row.saldo_awal.qty }}
+                                        {{ parseFloat(row.stocks[branch.id].qty) }}
+                                    </button>
+                                    <span v-else class="text-gray-400">0</span>
+                                </td>
+                                <td 
+                                    class="sticky z-10 px-3 py-3 text-center font-semibold text-purple-600 bg-white dark:bg-gray-800 min-w-[120px] max-w-[120px] w-[120px]"
+                                    style="right: 80px"
+                                >
+                                    {{ parseFloat(row.total_persediaan) }}
+                                </td>
+                                <td 
+                                    class="sticky right-0 z-10 px-3 py-3 text-center bg-white dark:bg-gray-800 min-w-[80px] max-w-[80px] w-[80px]"
+                                >
+                                    <button v-if="can.adjust" @click="openAdjustModal(row)" class="text-blue-500 hover:text-blue-700" title="Sesuaikan Stok">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
                                     </button>
                                 </td>
-                                <!-- <td class="px-3 py-3 text-right">{{ formatCurrencyIDR(row.saldo_awal.value) }}</td> -->
-                                <td class="px-3 py-3 text-center">
-                                    <button
-                                        @click="openStokMasukModal(row)"
-                                        class="text-green-600 hover:text-green-800 hover:underline cursor-pointer"
-                                    >
-                                        {{ row.in.qty }}
-                                    </button>
-                                </td>
-                                <!-- <td class="px-3 py-3 text-right">{{ formatCurrencyIDR(row.in.value) }}</td> -->
-                                <td class="px-3 py-3 text-center">
-                                    <button
-                                        @click="openStokKeluarModal(row)"
-                                        class="text-red-600 hover:text-red-800 hover:underline cursor-pointer"
-                                    >
-                                        {{ row.out.qty }}
-                                    </button>
-                                </td>
-                                <!-- <td class="px-3 py-3 text-right">{{ formatCurrencyIDR(row.out.value) }}</td> -->
-                                <td class="px-3 py-3 text-center">
-                                    <button
-                                        @click="openTotalPersediaanModal(row)"
-                                        class="text-purple-600 hover:text-purple-800 hover:underline cursor-pointer"
-                                    >
-                                        {{ row.ending.qty }}
-                                    </button>
-                                </td>
-                                <!-- <td class="px-3 py-3 text-right">{{ formatCurrencyIDR(row.ending.value) }}</td> -->
                             </tr>
                         </template>
                     </tbody>
                 </table>
-                <Pagination :pagination="stockIns" />
             </div>
-
+            <Pagination :pagination="stockIns" />
         </div>
 
         <!-- Modal Saldo Awal -->
@@ -601,13 +434,13 @@
                         <tbody>
                             <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800">
                                 <td class="px-4 py-3">{{ detailFrom + idx }}</td>
-                                <td class="px-4 py-3">{{ tx.created_at }}</td>
+                                <td class="px-4 py-3">{{ formatDate(tx.created_at) }}</td>
                                 <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.last_stock }}</td>
+                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? parseFloat(tx.amount) : '-' }}</td>
+                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? parseFloat(tx.amount) : '-' }}</td>
+                                <td class="px-4 py-3 text-center">{{ parseFloat(tx.last_stock) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -720,13 +553,13 @@
                         <tbody>
                             <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800">
                                 <td class="px-4 py-3">{{ detailFrom + idx }}</td>
-                                <td class="px-4 py-3">{{ tx.created_at }}</td>
+                                <td class="px-4 py-3">{{ formatDate(tx.created_at) }}</td>
                                 <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? tx.amount : '-' }}</td>
+                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? parseFloat(tx.amount) : '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? tx.amount : '-' }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.last_stock }}</td>
+                                <td class="px-4 py-3 text-center">{{ parseFloat(tx.last_stock) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -839,13 +672,13 @@
                         <tbody>
                             <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800">
                                 <td class="px-4 py-3">{{ detailFrom + idx }}</td>
-                                <td class="px-4 py-3">{{ tx.created_at }}</td>
+                                <td class="px-4 py-3">{{ formatDate(tx.created_at) }}</td>
                                 <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
                                 <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
                                 <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
                                 <!-- <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? tx.amount : '-' }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.last_stock }}</td>
+                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? parseFloat(tx.amount) : '-' }}</td>
+                                <td class="px-4 py-3 text-center">{{ parseFloat(tx.last_stock) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -919,22 +752,97 @@
             @click.self="showTotalPersediaanModal = false"
         >
             <div
-                class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-auto"
+                class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
             >
                 <div
-                    class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
+                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50"
                 >
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Total Persediaan - {{ selectedRow?.item?.name }}
-                    </h3>
-                    <button
-                        @click="showTotalPersediaanModal = false"
-                        class="text-gray-400 hover:text-gray-600"
-                    >
-                        ✕
-                    </button>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                            Detail Transaksi: {{ selectedRow?.item?.name }}
+                        </h3>
+                        <p v-if="selectedRow?.branch_name" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Gudang Cabang {{ selectedRow.branch_name }}
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Periode:</label>
+                            <input
+                                type="date"
+                                v-model="detailDateFrom"
+                                @change="handleDetailMonthChange"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                            >
+                            <span class="text-gray-500 dark:text-gray-400">-</span>
+                            <input
+                                type="date"
+                                v-model="detailDateTo"
+                                @change="handleDetailMonthChange"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                            >
+                            <button
+                                v-if="detailDateFrom || detailDateTo"
+                                @click="resetDetailDateFilter"
+                                class="p-1.5 text-gray-500 hover:text-blue-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                title="Reset Filter"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                            </button>
+                        </div>
+                        <button
+                            @click="showTotalPersediaanModal = false"
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
-                <div class="p-6">
+                <div class="p-6 overflow-y-auto flex-1">
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <!-- TOTAL MASUK -->
+                        <div class="flex items-center gap-4 p-4 rounded-xl border border-emerald-100 bg-emerald-50/50 dark:border-emerald-950/20 dark:bg-emerald-950/10">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Masuk</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ totalMasukDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit?.short_name || selectedRow?.item?.unit?.name || 'pcs' }}</span></div>
+                            </div>
+                        </div>
+
+                        <!-- TOTAL KELUAR -->
+                        <div class="flex items-center gap-4 p-4 rounded-xl border border-amber-100 bg-amber-50/50 dark:border-amber-950/20 dark:bg-amber-950/10">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 text-white shadow-lg shadow-amber-500/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12h-15" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Total Keluar</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ totalKeluarDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit?.short_name || selectedRow?.item?.unit?.name || 'pcs' }}</span></div>
+                            </div>
+                        </div>
+
+                        <!-- SISA STOK -->
+                        <div class="flex items-center gap-4 p-4 rounded-xl border border-blue-100 bg-blue-50/50 dark:border-blue-950/20 dark:bg-blue-950/10">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Sisa Stok</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{{ sisaStokDetail }} <span class="text-sm font-normal text-gray-500">{{ selectedRow?.item?.unit?.short_name || selectedRow?.item?.unit?.name || 'pcs' }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div v-if="loadingDetail" class="text-center py-8">
                         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Memuat data...</p>
@@ -944,27 +852,32 @@
                     </div>
                     <table v-else class="min-w-full text-sm">
                         <thead>
-                            <tr class="border-b border-gray-200 dark:border-gray-700">
-                                <th class="px-4 py-2 text-left">No</th>
-                                <th class="px-4 py-2 text-left">Waktu</th>
-                                <th class="px-4 py-2 text-left">Sumber</th>
-                                <th class="px-4 py-2 text-left">Referensi</th>
-                                <!-- <th class="px-4 py-2 text-right">Transaksi (Rp)</th> -->
-                                <th class="px-4 py-2 text-center">Masuk</th>
-                                <th class="px-4 py-2 text-center">Keluar</th>
-                                <th class="px-4 py-2 text-center">Total Persediaan</th>
+                            <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+                                <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400 w-16">No</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Waktu Transaksi</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Sumber / Referensi</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Jumlah Mutasi</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Stok Akhir</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800">
-                                <td class="px-4 py-3">{{ detailFrom + idx }}</td>
-                                <td class="px-4 py-3">{{ tx.created_at }}</td>
-                                <td class="px-4 py-3">{{ tx.source_type || '-' }}</td>
-                                <td class="px-4 py-3">{{ tx.reference || '-' }}</td>
-                                <!-- <td class="px-4 py-3 text-right">Rp. {{ Number(tx.transaction_value || 0).toLocaleString('id-ID') }}</td> -->
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'In' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.type === 'Out' ? tx.amount : '-' }}</td>
-                                <td class="px-4 py-3 text-center">{{ tx.last_stock }}</td>
+                            <tr v-for="(tx, idx) in paginatedDetailTransactions" :key="tx.id || idx" class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/30 dark:hover:bg-gray-800/10 transition-colors">
+                                <td class="px-4 py-3 align-middle">{{ detailFrom + idx }}</td>
+                                <td class="px-4 py-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="font-medium text-gray-900 dark:text-white">{{ formatDate(tx.created_at) }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="font-medium text-gray-900 dark:text-white">{{ tx.source_type || '-' }}</span>
+                                        <span class="text-xs text-gray-500 font-mono mt-0.5">{{ tx.reference || '-' }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-center align-middle font-semibold" :class="tx.type === 'In' ? 'text-emerald-600' : tx.type === 'Out' ? 'text-rose-600' : 'text-gray-500'">
+                                    {{ tx.type === 'In' ? '+' + parseFloat(tx.amount) : tx.type === 'Out' ? '-' + parseFloat(tx.amount) : '0' }}
+                                </td>
+                                <td class="px-4 py-3 text-center align-middle font-bold text-gray-900 dark:text-white">{{ parseFloat(tx.last_stock) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1030,15 +943,105 @@
                 </div>
             </div>
         </div>
+        <!-- Modal Penyesuaian Stok -->
+        <div
+            v-if="showAdjustModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            @click.self="showAdjustModal = false"
+        >
+            <div
+                class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Penyesuaian Stok (Opname)
+                    </h3>
+                    <button @click="showAdjustModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <form @submit.prevent="submitAdjustment">
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Barang</p>
+                            <p class="font-medium text-gray-900 dark:text-white">{{ selectedRow?.item?.name }}</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Cabang <span class="text-red-500">*</span>
+                            </label>
+                            <SearchableSelect
+                                v-model="adjustForm.item_id"
+                                :options="selectedRow?.branches_data || []"
+                                label-key="branch_name"
+                                track-by-key="item_id"
+                                :allow-empty="false"
+                                placeholder="Cari Cabang"
+                            />
+                        </div>
+
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Stok Saat Ini (Sistem)</p>
+                            <p class="font-medium text-gray-900 dark:text-white">
+                                {{ selectedRow && adjustForm.item_id ? (selectedRow.stocks[selectedRow.branches_data.find(b => b.item_id === adjustForm.item_id)?.branch_id]?.qty ?? 0) : 0 }}
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Stok Aktual (Fisik) <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                v-model="adjustForm.actual_stock"
+                                type="text"
+                                inputmode="decimal"
+                                required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                placeholder="Masukkan jumlah stok aktual di gudang"
+                            />
+                            <p v-if="adjustForm.errors.actual_stock" class="mt-1 text-sm text-red-500">{{ adjustForm.errors.actual_stock }}</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan</label>
+                            <textarea
+                                v-model="adjustForm.note"
+                                rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                placeholder="Cth: Hasil opname bulanan"
+                            ></textarea>
+                            <p v-if="adjustForm.errors.note" class="mt-1 text-sm text-red-500">{{ adjustForm.errors.note }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-lg">
+                        <button
+                            type="button"
+                            @click="showAdjustModal = false"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="adjustForm.processing"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {{ adjustForm.processing ? 'Menyimpan...' : 'Simpan Penyesuaian' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
     </div>
 </template>
 
 <script setup>
-import { Head, Link, router } from "@inertiajs/vue3";
+import { Head, Link, router, useForm } from "@inertiajs/vue3";
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import Pagination from "@/Components/common/Pagination.vue";
 import Breadcrumb from "@/Components/common/Breadcrumb.vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
+import SearchableSelect from "@/Components/common/SearchableSelect.vue";
 
 const props = defineProps({
     recaps: { type: Object, required: true },
@@ -1051,6 +1054,7 @@ const props = defineProps({
     sortBy: { type: String, default: "date" },
     sortDirection: { type: String, default: "desc" },
     groupBy: { type: String, default: null },
+    can: { type: Object, default: () => ({}) },
 });
 
 // Temporary alias to reuse table/pagination variables without breaking
@@ -1074,6 +1078,7 @@ const filtersLocal = ref({
     unit_id: props.filters.unit_id ?? "",
     date_from: props.filters.date_from ?? "",
     date_to: props.filters.date_to ?? "",
+    hide_empty: props.filters.hide_empty === '1' || props.filters.hide_empty === true,
 });
 
 // Date filter dropdown state
@@ -1126,6 +1131,32 @@ onUnmounted(() => {
     document.removeEventListener('click', closeDateFilterOnClickOutside);
 });
 
+const showFiltersDropdown = ref(false);
+const activeFiltersCount = computed(() => {
+    let count = 0;
+    if (filtersLocal.value.category_id) count++;
+    if (filtersLocal.value.unit_id) count++;
+    if (filtersLocal.value.date_from || filtersLocal.value.date_to) count++;
+    if (filtersLocal.value.hide_empty) count++;
+    if (groupByLocal.value) count++;
+    return count;
+});
+
+function clickOutsideFilter(event) {
+    const el = document.querySelector('[data-filters-dropdown]');
+    if (el && !el.contains(event.target)) {
+        showFiltersDropdown.value = false;
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('click', clickOutsideFilter);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', clickOutsideFilter);
+});
+
 // Modal states
 const showSaldoAwalModal = ref(false);
 const showStokMasukModal = ref(false);
@@ -1134,6 +1165,8 @@ const showTotalPersediaanModal = ref(false);
 const selectedRow = ref(null);
 const detailTransactions = ref([]);
 const loadingDetail = ref(false);
+const detailDateFrom = ref('');
+const detailDateTo = ref('');
 
 // Pagination for detail transactions
 const detailCurrentPage = ref(1);
@@ -1159,6 +1192,35 @@ const detailTo = computed(() => {
     return Math.min(detailCurrentPage.value * detailPerPage.value, detailTransactions.value.length);
 });
 
+const totalMasukDetail = computed(() => {
+    const sum = detailTransactions.value
+        .filter(tx => tx.type === 'In')
+        .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+    return parseFloat(sum.toFixed(4));
+});
+
+const totalKeluarDetail = computed(() => {
+    const sum = detailTransactions.value
+        .filter(tx => tx.type === 'Out')
+        .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+    return parseFloat(sum.toFixed(4));
+});
+
+const trueSisaStokDetail = ref(0);
+
+const sisaStokDetail = computed(() => {
+    return parseFloat(parseFloat(trueSisaStokDetail.value).toFixed(4));
+});
+
+function formatDate(dateTimeStr) {
+    if (!dateTimeStr) return '-';
+    const date = new Date(dateTimeStr);
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+
+
 function goToDetailPage(page) {
     if (page >= 1 && page <= detailTotalPages.value) {
         detailCurrentPage.value = page;
@@ -1177,43 +1239,104 @@ async function fetchTransactionDetail(itemId, type) {
         const params = new URLSearchParams({
             item_id: itemId,
             type: type,
-            date_from: filtersLocal.value.date_from || '',
-            date_to: filtersLocal.value.date_to || '',
+            date_from: detailDateFrom.value || '',
+            date_to: detailDateTo.value || '',
         });
 
         const response = await fetch(`/api/stock-recap/detail?${params}`);
         const data = await response.json();
         detailTransactions.value = data.transactions || [];
+        trueSisaStokDetail.value = data.true_sisa_stok || 0;
     } catch (error) {
         console.error('Error fetching transaction detail:', error);
         detailTransactions.value = [];
+        trueSisaStokDetail.value = 0;
     } finally {
         loadingDetail.value = false;
     }
 }
 
+function initModalMonth() {
+    detailDateFrom.value = '';
+    detailDateTo.value = '';
+}
+
 function openSaldoAwalModal(row) {
     selectedRow.value = row;
+    initModalMonth();
     showSaldoAwalModal.value = true;
-    fetchTransactionDetail(row.item.id, 'saldo_awal');
+    fetchTransactionDetail(row.item?.id, 'saldo_awal');
 }
 
 function openStokMasukModal(row) {
     selectedRow.value = row;
+    initModalMonth();
     showStokMasukModal.value = true;
-    fetchTransactionDetail(row.item.id, 'stok_masuk');
+    fetchTransactionDetail(row.item?.id, 'stok_masuk');
 }
 
 function openStokKeluarModal(row) {
     selectedRow.value = row;
+    initModalMonth();
     showStokKeluarModal.value = true;
-    fetchTransactionDetail(row.item.id, 'stok_keluar');
+    fetchTransactionDetail(row.item?.id, 'stok_keluar');
 }
 
 function openTotalPersediaanModal(row) {
     selectedRow.value = row;
+    initModalMonth();
     showTotalPersediaanModal.value = true;
-    fetchTransactionDetail(row.item.id, 'total_persediaan');
+    fetchTransactionDetail(row.item?.id, 'total_persediaan');
+}
+
+function handleDetailMonthChange() {
+    if (selectedRow.value) {
+        fetchTransactionDetail(selectedRow.value.item?.id, 'total_persediaan');
+    }
+}
+
+function resetDetailDateFilter() {
+    detailDateFrom.value = '';
+    detailDateTo.value = '';
+    handleDetailMonthChange();
+}
+
+
+const showAdjustModal = ref(false);
+const adjustForm = useForm({
+    item_id: null,
+    actual_stock: null,
+    note: ''
+});
+
+watch(() => adjustForm.item_id, (newVal) => {
+    if (selectedRow.value && newVal) {
+        const branchData = selectedRow.value.branches_data.find(b => b.item_id === newVal);
+        if (branchData) {
+            adjustForm.actual_stock = parseFloat(selectedRow.value.stocks[branchData.branch_id]?.qty || 0);
+        }
+    }
+});
+
+function openAdjustModal(row) {
+    selectedRow.value = row;
+    adjustForm.item_id = row.branches_data[0]?.item_id || null;
+    adjustForm.actual_stock = row.branches_data[0] ? parseFloat(row.stocks[row.branches_data[0].branch_id]?.qty || 0) : 0;
+    adjustForm.note = 'Penyesuaian stok (Opname)';
+    showAdjustModal.value = true;
+}
+
+function submitAdjustment() {
+    if (adjustForm.actual_stock !== null && adjustForm.actual_stock !== undefined) {
+        adjustForm.actual_stock = String(adjustForm.actual_stock).replace(',', '.');
+    }
+    adjustForm.post(route('stock-recap.adjust'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showAdjustModal.value = false;
+            fetchRequests({});
+        }
+    });
 }
 
 const groupByLocal = ref(props.groupBy ?? "");
@@ -1329,6 +1452,7 @@ function fetchRequests({
         unit_id: filtersLocal.value.unit_id ? Number(filtersLocal.value.unit_id) : null,
         date_from: filtersLocal.value.date_from || null,
         date_to: filtersLocal.value.date_to || null,
+        hide_empty: filtersLocal.value.hide_empty ? '1' : null,
         groupBy: effectiveGroup.value || null,
         sortBy,
         sortDirection,

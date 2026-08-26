@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Item extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'branch_id',
@@ -21,7 +22,7 @@ class Item extends Model
     ];
 
     protected $casts = [
-        'min_stock' => 'integer',
+        'min_stock' => 'float',
     ];
 
     public function branch()

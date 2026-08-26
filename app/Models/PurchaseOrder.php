@@ -24,6 +24,9 @@ class PurchaseOrder extends Model
         'branch_id',
         'approved_at',
         'paid_amount',
+        'discount',
+        'other_cost',
+        'tax_percent',
     ];
 
     protected $casts = [
@@ -78,21 +81,25 @@ class PurchaseOrder extends Model
     public static function generateOrderNo($requestDate = null): string
     {
         $date = $requestDate ? Carbon::parse($requestDate) : now();
-        $ym = $date->format('Ym');
-        $prefix = 'PO-' . $ym . '-';
+        $month = $date->format('m');   // 2-digit month e.g. "05"
+        $year  = $date->format('Y');   // 4-digit year  e.g. "2026"
+        $prefix = 'PO-SPB-';
+        $suffix = '-' . $month . '-' . $year;
 
+        // Find the last sequence for this month-year
         $last = static::query()
-            ->where('order_no', 'like', $prefix . '%')
+            ->where('order_no', 'like', $prefix . '%' . $suffix)
             ->orderBy('order_no', 'desc')
             ->value('order_no');
 
         $seq = 1;
         if ($last) {
+            // Format: PO-SPB-008-05-2026 → parts[2] = "008"
             $parts = explode('-', $last);
             $lastSeq = (int)($parts[2] ?? 0);
             $seq = $lastSeq + 1;
         }
 
-        return $prefix . str_pad((string)$seq, 4, '0', STR_PAD_LEFT);
+        return $prefix . str_pad((string)$seq, 3, '0', STR_PAD_LEFT) . $suffix;
     }
 }

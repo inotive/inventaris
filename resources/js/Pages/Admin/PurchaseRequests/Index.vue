@@ -33,7 +33,7 @@
                         >
                             <option value="all">Kelompokan Berdasarkan</option>
                             <option value="department">
-                                Group: Departemen
+                                Group: Untuk Cabang
                             </option>
                             <option value="requested_by">
                                 Group: Diminta oleh
@@ -105,7 +105,7 @@
                                     @click="changeSort('department')"
                                     class="px-3 w-full font-medium text-left text-gray-600 dark:text-gray-300 whitespace-nowrap"
                                 >
-                                    Departemen
+                                    Untuk Cabang
                                     <SortIcon
                                         :active="sortBy === 'department'"
                                         :direction="sortDirection"
@@ -182,7 +182,7 @@
                                 <Select v-model="filtersLocal.department_id" :items="[
                                     { id: null, name: 'Semua' },
                                     ...departments
-                                ]" label="Pilih Departemen" class="w-full text-xs sm:text-sm" />
+                                ]" label="Pilih Untuk Cabang" class="w-full text-xs sm:text-sm" />
                             </th>
                             <th
                                 class="px-2 py-2 bg-gray-50 border border-gray-200 dark:border-gray-600 dark:bg-gray-900"
@@ -534,7 +534,7 @@ const groupedData = computed(() => {
 function keyOf(row) {
     switch (effectiveGroup.value) {
         case "department":
-            return row.department ?? "Tanpa Departemen";
+            return row.department ?? "Tanpa Cabang";
         case "requested_by":
             return row.requested_by ?? "Tanpa Pemohon";
         case "status":
@@ -547,7 +547,7 @@ function keyOf(row) {
 function groupLabel(key) {
     switch (effectiveGroup.value) {
         case "department":
-            return `Departemen: ${key}`;
+            return `Untuk Cabang: ${key}`;
         case "requested_by":
             return `Diminta oleh: ${key}`;
         case "status":

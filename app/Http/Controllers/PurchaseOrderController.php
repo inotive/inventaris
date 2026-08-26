@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Validation\Rule;
+
 use App\Actions\Data\GoodReceipt\CreateGoodReceipt;
 use App\Actions\Data\Item\UpdateStockItem;
 use App\Actions\Data\PurchaseOrder\CreatePurchaseOrderLogActivities;
@@ -50,9 +52,13 @@ class PurchaseOrderController extends Controller
         $query = PurchaseOrder::query()
             ->with(['request:id,request_no', 'applicant:id,name', 'branch:id,name', 'items.item.unit']);
 
-        // Filter by branch for non-superadmin users (except branch_id 2)
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2) {
-            $query->where('branch_id', $userBranchId);
+        // Filter by branch for non-superadmin users
+        $canViewGlobal = Auth::user()->hasRole('Superadmin') || Auth::user()->can('purchase_orders.view_global');
+        if (!$canViewGlobal) {
+            $userBranchId = Auth::user()->employee?->branch_id;
+            if ($userBranchId) {
+                $query->where('branch_id', $userBranchId);
+            }
         }
 
         // Apply filters
@@ -142,10 +148,12 @@ class PurchaseOrderController extends Controller
         $branches = Branch::where('id', $userBranchId)->pluck('id');
         $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
 
+        $canCreateGlobal = Auth::user()->can('purchase_orders.create_global') || $isSuperadmin;
+
         // Perbaiki referensi variabel $filters yang tak terdefinisi
         $items = Item::with(['unit', 'branch'])
             ->orderBy('name')
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($branches) {
+            ->when(!$canCreateGlobal, function ($query) use ($branches) {
                 return $query->whereIn('items.branch_id', $branches);
             })
             ->get();
@@ -163,7 +171,7 @@ class PurchaseOrderController extends Controller
                     'request_no' => $pr->request_no,
                     'department_id' => $pr->department_id,
                     'requirement' => $pr->requirement,
-                    'items' => $pr->items->map(function ($item) {
+                    'items' => $pr->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                         return [
                             'id' => $item->id,
                             'item_id' => $item->item_id,
@@ -183,9 +191,10 @@ class PurchaseOrderController extends Controller
         $employees = Employee::query()->select('id', 'name')->orderBy('name')->get();
 
         $isSuperadmin = $user->hasRole('Superadmin');
+        $canCreateGlobal = $user->can('purchase_orders.create_global');
 
-        // Get branches - all for superadmin or branch_id 2, only user's branch for others
-        $branches = ($isSuperadmin || $user->employee->branch_id == 2)
+        // Get branches - all for superadmin/global creators, only user's branch for others
+        $branches = ($isSuperadmin || $canCreateGlobal)
             ? Branch::query()->select('id', 'name')->orderBy('name')->get()
             : Branch::where('id', $user->employee->branch_id)->select('id', 'name')->get();
 
@@ -209,16 +218,21 @@ class PurchaseOrderController extends Controller
             'vendor' => ['required', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:255'],
             'branch_id' => ['nullable', 'exists:branches,id'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'other_cost' => ['nullable', 'numeric', 'min:0'],
+            'tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.quantity_ordered' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.quantity_ordered' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.cost' => ['nullable', 'numeric', 'min:0'],
             'items.*.note' => ['nullable', 'string', 'max:255'],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        // For non-superadmin (except branch_id 2), ensure branch_id matches user's branch
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2 && $data['branch_id'] != $userBranchId) {
+        $canCreateGlobal = Auth::user()->can('purchase_orders.create_global');
+
+        // For non-superadmin/non-global, ensure branch_id matches user's branch
+        if (!$isSuperadmin && !$canCreateGlobal && $userBranchId && $data['branch_id'] != $userBranchId) {
             return back()->withInput()->with('error', 'Anda tidak memiliki akses untuk membuat Purchase Order untuk cabang ini.');
         }
 
@@ -226,10 +240,16 @@ class PurchaseOrderController extends Controller
             DB::transaction(function () use ($data) {
                 $amountPaid = $data['amount_paid'] ?? 0;
 
-                $totalOrder = 0;
+                $subtotal = 0;
                 foreach ($data['items'] as $item) {
-                    $totalOrder += $item['quantity_ordered'] * ($item['cost'] ?? 0);
+                    $subtotal += $item['quantity_ordered'] * ($item['cost'] ?? 0);
                 }
+
+                $discount = $data['discount'] ?? 0;
+                $taxPercent = $data['tax_percent'] ?? 11;
+                $taxableAmount = max(0, $subtotal - $discount);
+                $ppn = $taxableAmount * ($taxPercent / 100);
+                $totalOrder = $taxableAmount + $ppn + ($data['other_cost'] ?? 0);
 
                 $statusInvoice = $totalOrder > $amountPaid ? PurchaseOrder::STATUS_INVOICE_BELUM_LUNAS : PurchaseOrder::STATUS_INVOICE_LUNAS;
 
@@ -241,7 +261,7 @@ class PurchaseOrderController extends Controller
 
                 $purchaseOrder = PurchaseOrder::create([
                     'request_id' => $data['request_id'],
-                    'order_no' => $data['order_no'],
+                    'order_no' => $data['order_no'] ?: PurchaseOrder::generateOrderNo($data['ordered_at']),
                     'ordered_at' => $data['ordered_at'],
                     'ordered_by' => Auth::user()->employee?->id ?? Auth::id(),
                     'status_invoice' => $statusInvoice,
@@ -249,6 +269,9 @@ class PurchaseOrderController extends Controller
                     'note' => $data['note'] ?? null,
                     'branch_id' => $branchId,
                     'paid_amount' => $amountPaid,
+                    'discount' => $discount,
+                    'other_cost' => $data['other_cost'] ?? 0,
+                    'tax_percent' => $taxPercent,
                 ]);
 
                 foreach ($data['items'] as $item) {
@@ -286,15 +309,50 @@ class PurchaseOrderController extends Controller
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
         $userBranchId = Auth::user()->employee?->branch_id;
 
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2 && $purchaseOrder->branch_id != $userBranchId) {
+        $canEditGlobal = Auth::user()->can('purchase_orders.create_global');
+        if (!$isSuperadmin && !$canEditGlobal && $userBranchId && $purchaseOrder->branch_id != $userBranchId) {
             abort(403, 'Anda tidak memiliki akses untuk melihat Purchase Order dari cabang ini.');
         }
 
-        $purchaseOrder->load(['request', 'applicant', 'branch', 'items.item.unit']);
+        $purchaseOrder->load([
+            'request',
+            'applicant',
+            'branch',
+            'items.item' => function ($query) {
+                $query->withTrashed()->with('unit');
+            },
+        ]);
 
-        $total = $purchaseOrder->items->sum(function ($item) {
-            return $item->quantity_ordered * ($item->cost ?? 0);
-        });
+        $isLunas = $purchaseOrder->status_invoice === \App\Models\PurchaseOrder::STATUS_INVOICE_LUNAS;
+
+        $isDeletedItem = fn ($item) => $item->item === null || $item->item->trashed();
+        $activeItems = $purchaseOrder->items->filter(fn ($item) => !$isDeletedItem($item))->values();
+        $hasDeletedItems = $purchaseOrder->items->contains($isDeletedItem);
+
+        $discount = $purchaseOrder->discount ?? 0;
+        $otherCost = $purchaseOrder->other_cost ?? 0;
+        $taxPercent = $purchaseOrder->tax_percent ?? 11;
+
+        $calcTotals = function ($items) use ($discount, $otherCost, $taxPercent) {
+            $subtotal = $items->sum(fn ($item) => $item->quantity_ordered * ($item->cost ?? 0));
+            // PPN is calculated from (Subtotal - Discount)
+            $taxableAmount = max(0, $subtotal - $discount);
+            $ppn = $taxableAmount * ($taxPercent / 100);
+            return [
+                'subtotal' => $subtotal,
+                'ppn' => $ppn,
+                'total' => $taxableAmount + $ppn + $otherCost,
+            ];
+        };
+
+        // Lunas orders keep the deleted item's row visible (historical record already settled),
+        // so the original ("before delete") and recalculated ("after delete") totals are both sent
+        // for the frontend toggle. Non-lunas orders hide deleted-item rows and only show the
+        // recalculated total, matching what's actually displayed in the item table.
+        $totalsBeforeDelete = $calcTotals($purchaseOrder->items);
+        $totalsAfterDelete = $calcTotals($activeItems);
+        $displayItems = $isLunas ? $purchaseOrder->items : $activeItems;
+        $displayTotals = $isLunas ? $totalsBeforeDelete : $totalsAfterDelete;
 
         $activities = \App\Models\PurchaseOrderActivity::where('purchase_order_id', $purchaseOrder->id)
             ->with('createdBy:id,name')
@@ -313,32 +371,59 @@ class PurchaseOrderController extends Controller
             'po' => [
                 'id' => $purchaseOrder->id,
                 'number' => $purchaseOrder->order_no,
-                'date' => $purchaseOrder->ordered_at->format('d/m/Y'),
+                'date' => $purchaseOrder->ordered_at->locale('id')->translatedFormat('d F Y'),
                 'vendor' => $purchaseOrder->vendor ? ['id' => $purchaseOrder->vendor, 'name' => $purchaseOrder->vendor] : null,
                 'status_delivered' => $purchaseOrder->status_delivered,
                 'status_invoice' => $purchaseOrder->status_invoice,
                 'paid_amount' => $purchaseOrder->paid_amount,
-                'total' => $total,
+                'discount' => $discount,
+                'other_cost' => $otherCost,
+                'subtotal' => $displayTotals['subtotal'],
+                'tax_percent' => $taxPercent,
+                'ppn' => $displayTotals['ppn'],
+                'total' => $displayTotals['total'],
                 'note' => $purchaseOrder->note,
                 'ordered_by' => $purchaseOrder->applicant?->name,
                 'branch' => $purchaseOrder->branch?->name ?? '-',
                 'branch_id' => $purchaseOrder->branch_id,
                 'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
-                'items' => $purchaseOrder->items->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'item_name' => $item->item?->name,
-                        'item_code' => $item->item?->code,
-                        'quantity_ordered' => $item->quantity_ordered,
-                        'quantity_received' => $item->quantity_received ?? 0,
-                        'cost' => $item->cost ?? 0,
-                        'unit' => $item->item?->unit?->short_name,
-                        'note' => $item->note,
-                        'note_received' => $item->note_received,
-                    ];
-                }),
+                'has_deleted_items' => $hasDeletedItems,
+                'totals_before_delete' => $isLunas ? $totalsBeforeDelete : null,
+                'totals_after_delete' => $isLunas ? $totalsAfterDelete : null,
+                'items' => (function () use ($displayItems, $purchaseOrder, $isDeletedItem) {
+                    $goodReceipts = \App\Models\GoodReceipt::where('order_id', $purchaseOrder->id)->pluck('id');
+                    $disposals = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
+                        ->whereIn('source_id', $goodReceipts)
+                        ->with('item')
+                        ->get();
+
+                    return $displayItems->values()->map(function ($item) use ($disposals, $isDeletedItem) {
+                        $itemName = $item->item?->name;
+                        $itemDisposals = $disposals->filter(function ($disposal) use ($itemName) {
+                            return optional($disposal->item)->name === $itemName;
+                        });
+                        $qtyRusak = $itemDisposals->where('reason', 'rusak')->sum('quantity');
+                        $qtyHilang = $itemDisposals->where('reason', 'hilang')->sum('quantity');
+
+                        return [
+                            'id' => $item->id,
+                            'item_name' => $item->item?->name,
+                            'item_code' => $item->item?->code,
+                            'quantity_ordered' => $item->quantity_ordered,
+                            'quantity_received' => $item->quantity_received ?? 0,
+                            'cost' => $item->cost ?? 0,
+                            'unit' => $item->item?->unit?->short_name,
+                            'note' => $item->note,
+                            'note_received' => $item->note_received,
+                            'quantity_damaged' => $qtyRusak,
+                            'quantity_lost' => $qtyHilang,
+                            'is_deleted' => $isDeletedItem($item),
+                        ];
+                    });
+                })(),
             ],
             'activities' => $activities,
+            'canUpdate' => Auth::user()->can('purchase_orders.edit'),
         ]);
     }
 
@@ -350,19 +435,59 @@ class PurchaseOrderController extends Controller
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
         $userBranchId = Auth::user()->employee?->branch_id;
 
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2 && $purchaseOrder->branch_id != $userBranchId) {
+        $canEditGlobal = Auth::user()->can('purchase_orders.create_global');
+        if (!$isSuperadmin && !$canEditGlobal && $userBranchId && $purchaseOrder->branch_id != $userBranchId) {
             abort(403, 'Anda tidak memiliki akses untuk mengubah Purchase Order dari cabang ini.');
         }
 
-        $purchaseOrder->load(['items.item.unit']);
+        $purchaseOrder->load(['request', 'items.item.unit']);
 
-        $items = Item::with(['unit'])->orderBy('name')->get();
+        $items = Item::with(['unit', 'branch'])
+            ->orderBy('name')
+            ->get();
         $employees = Employee::query()->select('id', 'name')->orderBy('name')->get();
 
-        // Get branches - all for superadmin or branch_id 2, only user's branch for others
-        $branches = ($isSuperadmin || $userBranchId == 2)
+        $canCreateGlobal = Auth::user()->can('purchase_orders.create_global');
+        // Get branches - all for superadmin or global creators, only user's branch for others
+        $branches = ($isSuperadmin || $canCreateGlobal)
             ? Branch::query()->select('id', 'name')->orderBy('name')->get()
             : Branch::where('id', $userBranchId)->select('id', 'name')->get();
+
+        $poBranchId = $purchaseOrder->branch_id ?: $userBranchId;
+        $departmentIds = Department::where('branch_id', $poBranchId)->pluck('id');
+        $purchaseRequests = PurchaseRequest::with(['items.item.unit'])
+            ->where(function($query) use ($purchaseOrder, $departmentIds) {
+                $query->where(function($q) use ($departmentIds) {
+                    $q->where('status', 'approved')
+                      ->whereIn('purchase_requests.department_id', $departmentIds);
+                });
+                if ($purchaseOrder->request_id) {
+                    $query->orWhere('id', $purchaseOrder->request_id);
+                }
+            })
+            ->orderByDesc('request_no')
+            ->get()
+            ->map(function ($pr) {
+                return [
+                    'id' => $pr->id,
+                    'request_no' => $pr->request_no,
+                    'department_id' => $pr->department_id,
+                    'requirement' => $pr->requirement,
+                    'items' => $pr->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
+                        return [
+                            'id' => $item->id,
+                            'item_id' => $item->item_id,
+                            'code' => $item->item?->code,
+                            'name' => $item->item?->name,
+                            'stock' => $item->item?->stock,
+                            'unit' => $item->item?->unit?->short_name,
+                            'quantity_requested' => $item->quantity_approved ?? $item->quantity_requested,
+                            'note' => $item->note,
+                            'branch' => $item->item?->branch?->name,
+                        ];
+                    }),
+                ];
+            });
 
         return Inertia::render('Admin/PurchaseOrders/Edit', [
             'po' => [
@@ -377,7 +502,11 @@ class PurchaseOrderController extends Controller
                 'status_invoice' => $purchaseOrder->status_invoice,
                 'status_delivered' => $purchaseOrder->status_delivered,
                 'amount_paid' => $purchaseOrder->paid_amount,
-                'items' => $purchaseOrder->items->map(function ($item) {
+                'discount' => $purchaseOrder->discount ?? 0,
+                'other_cost' => $purchaseOrder->other_cost ?? 0,
+                'tax_percent' => $purchaseOrder->tax_percent ?? 11,
+                'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
+                'items' => $purchaseOrder->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                     return [
                         'id' => $item->id,
                         'item_id' => $item->item_id,
@@ -391,6 +520,7 @@ class PurchaseOrderController extends Controller
                 }),
             ],
             'items' => $items,
+            'purchaseRequests' => $purchaseRequests,
             'employees' => $employees,
             'branches' => $branches,
             'isSuperadmin' => $isSuperadmin,
@@ -405,33 +535,47 @@ class PurchaseOrderController extends Controller
         $userBranchId = Auth::user()->employee?->branch_id;
 
         $data = $request->validate([
+            'order_no' => ['nullable', 'string', Rule::unique('purchase_orders', 'order_no')->ignore($purchaseOrder->id)],
             'vendor' => ['required', 'string', 'max:255'],
             'ordered_at' => ['required', 'date'],
             'note' => ['nullable', 'string', 'max:255'],
             'branch_id' => ['nullable', 'exists:branches,id'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'other_cost' => ['nullable', 'numeric', 'min:0'],
+            'tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.quantity_ordered' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.quantity_ordered' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.cost' => ['nullable', 'numeric', 'min:0'],
             'items.*.note' => ['nullable', 'string', 'max:255'],
             'amount_paid' => ['required', 'numeric', 'min:0'],
         ]);
 
-        // For non-superadmin (except branch_id 2), ensure branch_id matches user's branch
-        if (!$isSuperadmin && $userBranchId && $userBranchId != 2 && $data['branch_id'] != $userBranchId) {
+        $canEditGlobal = Auth::user()->can('purchase_orders.create_global');
+        // For non-superadmin (except global), ensure branch_id matches user's branch
+        if (!$isSuperadmin && !$canEditGlobal && $userBranchId && $data['branch_id'] != $userBranchId) {
             return back()->withInput()->with('error', 'Anda tidak memiliki akses untuk mengubah Purchase Order ke cabang ini.');
         }
 
         try {
             DB::transaction(function () use ($purchaseOrder, $data) {
                 $purchaseOrder->update([
+                    'order_no' => $data['order_no'] ?: $purchaseOrder->order_no,
                     'vendor' => $data['vendor'],
                     'ordered_at' => $data['ordered_at'],
                     'note' => $data['note'] ?? null,
                     'branch_id' => $data['branch_id'],
+                    'discount' => $data['discount'] ?? 0,
+                    'other_cost' => $data['other_cost'] ?? 0,
+                    'tax_percent' => $data['tax_percent'] ?? 11,
                 ]);
 
-                $purchaseOrder->items()->delete();
+                // Hapus hanya baris dengan barang AKTIF; baris yang barangnya
+                // sudah diarsipkan (soft delete) dipertahankan agar riwayat
+                // dokumen tidak berubah saat PO diedit.
+                $purchaseOrder->items()
+                    ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+                    ->delete();
 
                 foreach ($data['items'] as $item) {
                     $purchaseOrder->items()->create([
@@ -505,13 +649,15 @@ class PurchaseOrderController extends Controller
                 'status_delivered' => $purchaseOrder->status_delivered,
                 'status_invoice' => $purchaseOrder->status_invoice,
                 'paid_amount' => $purchaseOrder->paid_amount,
+                'discount' => $purchaseOrder->discount ?? 0,
+                'other_cost' => $purchaseOrder->other_cost ?? 0,
                 'total' => $total,
                 'note' => $purchaseOrder->note,
                 'receive_notes' => $purchaseOrder->receive_notes,
                 'ordered_by' => $purchaseOrder->applicant?->name,
                 'branch' => $purchaseOrder->applicant?->branch,
                 'from_pr' => $purchaseOrder->request ? ['id' => $purchaseOrder->request->id, 'number' => $purchaseOrder->request->request_no] : null,
-                'items' => $purchaseOrder->items->map(function ($item) {
+                'items' => $purchaseOrder->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                     return [
                         'id' => $item->id,
                         'item_name' => $item->item?->name,
@@ -534,28 +680,55 @@ class PurchaseOrderController extends Controller
     {
         abort_unless(Gate::allows('purchase_orders.edit'), 403, 'Anda tidak memiliki akses untuk memproses penerimaan pembelian');
 
-        $data = $request->validate([
+        $validated = $request->validate([
+            'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
             'quantities' => ['required', 'array'],
             'quantities.*.item_id' => ['required', 'exists:purchase_order_items,id'],
-            'quantities.*.quantity_received' => ['required', 'integer', 'min:0'],
+            'quantities.*.quantity_received' => ['required', 'numeric', 'min:0'],
             'quantities.*.receive_note' => ['nullable', 'string', 'max:500'],
+            'quantities.*.shortage_reason' => ['nullable', 'string', 'in:rusak,hilang'],
+            'quantities.*.shortage_quantity' => ['nullable', 'numeric', 'min:0.0001'],
+            'quantities.*.shortage_description' => ['nullable', 'string', 'max:500'],
+            'quantities.*.shortages' => ['nullable', 'array'],
+            'quantities.*.shortages.*.reason' => ['required', 'string', 'in:rusak,hilang'],
+            'quantities.*.shortages.*.quantity' => ['required', 'numeric', 'min:0.0001'],
+            'quantities.*.shortages.*.description' => ['nullable', 'string', 'max:500'],
         ]);
 
         try {
-            DB::transaction(function () use ($id, $data) {
+            DB::transaction(function () use ($id, $validated, $request) {
                 $purchaseOrder = PurchaseOrder::findOrFail($id);
 
                 $statusDelivered = PurchaseOrder::STATUS_DELIVERED_PENDING;
                 $totalReceived = 0;
+                $itemsMapped = [];
 
-                foreach ($data['quantities'] as $quantityData) {
+                foreach ($validated['quantities'] as $quantityData) {
                     $totalReceived += $quantityData['quantity_received'];
-                    $purchaseOrder->items()
+                    
+                    $poItem = $purchaseOrder->items()
                         ->where('id', $quantityData['item_id'])
-                        ->update([
+                        ->first();
+
+                    if ($poItem) {
+                        $poItem->update([
                             'quantity_received' => $quantityData['quantity_received'],
                             'note_received' => $quantityData['receive_note'] ?? null
                         ]);
+
+                        $itemsMapped[] = [
+                            'item_id' => $poItem->item_id,
+                            'quantity_transferred' => $poItem->quantity_ordered,
+                            'quantity_received' => $quantityData['quantity_received'],
+                            'note' => $quantityData['receive_note'] ?? null,
+                            'shortage_reason' => $quantityData['shortage_reason'] ?? null,
+                            'shortage_quantity' => $quantityData['shortage_quantity'] ?? null,
+                            'shortage_description' => $quantityData['shortage_description'] ?? null,
+                            'shortages' => $quantityData['shortages'] ?? null,
+                        ];
+                    }
                 }
 
                 if ($totalReceived == $purchaseOrder->items->sum('quantity_ordered')) {
@@ -566,26 +739,18 @@ class PurchaseOrderController extends Controller
 
                 $purchaseOrder->update(['status_delivered' => $statusDelivered]);
 
-                $data = [
+                $receiptData = [
                     'employee_id' => Auth::user()->employee?->id,
                     'order_id' => $purchaseOrder->id,
                     'source' => 'Pembelian',
                     'note' => 'Pembelian barang ' . $purchaseOrder->order_no . ' berhasil diterima oleh ' . Auth::user()->employee?->name,
                     'received_at' => now(),
+                    'attachment' => $request->file('attachment'),
+                    'attachments' => $request->file('attachments'),
+                    'items' => $itemsMapped,
                 ];
 
-                $data['items'] = $purchaseOrder->items->map(function ($item) use ($purchaseOrder) {
-                    return [
-                        'item_id' => $item->item_id,
-                        'quantity_transferred' => $item->quantity_ordered,
-                        'quantity_received' => $item->quantity_received,
-                        'note' => $item->note_received,
-                        'source' => PurchaseOrder::class,
-                        'source_id' => $purchaseOrder->id,
-                    ];
-                });
-
-                app(CreateGoodReceipt::class)->execute($data);
+                app(CreateGoodReceipt::class)->execute($receiptData);
 
                 $statusText = $statusDelivered === PurchaseOrder::STATUS_DELIVERED ? 'Barang Diterima Lengkap' : 'Barang Diterima Sebagian';
                 app(CreatePurchaseOrderLogActivities::class)->execute($purchaseOrder->id, $statusText, 'Barang diterima dengan total ' . $totalReceived . ' item. Status: ' . $statusText);
@@ -594,14 +759,13 @@ class PurchaseOrderController extends Controller
             Log::info('Purchase Order received successfully', ['po_id' => $id]);
             return back()->with('success', 'Barang berhasil diterima dan status Purchase Order diperbarui!');
         } catch (Exception $e) {
-            dd($e->getMessage());
             Log::error('Failed to receive purchase order', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'po_id' => $id,
-                'data' => $data
+                'data' => $validated
             ]);
-            return back()->with('error', 'Terjadi kesalahan saat menyimpan data penerimaan barang. Silakan coba lagi.');
+            return back()->with('error', 'Terjadi kesalahan saat menyimpan data penerimaan barang: ' . $e->getMessage());
         }
     }
 
@@ -612,8 +776,12 @@ class PurchaseOrderController extends Controller
         $data = $request->validate([
             'quantities' => ['required', 'array'],
             'quantities.*.item_id' => ['required', 'exists:purchase_order_items,id'],
-            'quantities.*.additional_quantity' => ['required', 'integer', 'min:0'],
+            'quantities.*.additional_quantity' => ['required', 'numeric', 'min:0'],
             'quantities.*.receive_note' => ['nullable', 'string', 'max:500'],
+            'quantities.*.shortages' => ['nullable', 'array'],
+            'quantities.*.shortages.*.reason' => ['required', 'string', 'in:rusak,hilang'],
+            'quantities.*.shortages.*.quantity' => ['required', 'numeric', 'min:0.0001'],
+            'quantities.*.shortages.*.description' => ['nullable', 'string', 'max:500'],
         ]);
 
         try {
@@ -648,20 +816,94 @@ class PurchaseOrderController extends Controller
                 $purchaseOrder->update(['status_delivered' => $statusDelivered]);
 
                 foreach ($data['quantities'] as $quantityData) {
-                    if ($quantityData['additional_quantity'] > 0) {
-                        $item = $purchaseOrder->items()->with('item')->where('id', $quantityData['item_id'])->first();
+                    // withTrashed: barang bisa saja diarsipkan setelah PO dibuat
+                    $item = $purchaseOrder->items()
+                        ->with(['item' => fn ($q) => $q->withTrashed()])
+                        ->where('id', $quantityData['item_id'])
+                        ->first();
+                    if (!$item || !$item->item) {
+                        continue;
+                    }
 
+                    $originalItem = clone $item->item;
+                    $receiverBranchId = Auth::user()->employee?->branch_id;
+                    $targetItem = $item->item;
+
+                    if ($receiverBranchId && $receiverBranchId != $originalItem->branch_id) {
+                        $itemInReceiverBranch = Item::where('name', $originalItem->name)
+                            ->where('branch_id', $receiverBranchId)
+                            ->first();
+                        if ($itemInReceiverBranch) {
+                            $targetItem = $itemInReceiverBranch;
+                        }
+                    }
+
+                    if ($quantityData['additional_quantity'] > 0) {
                         $stockInData = [
                             'type' => 'in',
                             'amount' => $quantityData['additional_quantity'],
-                            'item_id' => $item->item_id,
+                            'item_id' => $targetItem->id,
                             'source_type' => PurchaseOrder::class,
                             'source_id' => $purchaseOrder->id,
                             'tanggal' => now()->toDateString(),
                             'note' => 'Pembelian barang ' . $purchaseOrder->order_no . ' berhasil diterima oleh ' . Auth::user()->employee?->name,
                         ];
 
-                        app(UpdateStockItem::class)->execute($stockInData, $item->item);
+                        app(UpdateStockItem::class)->execute($stockInData, $targetItem);
+
+                        // Kurangi / sesuaikan data disposal yang sudah dicatat sebelumnya untuk item ini
+                        $goodReceipt = GoodReceipt::where('order_id', $purchaseOrder->id)->first();
+                        if ($goodReceipt) {
+                            $remainingToReduce = $quantityData['additional_quantity'];
+                            $disposals = \App\Models\ItemDisposal::where('source_type', GoodReceipt::class)
+                                ->where('source_id', $goodReceipt->id)
+                                ->where('item_id', $targetItem->id)
+                                ->orderBy('reason', 'asc') // 'hilang' dahulu (karena 'h' < 'r'), baru kemudian 'rusak'
+                                ->orderBy('id', 'asc')
+                                ->get();
+
+                            foreach ($disposals as $disposal) {
+                                if ($remainingToReduce <= 0) {
+                                    break;
+                                }
+
+                                if ($disposal->quantity <= $remainingToReduce) {
+                                    $remainingToReduce -= $disposal->quantity;
+                                    $disposal->delete();
+                                } else {
+                                    $disposal->decrement('quantity', $remainingToReduce);
+                                    $remainingToReduce = 0;
+                                }
+                            }
+                        }
+                    }
+
+                    // Create disposal records for new shortages if present
+                    $goodReceipt = GoodReceipt::where('order_id', $purchaseOrder->id)->first();
+                    if ($goodReceipt) {
+                        \App\Models\ItemDisposal::where('source_type', GoodReceipt::class)
+                            ->where('source_id', $goodReceipt->id)
+                            ->where('item_id', $targetItem->id)
+                            ->delete();
+                    }
+
+                    if (!empty($quantityData['shortages']) && is_array($quantityData['shortages'])) {
+                        foreach ($quantityData['shortages'] as $sh) {
+                            $shQty = (float)($sh['quantity'] ?? 0);
+                            if ($shQty > 0 && !empty($sh['reason'])) {
+                                \App\Models\ItemDisposal::create([
+                                    'disposal_no'   => \App\Models\ItemDisposal::generateDisposalNo(),
+                                    'item_id'       => $targetItem->id,
+                                    'quantity'      => $shQty,
+                                    'reason'        => $sh['reason'],
+                                    'description'   => $sh['description'] ?? null,
+                                    'source_type'   => GoodReceipt::class,
+                                    'source_id'     => $goodReceipt ? $goodReceipt->id : null,
+                                    'reported_by'   => Auth::user()->employee?->id,
+                                    'disposal_date' => now()->toDateString(),
+                                ]);
+                            }
+                        }
                     }
                 }
 
@@ -673,13 +915,16 @@ class PurchaseOrderController extends Controller
                 $purchaseOrder->items->each(function ($item) use ($purchaseOrder) {
                     $goodReceipt = GoodReceipt::where('order_id', $purchaseOrder->id)->first();
 
-                    $itemGoodReceipt = $goodReceipt->items()->where('item_id', $item->item_id)->first();
+                    if ($goodReceipt) {
+                        $itemGoodReceipt = $goodReceipt->items()->where('item_id', $item->item_id)->first();
 
-                    if ($itemGoodReceipt) {
-                        $itemGoodReceipt->update([
-                            'quantity_received' => $item->quantity_received,
-                            'note_received' => $item->note_received,
-                        ]);
+                        if ($itemGoodReceipt) {
+                            $itemGoodReceipt->update([
+                                'quantity_transferred' => $item->quantity_ordered,
+                                'quantity_received' => $item->quantity_received,
+                                'note' => $item->note_received,
+                            ]);
+                        }
                     }
                 });
             });

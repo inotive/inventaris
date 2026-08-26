@@ -22,6 +22,7 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\GoodIssuesController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\StockRecapController;
+use App\Http\Controllers\ItemDisposalController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\AbsenceAreaController;
 use App\Http\Controllers\GoodReceiptController;
@@ -54,6 +55,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeePerformanceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SubmissionGeneralController;
+use App\Http\Controllers\AttachmentController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -113,6 +115,7 @@ Route::middleware([
     Route::resource('/absence-areas', AbsenceAreaController::class);
 
     // Specific routes must be defined BEFORE the resource route
+    Route::get('/items/stock-breakdown', [MaterialRequestController::class, 'getItemStockBreakdown'])->name('items.stock-breakdown');
     Route::get('/material-requests/requests', [MaterialRequestController::class, 'getMaterialRequests'])->name('material-requests.requests');
     Route::get('/material-requests/items/by-department', [MaterialRequestController::class, 'getItemsByDepartment'])->name('material-requests.items.by-department');
     Route::get('/material-requests/items/by-request', [MaterialRequestController::class, 'getItemsByRequest'])->name('material-requests.items.by-request');
@@ -144,6 +147,7 @@ Route::middleware([
         Route::post('/{good_receipt}/print', [GoodReceiptController::class, 'print'])->name('good-receipts.print');
     });
     Route::resource('/good-transfers', GoodTransferController::class);
+    Route::get('/good-transfers/po-items/{order_no}', [GoodTransferController::class, 'getPOItems'])->name('good-transfers.po-items');
     Route::post('/good-transfers/{good_transfer}/receive', [GoodTransferController::class, 'receive'])->name('good-transfers.receive');
     Route::post('/good-transfers/{good_transfer}/cancel', [GoodTransferController::class, 'cancel'])->name('good-transfers.cancel');
     Route::get('/good-transfers/{good_transfer}/print-receipt', [GoodTransferController::class, 'printReceipt'])->name('good-transfers.print-receipt');
@@ -151,9 +155,11 @@ Route::middleware([
     Route::post('/good-issues/{good_issue}/approve', [GoodIssuesController::class, 'approve'])->name('good-issues.approve');
     Route::resource('/good-issues', GoodIssuesController::class);
 
+    Route::post('/items/bulk-destroy', [ItemController::class, 'bulkDestroy'])->name('items.bulk-destroy');
     Route::resource('/items', ItemController::class);
     Route::resource('/stock-in', StockInController::class);
     Route::resource('/stock-out', StockOutController::class);
+    Route::get('/item-disposals', [ItemDisposalController::class, 'index'])->name('item-disposals.index');
 
     // Announcements (Pengumuman)
     Route::resource('/announcements', \App\Http\Controllers\AnnouncementController::class)
@@ -316,12 +322,15 @@ Route::middleware([
     Route::get('/realtime-presences', [\App\Http\Controllers\PresenceController::class, 'index'])->name('realtime-presences.index');
     Route::get('/presences/get-information-employee', [\App\Http\Controllers\PresenceController::class, 'getInformationEmployee'])->name('presences.getInformationEmployee');
 
+    Route::get('/attachments/view', [AttachmentController::class, 'view'])->name('attachments.view');
+
     // Web logout for Inertia (used by router.post(route('logout')))
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
 
 Route::middleware(['web'])->group(function () {
     Route::get('/stock-recap', [StockRecapController::class, 'index'])->name('stock-recap.index');
+    Route::post('/stock-recap/adjust', [StockRecapController::class, 'adjust'])->name('stock-recap.adjust');
     Route::get('/api/stock-recap/detail', [StockRecapController::class, 'detail'])->name('stock-recap.detail');
 });
 

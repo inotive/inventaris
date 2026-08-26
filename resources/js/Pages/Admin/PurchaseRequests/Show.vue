@@ -45,8 +45,8 @@
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ pr.request_no }}</div>
                 </div>
                 <div>
-                    <div class="text-xs text-gray-500">Departemen</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ pr.department?.name }}</div>
+                    <div class="text-xs text-gray-500">Untuk Cabang</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ pr.department?.branch?.name || pr.department?.name }}</div>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Diajukan oleh</div>
@@ -54,7 +54,7 @@
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Tanggal Pengajuan</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatDate(pr.requested_at) }}</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ pr.requested_at }}</div>
                 </div>
                 <div v-if="pr.material_request">
                     <div class="text-xs text-gray-500">Referensi MR</div>
@@ -67,7 +67,7 @@
                 </div>
                 <div v-if="pr.approved_at">
                     <div class="text-xs text-gray-500">Waktu Persetujuan</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatDate(pr.approved_at) }}</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ pr.approved_at }}</div>
                 </div>
                 <div v-if="pr.status === 'rejected' && pr.reason">
                     <div class="text-xs text-gray-500">Alasan Penolakan</div>
@@ -152,8 +152,8 @@
                             <td class="px-3 py-2">{{ idx + 1 }}</td>
                             <td class="px-3 py-2">{{ it.item?.name }}</td>
                             <td class="px-3 py-2 font-mono">{{ it.item?.code }}</td>
-                            <td class="px-3 py-2">{{ it.quantity_requested }}</td>
-                            <td class="px-3 py-2">{{ it.quantity_approved || '-' }}</td>
+                            <td class="px-3 py-2">{{ it.quantity_requested ? parseFloat(it.quantity_requested) : 0 }}</td>
+                            <td class="px-3 py-2">{{ it.quantity_approved ? parseFloat(it.quantity_approved) : '-' }}</td>
                             <td class="px-3 py-2">{{ it.item?.unit?.short_name }}</td>
                             <td class="px-3 py-2">{{ it.note || '-' }}</td>
                         </tr>
@@ -191,7 +191,7 @@
                 class="inline-flex items-center rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">Setujui</button>
         </div>
 
-        <div v-if="pr.status === 'approved'"
+        <div v-if="pr.status === 'approved' && can_create_po"
         class="flex items-center justify-end gap-4">
             <button @click="openConvertToPO()"
                 class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
@@ -224,11 +224,11 @@
                             <tr v-for="(ap) in approvals" :key="ap.id" class="border-b">
                                 <td class="p-2">{{ ap.item?.name }}</td>
                                 <td class="p-2 font-mono">{{ ap.item?.code }}</td>
-                                <td class="p-2">{{ ap.quantity_requested }} <span class="px-1">{{
+                                <td class="p-2">{{ ap.quantity_requested ? parseFloat(ap.quantity_requested) : 0 }} <span class="px-1">{{
                                         ap.item?.unit?.short_name }}</span></td>
                                 <td class="p-2">
-                                    <input type="number" min="0" class="w-28 h-9 px-2 rounded border"
-                                        v-model.number="ap.quantity_approved" />
+                                    <input type="text" inputmode="decimal" class="w-28 h-9 px-2 rounded border text-center"
+                                        v-model="ap.quantity_approved" />
                                     <span class="px-1">{{ ap.item?.unit?.short_name }}</span>
                                 </td>
                                 <td class="p-2">
@@ -240,7 +240,7 @@
                     </table>
                 </div>
                 <div class="px-4 py-3 border-t flex justify-end gap-2">
-                    <button @click="showApprove" class="px-3 h-9 rounded border">Batal</button>
+                    <button @click="showApprove = false" class="px-3 h-9 rounded border">Batal</button>
                     <button @click="submitApprove" class="px-3 h-9 rounded bg-emerald-600 text-white">Simpan &
                         Setujui</button>
                 </div>
@@ -278,6 +278,21 @@
                     <form @submit.prevent="submitPO">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nomor PO</label>
+                                <input
+                                    type="text"
+                                    v-model="poForm.order_no"
+                                    class="w-full h-9 px-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500 font-mono"
+                                    placeholder="Auto-generate jika dikosongkan"
+                                />
+                                <div class="text-xs text-gray-400 mt-1">Kosongkan untuk generate otomatis (PO-SPB-001-06-2026)</div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal PO</label>
+                                <input type="date" v-model="poForm.po_date" required
+                                    class="w-full h-9 px-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Vendor <span class="text-red-500">*</span>
                                 </label>
@@ -286,7 +301,7 @@
                                     v-model="poForm.vendor"
                                     required
                                     :class="[
-                                        'w-full h-9 px-3 rounded border focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                                        'w-full h-9 px-3 rounded border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500',
                                         vendorError ? 'border-red-500' : 'border-gray-300'
                                     ]"
                                     placeholder="Nama Vendor"
@@ -296,16 +311,54 @@
                                 <p v-if="vendorError" class="mt-1 text-xs text-red-600">{{ vendorError }}</p>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal PO</label>
-                                <input type="date" v-model="poForm.po_date" required
-                                    class="w-full h-9 px-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Diskon</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        v-model.number="poForm.discount"
+                                        class="w-full h-9 pl-10 pr-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Biaya Lain-Lain</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        v-model.number="poForm.other_cost"
+                                        class="w-full h-9 pl-10 pr-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">PPN (%)</label>
+                                <div class="relative">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.01"
+                                        v-model.number="poForm.tax_percent"
+                                        class="w-full h-9 px-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500 font-mono"
+                                        placeholder="11"
+                                    />
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                                </div>
                             </div>
                         </div>
 
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
                             <textarea v-model="poForm.notes" rows="3"
-                                class="w-full px-3 py-2 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                class="w-full px-3 py-2 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
                                 placeholder="Catatan untuk Purchase Order (opsional)"></textarea>
                         </div>
 
@@ -325,7 +378,7 @@
                                     <tr v-for="(item, idx) in poForm.items" :key="idx" class="border-b">
                                         <td class="p-2">{{ item.item?.name }}</td>
                                         <td class="p-2 font-mono">{{ item.item?.code }}</td>
-                                        <td class="p-2">{{ item.quantity }} {{ item.item?.unit?.short_name }}</td>
+                                        <td class="p-2">{{ item.quantity ? parseFloat(item.quantity) : 0 }} {{ item.item?.unit?.short_name }}</td>
                                         <td class="p-2">
                                             <input type="number" min="0" step="0.01"
                                                 v-model.number="item.unit_price"
@@ -339,9 +392,25 @@
                                     </tr>
                                 </tbody>
                                 <tfoot>
-                                    <tr class="bg-gray-50 font-semibold">
-                                        <td colspan="4" class="p-2 text-right">Total:</td>
-                                        <td class="p-2 text-right">{{ formatCurrency(totalPOAmount) }}</td>
+                                    <tr class="bg-gray-50 text-xs text-gray-600">
+                                        <td colspan="4" class="p-2 text-right">Subtotal:</td>
+                                        <td class="p-2 text-right">{{ formatCurrency(poForm.items.reduce((total, item) => total + (item.total_price || 0), 0)) }}</td>
+                                    </tr>
+                                    <tr v-if="poForm.discount > 0" class="bg-gray-50 text-xs text-gray-600">
+                                        <td colspan="4" class="p-2 text-right">Diskon:</td>
+                                        <td class="p-2 text-right text-red-600">- {{ formatCurrency(poForm.discount) }}</td>
+                                    </tr>
+                                    <tr v-if="((poForm.items.reduce((total, item) => total + (item.total_price || 0), 0) - (poForm.discount || 0)) * ((poForm.tax_percent ?? 11) / 100)) > 0" class="bg-gray-50 text-xs text-gray-600">
+                                        <td colspan="4" class="p-2 text-right">PPN ({{ poForm.tax_percent ?? 11 }}%):</td>
+                                        <td class="p-2 text-right">{{ formatCurrency((Math.max(0, poForm.items.reduce((total, item) => total + (item.total_price || 0), 0) - (poForm.discount || 0))) * ((poForm.tax_percent ?? 11) / 100)) }}</td>
+                                    </tr>
+                                    <tr v-if="poForm.other_cost > 0" class="bg-gray-50 text-xs text-gray-600">
+                                        <td colspan="4" class="p-2 text-right">Biaya Lain-Lain:</td>
+                                        <td class="p-2 text-right">{{ formatCurrency(poForm.other_cost) }}</td>
+                                    </tr>
+                                    <tr class="bg-gray-100 font-semibold">
+                                        <td colspan="4" class="p-2 text-right text-sm">Total Akhir:</td>
+                                        <td class="p-2 text-right text-sm text-blue-600">{{ formatCurrency(totalPOAmount) }}</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -398,17 +467,21 @@ import { ref, computed } from 'vue'
 import Breadcrumb from '@/Components/common/Breadcrumb.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ConfirmModal from '@/Components/common/ConfirmModal.vue'
+import Swal from 'sweetalert2'
 
 const props = defineProps({
     pr: { type: Object, required: true },
     activities: { type: Array, default: () => [] },
     can_approve: { type: Boolean, default: false },
+    can_create_po: { type: Boolean, default: false },
     vendors: { type: Array, default: () => [] },
+    orderNo: { type: String, default: '' },
 })
 
 const pr = props.pr
 const activities = props.activities
 const can_approve = props.can_approve
+const can_create_po = props.can_create_po
 const vendors = props.vendors
 
 const breadcrumbs = [
@@ -427,9 +500,13 @@ const showPOForm = ref(false)
 
 // PO Form data
 const poForm = ref({
+    order_no: '',
     vendor: '',
     po_date: new Date().toISOString().split('T')[0],
     notes: '',
+    discount: '',
+    other_cost: '',
+    tax_percent: 11,
     items: []
 })
 
@@ -443,7 +520,12 @@ const rejectionForm = ref({
 
 // Computed properties
 const totalPOAmount = computed(() => {
-    return poForm.value.items.reduce((total, item) => total + (item.total_price || 0), 0)
+    const subtotal = poForm.value.items.reduce((total, item) => total + (item.total_price || 0), 0)
+    const discount = poForm.value.discount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const taxPercent = typeof poForm.value.tax_percent === 'number' ? poForm.value.tax_percent : 11;
+    const ppn = taxableAmount * (taxPercent / 100);
+    return taxableAmount + ppn + (poForm.value.other_cost || 0)
 })
 
 defineOptions({
@@ -484,8 +566,20 @@ function formatDate(date) {
 }
 
 function onDelete() {
-    if (!confirm('Hapus pengajuan pembelian ini?')) return
-    router.delete(route('purchase-requests.destroy', pr.id))
+    Swal.fire({
+        title: 'Hapus pengajuan?',
+        text: 'Apakah Anda yakin ingin menghapus pengajuan pembelian ini?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Ya, Hapus',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('purchase-requests.destroy', pr.id))
+        }
+    })
 }
 
 function onRejected() {
@@ -499,7 +593,11 @@ function closeConfirmRejected() {
 
 function submitRejected() {
     if (!rejectionForm.value.reason.trim()) {
-        alert('Alasan penolakan harus diisi')
+        Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan',
+            text: 'Alasan penolakan harus diisi'
+        })
         return
     }
 
@@ -516,19 +614,32 @@ function submitRejected() {
 }
 
 function openApprove() {
-    approvals.value = (pr.items || []).map(it => ({
-        id: it.id,
-        item: it.item,
-        quantity_requested: it.quantity_requested,
-        quantity_approved: it.quantity_approved ?? it.quantity_requested,
-        note: it.note || '',
-    }))
+    approvals.value = (pr.items || []).map(it => {
+        const qty = it.quantity_approved ?? it.quantity_requested;
+        return {
+            id: it.id,
+            item: it.item,
+            quantity_requested: it.quantity_requested,
+            quantity_approved: qty ? parseFloat(qty).toString().replace('.', ',') : '',
+            note: it.note || '',
+        }
+    })
     showApprove.value = true
 }
 
 function submitApprove() {
+    const sanitizedApprovals = approvals.value.map(it => {
+        let val = it.quantity_approved;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        return {
+            ...it,
+            quantity_approved: parseFloat(val) || 0,
+        };
+    });
     router.post(route('purchase-requests.approve', pr.id),
-        { approvals: approvals.value },
+        { approvals: sanitizedApprovals },
         { preserveScroll: true, onFinish: () => {
             showApprove.value = false;
             window.location.reload();
@@ -562,9 +673,10 @@ function openConvertToPO() {
 function confirmConvertToPO() {
     showConvertConfirm.value = false
 
-    // Initialize PO form with approved items
+    // Initialize PO form with approved items and auto-generated PO number
+    poForm.value.order_no = props.orderNo || ''
     poForm.value.items = (pr.items || [])
-        .filter(item => item.quantity_approved > 0)
+        .filter(item => item.quantity_approved > 0 && item.item)
         .map(item => ({
             item: item.item,
             quantity: item.quantity_approved,
@@ -605,29 +717,42 @@ function submitPO() {
 
     // Validate PO date
     if (!poForm.value.po_date) {
-        alert('Tanggal PO harus diisi')
+        Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan',
+            text: 'Tanggal PO harus diisi'
+        })
         return
     }
 
     // Validate items have prices
     if (poForm.value.items.some(item => item.unit_price <= 0)) {
-        alert('Masukkan harga untuk semua item')
+        Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan',
+            text: 'Masukkan harga untuk semua item'
+        })
         return
     }
 
     router.post(route('purchase-orders.store'), {
         request_id: pr.id,
-        order_no: '', // Will be auto-generated
+        order_no: poForm.value.order_no,
         ordered_at: poForm.value.po_date,
         vendor: poForm.value.vendor,
         branch_id: pr.department?.branch_id,
         note: poForm.value.notes,
-        items: poForm.value.items.map(item => ({
-            item_id: item.item.id,
-            quantity_ordered: item.quantity,
-            cost: item.unit_price,
-            note: ''
-        }))
+        discount: poForm.value.discount,
+        other_cost: poForm.value.other_cost,
+        tax_percent: poForm.value.tax_percent,
+        items: poForm.value.items
+            .filter(item => item.item)
+            .map(item => ({
+                item_id: item.item.id,
+                quantity_ordered: item.quantity,
+                cost: item.unit_price,
+                note: ''
+            }))
     }, {
         onSuccess: () => {
             showPOForm.value = false

@@ -19,22 +19,17 @@
             <div class="space-y-2">
                 <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >Departemen</label
+                    >Sumber Cabang</label
                 >
                 <Select
                     v-model="form.department_id"
-                    label="Pilih departemen"
-                    :items="
-                        props.user?.department
-                            ? [props.user.department]
-                            : departments
-                    "
+                    label="Pilih Sumber Cabang"
+                    :items="branchesAsDepartments"
                     :disabled="!isSuperadmin"
                 >
                     <template #item="{ item }">
                         <span>
-                            {{ item.name
-                            }}{{ item.branch ? " - " + item.branch.name : "" }}
+                            {{ item.name }}
                         </span>
                     </template>
                 </Select>
@@ -110,6 +105,17 @@ const props = defineProps({
     materialRequests: { type: Array, required: true },
     isSuperadmin: { type: Boolean, required: true },
     isEdit: { type: Boolean, default: false },
+});
+
+// Map departments list to represent branch name
+const branchesAsDepartments = computed(() => {
+    const list = props.departments || [];
+    return list.map(item => {
+        return {
+            id: item.id,
+            name: item.branch ? item.branch.name : item.name,
+        };
+    });
 });
 
 // Store fetched MRs based on department

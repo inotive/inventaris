@@ -42,6 +42,7 @@
                 :user="user"
                 :employees="employees"
                 :roles="roles"
+                :purchaseOrders="purchaseOrders"
                 @submit="submit"
                 @cancel="goBack"
             />
@@ -185,7 +186,7 @@
                                             <span class="font-medium text-gray-900 dark:text-gray-100 text-sm">{{ item.name }}</span>
                                             <span class="text-xs text-gray-500 dark:text-gray-400">{{ item.code || '-' }}</span>
                                         </div>
-                                    </template>
+</template>
                                 </Select>
                                 <!-- Pesan error validasi untuk item_id -->
                                 <div v-if="form.errors[`items.${i}.item_id`]" class="text-xs text-rose-600 mt-1 flex items-center gap-1">
@@ -226,8 +227,8 @@
                                 >
                                     <input
                                         v-model="r.amount"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         :class="[
                                             'w-24 rounded dark:bg-gray-800 dark:text-white/90',
                                             form.errors[`items.${i}.amount`] || isQuantityExceedStock(r)
@@ -407,10 +408,68 @@
             </div>
         </div>
     </div>
+
+                                    
+    <!-- Modal Detail Stok Per Gudang -->
+    <Modal
+        :show="showStockModal"
+        @close="showStockModal = false"
+        title="Detail Stok Per Gudang"
+        close-text="Tutup"
+        max-width="lg"
+    >
+        <div class="space-y-4">
+            <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Nama Barang:</span>
+                    <span class="font-semibold text-gray-950 dark:text-white">{{ selectedStockDetails.itemName }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Kode Barang:</span>
+                    <span class="font-mono text-gray-950 dark:text-white">{{ selectedStockDetails.itemCode }}</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-1.5 mt-1.5">
+                    <span class="text-gray-500 dark:text-gray-400 font-medium">Total Stok Keseluruhan:</span>
+                    <span class="font-bold text-blue-600 dark:text-blue-400">{{ selectedStockDetails.totalStock }} {{ selectedStockDetails.unit }}</span>
+                </div>
+            </div>
+
+            <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-xs">
+                    <thead class="bg-gray-50 dark:bg-gray-900/80">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Gudang / Cabang</th>
+                            <th class="px-4 py-2 text-right font-semibold text-gray-500 dark:text-gray-400">Stok</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-800">
+                        <tr v-if="selectedStockDetails.breakdown.length === 0">
+                            <td colspan="2" class="px-4 py-3 text-center text-gray-500">Tidak ada data breakdown</td>
+                        </tr>
+                        <tr
+                            v-else
+                            v-for="b in selectedStockDetails.breakdown"
+                            :key="b.branch_id"
+                            class="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                            <td class="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{{ b.branch_name }}</td>
+                            <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">
+                                <span :class="b.stock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'">
+                                    {{ b.stock }} {{ selectedStockDetails.unit }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </Modal>
 </template>
 
 <script setup>
 import AppLayout from "@/Layouts/AppLayout.vue";
+import Modal from "@/Components/common/Modal.vue";
+import axios from "axios";
 import Breadcrumb from "@/Components/common/Breadcrumb.vue";
 import Form from "./Form.vue";
 import TrashIcon from "@/Components/icons/TrashIcon.vue";
@@ -437,6 +496,7 @@ const props = defineProps({
     employees: { type: Array, required: true },
     user: { type: Object, required: true },
     roles: { type: String, required: true },
+    purchaseOrders: { type: Array, default: () => [] },
 });
 console.log(props.employees)
 const options = ref(
@@ -444,13 +504,36 @@ const options = ref(
         id: i.id,
         name: i.name,
         code: i.code,
-        stock: i.stock?.last_stock || 0,
+        stock: parseFloat(i.stock?.last_stock || i.stock || 0),
         unit: i.unit,
     }))
 );
 
 // Modal state
 const showConfirmationModal = ref(false);
+
+// State for Stock Breakdown Modal
+const showStockModal = ref(false);
+const selectedStockDetails = ref({
+    itemName: "",
+    itemCode: "",
+    totalStock: 0,
+    breakdown: [],
+    unit: ""
+});
+
+const openStockBreakdown = (row) => {
+    if (!row.item_id) return;
+    
+    selectedStockDetails.value = {
+        itemName: row.name || row.item_id.name,
+        itemCode: row.code || row.item_id.code || "-",
+        totalStock: row.total_stock || row.stock || 0,
+        breakdown: row.stockBreakdown || [],
+        unit: row.unit?.short_name || ""
+    };
+    showStockModal.value = true;
+};
 
 // Computed property to get available options for each row (excluding already selected items)
 const getAvailableOptions = (currentRowIndex) => {
@@ -463,7 +546,12 @@ const getAvailableOptions = (currentRowIndex) => {
 
 // Function to check if quantity exceeds stock
 const isQuantityExceedStock = (row) => {
-    return row.amount > row.stock;
+    let qty = row.amount;
+    if (typeof qty === 'string') {
+        qty = qty.replace(',', '.');
+    }
+    const numericQty = qty ? Number(qty) : 0;
+    return numericQty > row.stock;
 };
 
 function addTag(newTag) {
@@ -486,12 +574,15 @@ const items = ref(
         return reactive({
             uid: uuidv4(),
             item_id: itemData || null,
-            amount: item.amount || item.quantity_transferred || 1,
+            amount: item.amount || item.quantity_transferred ? parseFloat(item.amount || item.quantity_transferred) : 0,
             code: item.item_code || "",
             name: item.item_name || "",
-            stock: itemData?.stock || 0,
+            stock: itemData?.stock ? parseFloat(itemData.stock) : 0,
             unit: itemData?.unit || null,
             note: item.note || "",
+            isLoadingStock: false,
+            stockBreakdown: [],
+            total_stock: 0,
         });
     }) || [
         reactive({
@@ -503,9 +594,59 @@ const items = ref(
             stock: 0,
             unit: null,
             note: "",
+        isLoadingStock: false,
+        stockBreakdown: [],
+        total_stock: 0,
         }),
     ]
 );
+
+
+// Function to bind watcher to a row
+const bindWatcher = (row) => {
+    watch(
+        () => row.item_id,
+        async (newVal) => {
+            if (newVal) {
+                row.code = newVal.code;
+                row.name = newVal.name;
+                row.stock = newVal.stock ? (newVal.stock.last_stock !== undefined ? parseFloat(newVal.stock.last_stock) : parseFloat(newVal.stock)) : 0;
+                row.unit = newVal.unit;
+                
+                // Fetch overall stock breakdown
+                row.isLoadingStock = true;
+                row.stockBreakdown = [];
+                row.total_stock = row.stock; // fallback
+                
+                try {
+                    const response = await axios.get(route('items.stock-breakdown'), {
+                        params: { item_id: newVal.id }
+                    });
+                    if (response.data) {
+                        row.total_stock = parseFloat(response.data.total_stock);
+                        row.stockBreakdown = response.data.breakdown.map(b => ({
+                            ...b,
+                            stock: parseFloat(b.stock)
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Error fetching stock breakdown:', error);
+                } finally {
+                    row.isLoadingStock = false;
+                }
+            } else {
+                row.code = "";
+                row.name = "";
+                row.stock = 0;
+                row.unit = null;
+                row.stockBreakdown = [];
+                row.isLoadingStock = false;
+                row.total_stock = 0;
+            }
+        },
+        { immediate: true } // Run immediately to handle initial values
+    );
+};
 
 const addItem = () => {
     const newRow = reactive({
@@ -517,71 +658,91 @@ const addItem = () => {
         stock: 0,
         unit: null,
         note: "",
+        isLoadingStock: false,
+        stockBreakdown: [],
+        total_stock: 0,
     });
 
-    watch(
-        () => newRow.item_id,
-        (newVal) => {
-            if (newVal) {
-                newRow.code = newVal.code;
-                newRow.name = newVal.name;
-                newRow.stock = newVal.stock || 0;
-                newRow.unit = newVal.unit;
-            } else {
-                newRow.code = "";
-                newRow.name = "";
-                newRow.stock = 0;
-                newRow.unit = null;
-            }
-        }
-    );
+    bindWatcher(newRow);
 
     items.value.push(newRow);
 };
 
-items.value.forEach((row) => {
-    watch(
-        () => row.item_id,
-        (newVal) => {
-            if (newVal) {
-                row.code = newVal.code;
-                row.name = newVal.name;
-                row.stock = newVal.stock || 0;
-                row.unit = newVal.unit;
-            } else {
-                row.code = "";
-                row.name = "";
-                row.stock = 0;
-                row.unit = null;
-            }
-        }
-    );
-});
+items.value.forEach(bindWatcher);
 
 const removeItem = (index) => {
     items.value.splice(index, 1);
 };
 
 const form = useForm({
+    transfer_no: props.goodTransfer.transfer_no ?? "",
     from_branch_id: props.goodTransfer.from_branch_id ?? null,
     to_branch_id: props.goodTransfer.to_branch_id ?? null,
     employee_id: props.goodTransfer.employee_id ?? null,
     transferred_at: props.goodTransfer.transferred_at ?? '',
     purpose: props.goodTransfer.purpose ?? '',
+    po_no: props.goodTransfer.po_no ?? '',
     items: props.items?.map(item => ({
         uid: uuidv4(),
         item_id: item.item_id,
         amount: item.amount || item.quantity_transferred || 1,
         note: item.note || "",
+            isLoadingStock: false,
+            stockBreakdown: [],
+            total_stock: 0,
     })) || [
         {
             uid: uuidv4(),
             item_id: null,
             amount: 1,
             note: "",
+        isLoadingStock: false,
+        stockBreakdown: [],
+        total_stock: 0,
         },
     ],
 });
+
+watch(
+    () => form.po_no,
+    async (newVal) => {
+        if (!newVal) {
+            return;
+        }
+        try {
+            const response = await fetch(`/good-transfers/po-items/${newVal}?from_branch_id=${form.from_branch_id}`);
+            const data = await response.json();
+            if (data && data.items) {
+                items.value = data.items.map(poItem => {
+                    const matchedItem = {
+                        id: poItem.id,
+                        name: poItem.name,
+                        code: poItem.code,
+                        stock: poItem.stock,
+                        unit: poItem.unit
+                    };
+                    
+                    const newRow = reactive({
+                        uid: uuidv4(),
+                        item_id: matchedItem,
+                        amount: poItem.quantity_ordered ? parseFloat(poItem.quantity_ordered) : 0,
+                        code: poItem.code || "",
+                        name: poItem.name || "",
+                        stock: poItem.stock ? parseFloat(poItem.stock) : 0,
+                        unit: poItem.unit || null,
+                        note: poItem.note || "",
+                    });
+                    
+                    bindWatcher(newRow);
+                    
+                    return newRow;
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching PO items:', error);
+        }
+    }
+);
 
 function saveTransfer() {
     // Clear previous errors
@@ -608,11 +769,16 @@ function saveTransfer() {
             form.setError(`items.${i}.item_id`, 'Pilih barang yang akan dipindahkan');
             return true;
         }
-        if (!r.amount || r.amount <= 0) {
+        let qty = r.amount;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        const numericQty = qty ? Number(qty) : 0;
+        if (isNaN(numericQty) || numericQty <= 0) {
             form.setError(`items.${i}.amount`, 'Jumlah pengiriman harus lebih dari 0');
             return true;
         }
-        if (r.amount > r.stock) {
+        if (numericQty > r.stock) {
             form.setError(`items.${i}.amount`, `Jumlah pengiriman tidak boleh melebihi stok tersedia (${r.stock} ${r.unit?.short_name || ''})`);
             return true;
         }
@@ -623,12 +789,18 @@ function saveTransfer() {
         return;
     }
 
-    form.items = items.value.map((r, i) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null, // karena Select pakai object
-        amount: r.amount,
-        note: r.note ?? null,
-    }));
+    form.items = items.value.map((r, i) => {
+        let qty = r.amount;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        return {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null, // karena Select pakai object
+            amount: qty ? Number(qty) : 0,
+            note: r.note ?? null,
+        };
+    });
 
     form.put(route("good-transfers.update", props.goodTransfer.id));
 }

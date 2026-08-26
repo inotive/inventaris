@@ -38,8 +38,9 @@
                 </div>
             </div>
 
-            <Form :form="form" :branches="branches" :employees="employees" :user="user" :roles="roles"
-                @cancel="goBack" />
+            <Form :form="form" :branches="branches" :employees="employees" :user="user" :roles="roles" :purchaseOrders="purchaseOrders"
+                @cancel="goBack"
+                @attachments-changed="handleAttachmentsChanged" />
         </div>
 
         <div
@@ -132,7 +133,7 @@
                                             <span class="text-xs text-gray-500 dark:text-gray-400">{{ item.code || '-'
                                                 }}</span>
                                         </div>
-                                    </template>
+</template>
                                 </Select>
                                 <!-- Pesan error validasi untuk item_id -->
                                 <div v-if="form.errors[`items.${i}.item_id`]"
@@ -193,16 +194,34 @@
                                     </p>
                                 </div>
                             </td>
-                            <td class="py-2.5 border border-gray-200 dark:border-gray-600">
+                                                        <td class="py-2.5 border border-gray-200 dark:border-gray-600">
                                 <div class="flex items-center px-3 whitespace-nowrap justify-center">
-                                    <p class="text-gray-500 dark:text-gray-400">
-                                        {{ r.stock }} {{ r.unit?.short_name }}
-                                    </p>
+                                    <div v-if="r.isLoadingStock" class="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
+                                        <svg class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Memuat...</span>
+                                    </div>
+                                    <button
+                                        v-else-if="r.item_id"
+                                        type="button"
+                                        @click="openStockBreakdown(r)"
+                                        class="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition flex items-center gap-1 mx-auto cursor-pointer"
+                                        title="Klik untuk detail stok per gudang"
+                                    >
+                                        <span>{{ r.stock }}</span>
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                    <span v-else class="text-gray-400">-</span>
                                 </div>
                             </td>
                             <td class="py-2.5 border border-gray-200 dark:border-gray-600">
                                 <div class="flex items-center gap-3 ps-6 whitespace-nowrap">
-                                    <input v-model="r.quantity_transferred" type="number" min="0" :class="[
+                                    <input v-model="r.quantity_transferred" type="text" inputmode="decimal" :class="[
                                         'w-24 rounded dark:bg-gray-800 dark:text-white/90',
                                         form.errors[`items.${i}.quantity_transferred`] || isQuantityExceedStock(r)
                                             ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
@@ -370,10 +389,68 @@
             </div>
         </div>
     </div>
+
+                                    
+    <!-- Modal Detail Stok Per Gudang -->
+    <Modal
+        :show="showStockModal"
+        @close="showStockModal = false"
+        title="Detail Stok Per Gudang"
+        close-text="Tutup"
+        max-width="lg"
+    >
+        <div class="space-y-4">
+            <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Nama Barang:</span>
+                    <span class="font-semibold text-gray-950 dark:text-white">{{ selectedStockDetails.itemName }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Kode Barang:</span>
+                    <span class="font-mono text-gray-950 dark:text-white">{{ selectedStockDetails.itemCode }}</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-1.5 mt-1.5">
+                    <span class="text-gray-500 dark:text-gray-400 font-medium">Total Stok Keseluruhan:</span>
+                    <span class="font-bold text-blue-600 dark:text-blue-400">{{ selectedStockDetails.totalStock }} {{ selectedStockDetails.unit }}</span>
+                </div>
+            </div>
+
+            <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-xs">
+                    <thead class="bg-gray-50 dark:bg-gray-900/80">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Gudang / Cabang</th>
+                            <th class="px-4 py-2 text-right font-semibold text-gray-500 dark:text-gray-400">Stok</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-800">
+                        <tr v-if="selectedStockDetails.breakdown.length === 0">
+                            <td colspan="2" class="px-4 py-3 text-center text-gray-500">Tidak ada data breakdown</td>
+                        </tr>
+                        <tr
+                            v-else
+                            v-for="b in selectedStockDetails.breakdown"
+                            :key="b.branch_id"
+                            class="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                            <td class="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{{ b.branch_name }}</td>
+                            <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">
+                                <span :class="b.stock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'">
+                                    {{ b.stock }} {{ selectedStockDetails.unit }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </Modal>
 </template>
 
 <script setup>
 import AppLayout from "@/Layouts/AppLayout.vue";
+import Modal from "@/Components/common/Modal.vue";
+import axios from "axios";
 import Breadcrumb from "@/Components/common/Breadcrumb.vue";
 import Form from "./Form.vue";
 import TrashIcon from "@/Components/icons/TrashIcon.vue";
@@ -402,6 +479,8 @@ const props = defineProps({
     roles: { type: String, default: () => "" },
     sortBy: String,
     sortDirection: String,
+    purchaseOrders: { type: Array, default: () => [] },
+    transfer_no: { type: String, default: () => "" },
 });
 
 const options = ref(
@@ -409,7 +488,7 @@ const options = ref(
         id: i.id,
         name: i.name,
         code: i.code,
-        stock: i.stock,
+        stock: i.stock ? (i.stock.last_stock !== undefined ? parseFloat(i.stock.last_stock) : parseFloat(i.stock)) : 0,
         unit: i.unit,
         branch_id: i.branch_id,
     }))
@@ -417,6 +496,34 @@ const options = ref(
 
 // Modal state
 const showConfirmationModal = ref(false);
+
+// State for Stock Breakdown Modal
+const showStockModal = ref(false);
+const selectedStockDetails = ref({
+    itemName: "",
+    itemCode: "",
+    totalStock: 0,
+    breakdown: [],
+    unit: ""
+});
+
+const openStockBreakdown = (row) => {
+    if (!row.item_id) return;
+    
+    selectedStockDetails.value = {
+        itemName: row.name || row.item_id.name,
+        itemCode: row.code || row.item_id.code || "-",
+        totalStock: row.total_stock || row.stock || 0,
+        breakdown: row.stockBreakdown || [],
+        unit: row.unit?.short_name || ""
+    };
+    showStockModal.value = true;
+};
+const attachmentFiles = ref([]);
+
+function handleAttachmentsChanged(files) {
+    attachmentFiles.value = files;
+}
 
 // Computed property to get available options for each row (excluding already selected items and mismatched branch)
 const getAvailableOptions = (currentRowIndex) => {
@@ -428,14 +535,19 @@ const getAvailableOptions = (currentRowIndex) => {
 
     return options.value.filter(option => {
         const notSelected = !selectedItemIds.includes(option.id);
-        const branchMatch = fromBranchId ? option.branch_id === fromBranchId : true;
+        const branchMatch = fromBranchId ? option.branch_id == fromBranchId : true;
         return notSelected && branchMatch;
     });
 };
 
 // Function to check if quantity exceeds stock
 const isQuantityExceedStock = (row) => {
-    return row.quantity_transferred > row.stock;
+    let qty = row.quantity_transferred;
+    if (typeof qty === 'string') {
+        qty = qty.replace(',', '.');
+    }
+    const numericQty = qty ? Number(qty) : 0;
+    return numericQty > row.stock;
 };
 
 function addTag(newTag) {
@@ -463,8 +575,58 @@ const items = ref([
         stock: 0,
         unit: null,
         note: "",
+        isLoadingStock: false,
+        stockBreakdown: [],
+        total_stock: 0,
     }),
 ]);
+
+
+// Function to bind watcher to a row
+const bindWatcher = (row) => {
+    watch(
+        () => row.item_id,
+        async (newVal) => {
+            if (newVal) {
+                row.code = newVal.code;
+                row.name = newVal.name;
+                row.stock = newVal.stock ? (newVal.stock.last_stock !== undefined ? parseFloat(newVal.stock.last_stock) : parseFloat(newVal.stock)) : 0;
+                row.unit = newVal.unit;
+                
+                // Fetch overall stock breakdown
+                row.isLoadingStock = true;
+                row.stockBreakdown = [];
+                row.total_stock = row.stock; // fallback
+                
+                try {
+                    const response = await axios.get(route('items.stock-breakdown'), {
+                        params: { item_id: newVal.id }
+                    });
+                    if (response.data) {
+                        row.total_stock = parseFloat(response.data.total_stock);
+                        row.stockBreakdown = response.data.breakdown.map(b => ({
+                            ...b,
+                            stock: parseFloat(b.stock)
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Error fetching stock breakdown:', error);
+                } finally {
+                    row.isLoadingStock = false;
+                }
+            } else {
+                row.code = "";
+                row.name = "";
+                row.stock = 0;
+                row.unit = null;
+                row.stockBreakdown = [];
+                row.isLoadingStock = false;
+                row.total_stock = 0;
+            }
+        },
+        { immediate: true } // Run immediately to handle initial values
+    );
+};
 
 const addItem = () => {
     const newRow = reactive({
@@ -476,63 +638,39 @@ const addItem = () => {
         stock: 0,
         unit: null,
         note: "",
+        isLoadingStock: false,
+        stockBreakdown: [],
+        total_stock: 0,
     });
 
-    watch(
-        () => newRow.item_id,
-        (newVal) => {
-            if (newVal) {
-                newRow.code = newVal.code;
-                newRow.name = newVal.name;
-                newRow.stock = newVal.stock?.last_stock || 0;
-                newRow.unit = newVal.unit;
-            } else {
-                newRow.code = "";
-                newRow.name = "";
-                newRow.stock = 0;
-                newRow.unit = null;
-            }
-        }
-    );
+    bindWatcher(newRow);
 
     items.value.push(newRow);
 };
 
-items.value.forEach((row) => {
-    watch(
-        () => row.item_id,
-        (newVal) => {
-            if (newVal) {
-                row.code = newVal.code;
-                row.name = newVal.name;
-                row.stock = newVal.stock?.last_stock || 0;
-                row.unit = newVal.unit;
-            } else {
-                row.code = "";
-                row.name = "";
-                row.stock = 0;
-                row.unit = null;
-            }
-        }
-    );
-});
+items.value.forEach(bindWatcher);
 
 const removeItem = (index) => {
     items.value.splice(index, 1);
 };
 
 const form = useForm({
+    transfer_no: props.transfer_no ?? "",
     from_branch_id: props.user?.employee?.branch?.id ?? null,
     to_branch_id: null,
     employee_id: props.user?.employee?.id ?? null,
     transferred_at: new Date().toISOString().slice(0, 10),
     purpose: "",
+    po_no: "",
     items: [
         {
             uid: uuidv4(),
             item_id: null,
             quantity_transferred: 1,
             note: "",
+        isLoadingStock: false,
+        stockBreakdown: [],
+        total_stock: 0,
         },
     ],
 });
@@ -551,63 +689,93 @@ watch(
     }
 );
 
-function saveLog() {
-    // Clear previous errors
-    form.clearErrors();
-
-    // Validate that there's at least one item
-    if (!items.value || items.value.length === 0) {
-        form.setError('items', 'Minimal harus ada satu item pemindahan');
-        return;
+watch(
+    () => form.po_no,
+    async (newVal) => {
+        if (!newVal) {
+            return;
+        }
+        try {
+            const response = await fetch(`/good-transfers/po-items/${newVal}?from_branch_id=${form.from_branch_id}`);
+            const data = await response.json();
+            if (data && data.items) {
+                items.value = data.items.map(poItem => {
+                    const matchedItem = {
+                        id: poItem.id,
+                        name: poItem.name,
+                        code: poItem.code,
+                        stock: poItem.stock,
+                        unit: poItem.unit
+                    };
+                    
+                    const newRow = reactive({
+                        uid: uuidv4(),
+                        item_id: matchedItem,
+                        quantity_transferred: poItem.quantity_ordered ? parseFloat(poItem.quantity_ordered) : 0,
+                        code: poItem.code || "",
+                        name: poItem.name || "",
+                        stock: poItem.stock ? parseFloat(poItem.stock) : 0,
+                        unit: poItem.unit || null,
+                        note: poItem.note || "",
+                    });
+                    
+                    bindWatcher(newRow);
+                    
+                    return newRow;
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching PO items:', error);
+        }
     }
-
-    // Check for duplicate items
-    const itemIds = items.value.map(r => r.item_id?.id).filter(Boolean);
-    const duplicateItems = itemIds.filter((id, index) => itemIds.indexOf(id) !== index);
-
-    if (duplicateItems.length > 0) {
-        form.setError('items', 'Tidak boleh ada item yang duplikat');
-        return;
-    }
-
-    // Validate that all items have required fields
-    const hasInvalidItems = items.value.some((r, i) => {
-        if (!r.item_id || !r.item_id.id) {
-            form.setError(`items.${i}.item_id`, 'Pilih barang yang akan dipindahkan');
-            return true;
-        }
-        if (!r.quantity_transferred || r.quantity_transferred <= 0) {
-            form.setError(`items.${i}.quantity_transferred`, 'Jumlah pengiriman harus lebih dari 0');
-            return true;
-        }
-        if (r.quantity_transferred > r.stock) {
-            form.setError(`items.${i}.quantity_transferred`, `Jumlah pengiriman tidak boleh melebihi stok tersedia (${r.stock} ${r.unit?.short_name || ''})`);
-            return true;
-        }
-        if (r.note && r.note.length > 225) {
-            form.setError(`items.${i}.note`, 'Catatan tidak boleh lebih dari 225 karakter');
-            return true;
-        }
-        return false;
-    });
-
-    if (hasInvalidItems) {
-        return;
-    }
-
-    form.items = items.value.map((r) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null, // karena Select pakai object
-        quantity_transferred: r.quantity_transferred,
-        note: r.note ?? null,
-    }));
-
-    form.post(route("good-transfers.store"));
-}
+);
 
 function confirmSend() {
     showConfirmationModal.value = false;
     saveLog();
+}
+
+function saveLog() {
+    form.clearErrors();
+    if (!items.value || items.value.length === 0) {
+        form.setError('items', 'Minimal harus ada satu item pemindahan');
+        return;
+    }
+    const itemIds = items.value.map(r => r.item_id?.id).filter(Boolean);
+    const duplicateItems = itemIds.filter((id, index) => itemIds.indexOf(id) !== index);
+    if (duplicateItems.length > 0) { form.setError('items', 'Tidak boleh ada item yang duplikat'); return; }
+    const hasInvalidItems = items.value.some((r, i) => {
+        if (!r.item_id || !r.item_id.id) { form.setError(`items.${i}.item_id`, 'Pilih barang yang akan dipindahkan'); return true; }
+        let qty = r.quantity_transferred;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        const numericQty = qty ? Number(qty) : 0;
+        if (isNaN(numericQty) || numericQty <= 0) { form.setError(`items.${i}.quantity_transferred`, 'Jumlah pengiriman harus lebih dari 0'); return true; }
+        if (numericQty > r.stock) { form.setError(`items.${i}.quantity_transferred`, `Jumlah pengiriman tidak boleh melebihi stok tersedia (${r.stock} ${r.unit?.short_name || ''})`); return true; }
+        if (r.note && r.note.length > 225) { form.setError(`items.${i}.note`, 'Catatan tidak boleh lebih dari 225 karakter'); return true; }
+        return false;
+    });
+    if (hasInvalidItems) return;
+    form.items = items.value.map((r) => {
+        let qty = r.quantity_transferred;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        return {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null,
+            quantity_transferred: qty ? Number(qty) : 0,
+            note: r.note ?? null,
+        };
+    });
+    form.transform((data) => {
+        const payload = { ...data };
+        if (attachmentFiles.value.length > 0) {
+            payload.attachments = attachmentFiles.value;
+        }
+        return payload;
+    }).post(route("good-transfers.store"), { forceFormData: true });
 }
 
 function goBack() {

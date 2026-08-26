@@ -15,7 +15,7 @@ class ApproveGoodIssue
             // Update status to approved
             $goodIssue->update([
                 'status' => 'approved',
-                'approved_by' => Auth::id(),
+                'approved_by' => Auth::user()->employee->id,
                 'approved_at' => now(),
             ]);
 

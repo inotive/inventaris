@@ -87,7 +87,10 @@
                                 Jumlah Diterima
                             </th>
                             <th class="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                Catatan Diterima
+                                Catatan Penerimaan
+                            </th>
+                            <th class="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                Kekurangan
                             </th>
                             <th class="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                 Aksi
@@ -111,15 +114,19 @@
                                     label="Cari Barang"
                                     label-key="name"
                                     search-key="name"
+                                    :readonly="r.is_preloaded"
+                                    :disabled="r.is_preloaded"
                                 />
                             </td>
                             <td class="py-2.5 px-3 align-middle border-b border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center gap-2 justify-center">
                                     <input
                                         v-model="r.quantity_received"
-                                        type="number"
-                                        min="0"
-                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                        type="text"
+                                        inputmode="decimal"
+                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center readonly:bg-gray-100 dark:readonly:bg-gray-700"
+                                        :readonly="r.is_preloaded"
+                                        :disabled="r.is_preloaded"
                                     />
                                     <span class="text-gray-700 dark:text-gray-300">{{ r.unit?.short_name }}</span>
                                 </div>
@@ -128,21 +135,70 @@
                                 <div class="flex items-center gap-2 justify-center">
                                     <input
                                         v-model="r.quantity_actually_received"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         placeholder="0"
-                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                                        class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center"
                                     />
                                     <span class="text-gray-700 dark:text-gray-300">{{ r.unit?.short_name }}</span>
                                 </div>
                             </td>
-                            <td class="py-2.5 px-3 align-middle border-b border-gray-200 dark:border-gray-700">
-                                <input
-                                    v-model="r.note"
-                                    type="text"
-                                    placeholder="Masukkan catatan"
-                                    class="w-40 h-10 text-sm rounded placeholder:text-gray-600 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-                                />
+                            <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-700 align-middle min-w-[180px]">
+                                <div class="relative">
+                                    <input
+                                        v-model="r.received_note"
+                                        type="text"
+                                        :placeholder="isReceivedNoteRequired(r) ? 'Catatan penerimaan (wajib diisi)' : 'Catatan penerimaan'"
+                                        :class="[
+                                            'w-full h-10 px-2 text-sm rounded placeholder:text-gray-600 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90',
+                                            isReceivedNoteRequired(r) && (!r.received_note || r.received_note.trim() === '')
+                                                ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                                                : 'border-gray-300 dark:border-gray-700'
+                                        ]"
+                                    />
+                                    <span
+                                        v-if="isReceivedNoteRequired(r)"
+                                        class="absolute -top-1 -right-1 text-red-500 text-xs font-bold"
+                                    >
+                                        *
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="py-2.5 px-3 border-b border-gray-200 dark:border-gray-700 align-middle min-w-[220px]">
+                                <div v-if="hasShortage(r)" class="bg-amber-50/50 dark:bg-amber-950/10 border border-dashed border-amber-300 rounded-lg p-2 space-y-2">
+                                    <div class="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                        ⚠️ Rincian Kekurangan ({{ getShortageMax(r) }} {{ r.unit?.short_name || r.unit?.name || '' }})
+                                    </div>
+                                    <div class="flex flex-col gap-1.5">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Rusak / Cacat:</span>
+                                            <div class="flex items-center gap-1">
+                                                <input
+                                                    v-model="r.shortage_rusak"
+                                                    type="text"
+                                                    inputmode="decimal"
+                                                    @input="updateRusakShortage(r, r.shortage_rusak)"
+                                                    class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || r.unit?.name || '' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Hilang:</span>
+                                            <div class="flex items-center gap-1">
+                                                <input
+                                                    v-model="r.shortage_hilang"
+                                                    type="text"
+                                                    inputmode="decimal"
+                                                    @input="updateHilangShortage(r, r.shortage_hilang)"
+                                                    class="w-14 h-7 text-xs rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 text-center focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <span class="text-[10px] text-gray-500">{{ r.unit?.short_name || r.unit?.name || '' }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span v-else class="text-xs text-gray-400">-</span>
                             </td>
                             <td class="py-2.5 px-3 text-center align-middle border-b border-gray-200 dark:border-gray-700">
                                 <button @click="removeItem(i)" class="focus:outline-none">
@@ -201,7 +257,7 @@ import CreateTranferForm from "./CreateTranferForm.vue";
 import TrashIcon from "@/Components/icons/TrashIcon.vue";
 import SelectBarang from "@/Components/form/SelectBarang.vue";
 import { Head, router, useForm, Link } from "@inertiajs/vue3";
-import { ref, reactive, watch, onMounted } from "vue";
+import { ref, reactive, watch, onMounted, computed } from "vue";
 import { v4 as uuidv4 } from "uuid";
 
 defineOptions({
@@ -234,29 +290,124 @@ const options = ref(
         name: i.name,
         code: i.code,
         unit: i.unit,
+        branch_id: i.branch_id,
     }))
 );
 
-// Computed property to get available options (excluding already selected items)
+const targetBranchId = computed(() => {
+    if (selectedType.value === 'pembelian') {
+        const order = props.order.find(o => o.id == form.order_id);
+        return order ? order.branch_id : null;
+    } else {
+        const transfer = props.transfer.find(t => t.id == form.transfer_id);
+        return transfer ? transfer.to_branch_id : null;
+    }
+});
+
+// Computed property to get available options (excluding already selected items and mismatched branch)
 const getAvailableOptions = (currentRowIndex) => {
+    if (!targetBranchId.value) {
+        return [];
+    }
+
     const selectedItemIds = items.value
         .map((r, index) => index !== currentRowIndex ? r.item_id : null)
         .filter(item => item && typeof item === 'object' && item.id)
         .map(item => item.id);
 
-    return options.value.filter(option => !selectedItemIds.includes(option.id));
+    return options.value.filter(option => {
+        const notSelected = !selectedItemIds.includes(option.id);
+        const branchMatch = option.branch_id == targetBranchId.value;
+        return notSelected && branchMatch;
+    });
 };
 
 // Computed property to check if received note is required for each item
 const isReceivedNoteRequired = (item) => {
-    return item.quantity_received !== item.quantity_actually_received;
+    let qr = item.quantity_received;
+    let qar = item.quantity_actually_received;
+    if (typeof qr === 'string') qr = qr.replace(',', '.');
+    if (typeof qar === 'string') qar = qar.replace(',', '.');
+    return Number(qr) !== Number(qar);
 };
+
+const hasShortage = (item) => {
+    let qty = item.quantity_actually_received;
+    let sent = item.quantity_received;
+    if (typeof qty === 'string') qty = qty.replace(',', '.');
+    if (typeof sent === 'string') sent = sent.replace(',', '.');
+    return (qty ? Number(qty) : 0) < (sent ? Number(sent) : 0);
+};
+
+const getShortageMax = (item) => {
+    let qty = item.quantity_actually_received;
+    let sent = item.quantity_received;
+    if (typeof qty === 'string') qty = qty.replace(',', '.');
+    if (typeof sent === 'string') sent = sent.replace(',', '.');
+    return (sent ? Number(sent) : 0) - (qty ? Number(qty) : 0);
+};
+
+const updateRusakShortage = (item, val) => {
+    const total = getShortageMax(item);
+    let valStr = String(val);
+    if (valStr.includes(',')) valStr = valStr.replace(',', '.');
+    let valNum = Number(valStr) || 0;
+    if (valNum < 0) valNum = 0;
+    if (valNum > total) valNum = total;
+    
+    item.shortage_rusak = valNum;
+    item.shortage_hilang = total - valNum;
+};
+
+const updateHilangShortage = (item, val) => {
+    const total = getShortageMax(item);
+    let valStr = String(val);
+    if (valStr.includes(',')) valStr = valStr.replace(',', '.');
+    let valNum = Number(valStr) || 0;
+    if (valNum < 0) valNum = 0;
+    if (valNum > total) valNum = total;
+    
+    item.shortage_hilang = valNum;
+    item.shortage_rusak = total - valNum;
+};
+
+// Watch quantities changes to auto-allocate shortages when quantity changes
+watch(
+    () => items.value.map(item => ({ received: item.quantity_received, actually: item.quantity_actually_received })),
+    (newVal) => {
+        items.value.forEach((item) => {
+            if (hasShortage(item)) {
+                const total = getShortageMax(item);
+                if (item.shortage_rusak === undefined) item.shortage_rusak = 0;
+                if (item.shortage_hilang === undefined) item.shortage_hilang = 0;
+                
+                const allocated = Number(item.shortage_rusak || 0) + Number(item.shortage_hilang || 0);
+                if (allocated !== total) {
+                    // Default allocate everything to rusak
+                    item.shortage_rusak = total;
+                    item.shortage_hilang = 0;
+                }
+            } else {
+                item.shortage_rusak = 0;
+                item.shortage_hilang = 0;
+            }
+        });
+    },
+    { deep: true }
+);
 
 // Computed property to check if all required fields are filled
 const isFormValid = () => {
     return items.value.every(item => {
         if (isReceivedNoteRequired(item)) {
-            return item.received_note && item.received_note.trim() !== '';
+            const hasNote = item.received_note && item.received_note.trim() !== '';
+            let r_rusak = item.shortage_rusak;
+            let r_hilang = item.shortage_hilang;
+            if (typeof r_rusak === 'string') r_rusak = r_rusak.replace(',', '.');
+            if (typeof r_hilang === 'string') r_hilang = r_hilang.replace(',', '.');
+            const allocated = Number(r_rusak || 0) + Number(r_hilang || 0);
+            const total = getShortageMax(item);
+            return hasNote && allocated === total;
         }
         return true;
     });
@@ -315,6 +466,9 @@ const addItem = () => {
         unit: {},
         note: "",
         received_note: "",
+        shortage_rusak: 0,
+        shortage_hilang: 0,
+        is_preloaded: false,
     });
     bindWatcher(newRow);
     items.value.push(newRow);
@@ -335,25 +489,28 @@ const form = useForm({
 });
 
 // Handle items loaded from form components
-function handleItemsLoaded(items) {
-    if (!items || items.length === 0) {
+function handleItemsLoaded(itemsLoaded) {
+    if (!itemsLoaded || itemsLoaded.length === 0) {
         items.value = [];
         return;
     }
 
-    items.value = items.map((item) => {
+    items.value = itemsLoaded.map((item) => {
         const row = reactive({
             uid: uuidv4(),
             item_id:
-                options.value.find((o) => o.id === item.item_id) ??
+                options.value.find((o) => o.id == item.item_id) ??
                 null,
             code: item.code,
             name: item.name,
             unit: item.unit,
-            quantity_received: item.quantity_received,
-            quantity_actually_received: item.quantity_received, // Default to received quantity
+            quantity_received: item.quantity_received ? parseFloat(item.quantity_received) : 0,
+            quantity_actually_received: item.quantity_received ? parseFloat(item.quantity_received) : 0, // Default to received quantity
             note: item.note,
             received_note: "",
+            shortage_rusak: 0,
+            shortage_hilang: 0,
+            is_preloaded: true,
         });
         bindWatcher(row);
         return row;
@@ -368,16 +525,27 @@ onMounted(() => {
     // Load existing items
     if (props.goodReceipt.items && props.goodReceipt.items.length > 0) {
         items.value = props.goodReceipt.items.map((item) => {
+            const itemDisposals = props.goodReceipt.disposals || [];
+            const rusak = itemDisposals
+                .filter(d => d.item_id === item.item_id && d.reason === 'rusak')
+                .reduce((sum, d) => sum + Number(d.quantity), 0);
+            const hilang = itemDisposals
+                .filter(d => d.item_id === item.item_id && d.reason === 'hilang')
+                .reduce((sum, d) => sum + Number(d.quantity), 0);
+
             const row = reactive({
                 uid: uuidv4(),
-                item_id: options.value.find((o) => o.id === item.item_id) ?? null,
+                item_id: options.value.find((o) => o.id == item.item_id) ?? null,
                 code: item.item?.code || '',
                 name: item.item?.name || '',
                 unit: item.item?.unit || {},
-                quantity_received: item.quantity_received,
-                quantity_actually_received: item.quantity_actually_received || item.quantity_received,
+                quantity_received: item.quantity_received ? parseFloat(item.quantity_received) : 0,
+                quantity_actually_received: item.quantity_actually_received ? parseFloat(item.quantity_actually_received) : (item.quantity_received ? parseFloat(item.quantity_received) : 0),
                 note: item.note || '',
                 received_note: item.received_note || '',
+                shortage_rusak: parseFloat(rusak),
+                shortage_hilang: parseFloat(hilang),
+                is_preloaded: true,
             });
             bindWatcher(row);
             return row;
@@ -423,14 +591,53 @@ function updateRequest() {
         }
     }
 
-    form.items = items.value.map((r) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null,
-        quantity_received: r.quantity_received,
-        quantity_actually_received: r.quantity_actually_received,
-        note: r.note ?? null,
-        received_note: r.received_note ?? null,
-    }));
+    form.items = items.value.map((r) => {
+        let qr = r.quantity_received;
+        let qar = r.quantity_actually_received;
+        if (typeof qr === 'string') qr = qr.replace(',', '.');
+        if (typeof qar === 'string') qar = qar.replace(',', '.');
+        const numQr = qr ? Number(qr) : 0;
+        const numQar = qar ? Number(qar) : 0;
+
+        let r_rusak = r.shortage_rusak;
+        let r_hilang = r.shortage_hilang;
+        if (typeof r_rusak === 'string') r_rusak = r_rusak.replace(',', '.');
+        if (typeof r_hilang === 'string') r_hilang = r_hilang.replace(',', '.');
+        const numRusak = r_rusak ? Number(r_rusak) : 0;
+        const numHilang = r_hilang ? Number(r_hilang) : 0;
+
+        const itemPayload = {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null,
+            quantity_received: numQr,
+            quantity_actually_received: numQar,
+            note: r.note ?? null,
+            received_note: r.received_note ?? null,
+        };
+
+        if (hasShortage(r)) {
+            const list = [];
+            if (numRusak > 0) {
+                list.push({
+                    reason: 'rusak',
+                    quantity: numRusak,
+                    description: r.received_note || ''
+                });
+            }
+            if (numHilang > 0) {
+                list.push({
+                    reason: 'hilang',
+                    quantity: numHilang,
+                    description: r.received_note || ''
+                });
+            }
+            itemPayload.shortages = list;
+        } else {
+            itemPayload.shortages = null;
+        }
+
+        return itemPayload;
+    });
 
     // Clear the opposite ID based on selected type
     if (selectedType.value === 'pembelian') {

@@ -18,7 +18,7 @@
                                 <p
                                     class="font-semibold text-gray-500 dark:text-gray-400"
                                 >
-                                    Backoffice Sistem Penyimpanan
+                                    Backoffice Sinergi Putra Borneo
                                 </p>
                             </div>
                             <div>
@@ -224,7 +224,7 @@
                                             />
                                             <img
                                                 v-else
-                                                src="public/images/logo/bg-login.png"
+                                                src="/images/logo/bg-login.png"
                                                 alt="Logo"
                                                 class="object-contain opacity-95 drop-shadow-2xl w-250 h-250"
                                             />
@@ -347,29 +347,29 @@ const slides = ref(
                   category: "Manajemen Inventaris",
                   title: "Kelola Stok",
                   description:
-                      "Pantau dan kelola stok barang secara real-time. Sistem penyimpanan modern memastikan setiap barang tercatat dengan akurat dan mudah ditelusuri.",
-                  img_url: "public/images/logo/carousel-inventory-1.jpg",
+                      "Pantau dan kelola stok barang secara real-time. Sinergi Putra Borneo memastikan setiap barang tercatat dengan akurat dan mudah ditelusuri.",
+                  img_url: "/images/logo/carousel-inventory-1.jpg",
               },
               {
                   category: "Manajemen Inventaris",
                   title: "Efisiensi Gudang",
                   description:
                       "Optimalkan tata letak dan pengelolaan gudang untuk meningkatkan efisiensi operasional. Atur alur barang masuk dan keluar dengan sistematis.",
-                  img_url: "public/images/logo/carousel-inventory-2.jpg",
+                  img_url: "/images/logo/carousel-inventory-2.jpg",
               },
               {
                   category: "Manajemen Inventaris",
                   title: "Tercatat Rapi",
                   description:
                       "Setiap transaksi barang masuk dan keluar tercatat secara digital. Data inventaris selalu akurat dan siap untuk pelaporan kapan saja.",
-                  img_url: "public/images/logo/carousel-inventory-3.jpg",
+                  img_url: "/images/logo/carousel-inventory-3.jpg",
               },
               {
                   category: "Manajemen Inventaris",
                   title: "Laporan Cepat",
                   description:
                       "Hasilkan laporan inventaris secara otomatis dan cepat. Dapatkan wawasan mendalam tentang kondisi stok untuk pengambilan keputusan yang tepat.",
-                  img_url: "public/images/logo/carousel-inventory-4.jpg",
+                  img_url: "/images/logo/carousel-inventory-4.jpg",
               },
           ]
 );

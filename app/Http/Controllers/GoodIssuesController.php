@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\GoodIssue;
 use App\Models\ItemStock;
 use App\Models\Department;
+use App\Models\Branch;
 use App\Models\GoodIssueActivity;
 use Illuminate\Http\Request;
 use App\Models\MaterialRequest;
@@ -77,11 +78,12 @@ class GoodIssuesController extends Controller
 
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
         $departments = Department::where('branch_id', Auth::user()->employee->branch_id)->pluck('id');
+        $canViewGlobal = Auth::user()->can('good_issues.view_global') || $isSuperadmin;
 
         $query = GoodIssue::query()
-            ->with(['department:id,name', 'request:id,request_no', 'requestBy:id,name'])
+            ->with(['department.branch', 'request:id,request_no', 'requestBy:id,name'])
             ->withCount('items')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) use ($departments) {
+            ->when(!$canViewGlobal, function ($query) use ($departments) {
                 return $query->whereIn('department_id', $departments);
             });
 
@@ -135,7 +137,7 @@ class GoodIssuesController extends Controller
                     'id' => $gi->id,
                     'number' => $gi->number,
                     'request' => $gi->request?->request_no,
-                    'department' => $gi->department?->name,
+                    'department' => $gi->department?->branch?->name ?? $gi->department?->name,
                     'created_by' => $gi->requestBy?->name,
                     'date' => $gi->created_at->locale('id')->translatedFormat('d F Y'),
                     'note' => $gi->note,
@@ -143,7 +145,16 @@ class GoodIssuesController extends Controller
                     'items_count' => $gi->items_count,
                 ];
             }),
-            'departments' => Department::query()->select('id', 'name')->orderBy('name')->get(),
+            'departments' => Branch::all()->map(function ($b) {
+                $gudangDept = Department::firstOrCreate(
+                    ['branch_id' => $b->id, 'name' => 'Gudang'],
+                    ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+                );
+                return [
+                    'id' => $gudangDept->id,
+                    'name' => $b->name,
+                ];
+            })->sortBy('name')->values(),
             'filters' => array_merge($filters, ['status' => $effectiveStatus]),
             'sortBy' => $sortBy,
             'sortDirection' => $sortDirection,
@@ -159,19 +170,35 @@ class GoodIssuesController extends Controller
     {
         abort_unless(Gate::allows('good_issues.create'), 403, 'Anda tidak memiliki akses untuk menambah pemakaian barang');
 
-        $departments = Department::with(['branch'])->orderBy('name')->get();
-        $isSuperadmin = Auth::user()->hasRole('Superadmin');
-        $departmentIds = Department::where('id', Auth::user()->employee->branch_id)->pluck('id');
-        $materialRequests = MaterialRequest::doesntHave('goodIssues')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) use ($departmentIds) {
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $isSuperadmin = Auth::user()->hasRole('Superadmin') || Auth::user()->can('good_issues.create_global');
+        $canCreateGlobal = $isSuperadmin;
+        $departmentIds = Department::where('branch_id', $userBranchId)->pluck('id');
+
+        $materialRequests = MaterialRequest::where('status', 'approved')
+            ->when(!$canCreateGlobal, function ($query) use ($departmentIds) {
                 return $query->whereIn('department_id', $departmentIds);
             })
             ->orderBy('request_no', 'desc')
             ->get();
 
-        $items = Item::with(['unit'])->when(!$isSuperadmin, function ($query) use ($departmentIds) {
-            return $query->whereIn('branch_id', $departmentIds);
-        })->orderBy('name')->get();
+        $items = Item::with(['unit'])
+            ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
+                return $query->where('branch_id', $userBranchId);
+            })
+            ->orderBy('name')
+            ->get();
 
         $user = Auth::user();
         if ($user->employee) {
@@ -195,9 +222,17 @@ class GoodIssuesController extends Controller
             'requirement' => ['nullable', 'string'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.amount' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $canCreateGlobal = Auth::user()->can('good_issues.create_global') || Auth::user()->hasRole('Superadmin');
+        $department = Department::find($data['department_id']);
+
+        if (!$canCreateGlobal && $department && $department->branch_id != $userBranchId) {
+            return back()->withInput()->withErrors(['department_id' => 'Anda hanya dapat menginput pemakaian untuk departemen di cabang Anda sendiri.']);
+        }
 
         try {
             DB::transaction(function () use ($data) {
@@ -237,7 +272,7 @@ class GoodIssuesController extends Controller
         abort_unless(Gate::allows('good_issues.view'), 403, 'Anda tidak memiliki akses untuk melihat pemakaian barang');
 
         $goodIssue->load([
-            'department',
+            'department.branch',
             'requestBy',
             'approvedBy',
             'request.department',
@@ -255,7 +290,7 @@ class GoodIssuesController extends Controller
                 'id' => $goodIssue->id,
                 'request_no' => $goodIssue->kode_usage ?? '',
                 'number' => $goodIssue->kode_usage ?? '',
-                'department' => $goodIssue->department?->name ?? '',
+                'department' => $goodIssue->department?->branch?->name ?? $goodIssue->department?->name ?? '',
                 'requested_by' => $goodIssue->requestBy?->name ?? '',
                 'approved_by' => $goodIssue->approvedBy?->name ?? '',
                 'approved_at' => $goodIssue->approved_at ? Carbon::parse($goodIssue->approved_at)->format('Y-m-d H:i:s') : '',
@@ -263,9 +298,11 @@ class GoodIssuesController extends Controller
                 'status' => $goodIssue->status ?? 'draft',
                 'notes' => $goodIssue->requirement ?? '',
             ],
-            'items' => $goodIssue->items->map(function ($item) {
-                // Get current stock
-                $currentStock = $item->item?->stock?->last_stock ?? 0;
+            'items' => $goodIssue->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
+                // Get current stock dynamically to avoid backdating bugs
+                $currentStock = \App\Models\ItemStock::where('item_id', $item->item_id)
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0) as sisa_stok")
+                    ->value('sisa_stok');
 
                 return [
                     'id' => $item->id,
@@ -300,7 +337,7 @@ class GoodIssuesController extends Controller
             $validated = $request->validate([
                 'approvals' => 'required|array',
                 'approvals.*.id' => 'required|exists:good_issue_items,id',
-                'approvals.*.quantity_approved' => 'required|integer|min:0',
+                'approvals.*.quantity_approved' => 'required|numeric|min:0',
                 'approvals.*.note_received' => 'nullable|string|max:255',
             ]);
 
@@ -329,12 +366,22 @@ class GoodIssuesController extends Controller
             abort(404, 'Good Issue not found');
         }
 
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $materialRequests = MaterialRequest::doesntHave('goodIssues')
             ->orderBy('request_no', 'desc')
             ->get();
 
-        $isSuperadmin = Auth::user()->hasRole('Superadmin');
+        $isSuperadmin = Auth::user()->hasRole('Superadmin') || Auth::user()->can('good_issues.edit_global');
 
         return Inertia::render('Admin/GoodIssues/Edit', [
             'mr' => [
@@ -346,7 +393,7 @@ class GoodIssuesController extends Controller
                 'status' => $goodIssue->status ?? 'draft',
                 'notes' => $goodIssue->requirement ?? '',
             ],
-            'items' => $goodIssue->items->map(function ($item) {
+            'items' => $goodIssue->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,
@@ -354,7 +401,9 @@ class GoodIssuesController extends Controller
                     'item_code' => $item->item?->code ?? '',
                     'qty' => $item->quantity_issued ?? 0,
                     'amount' => $item->quantity_issued ?? 0,
-                    'stock' => $item->item?->stock ?? 0,
+                    'stock' => \App\Models\ItemStock::where('item_id', $item->item_id)
+                        ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0) as sisa_stok")
+                        ->value('sisa_stok'),
                     'unit' => $item->item?->unit ?? (object)[],
                     'notes' => $item->note ?? '',
                     'note' => $item->note ?? '',
@@ -379,9 +428,17 @@ class GoodIssuesController extends Controller
             'requirement' => ['nullable', 'string'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.amount' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $canCreateGlobal = Auth::user()->can('good_issues.create_global') || Auth::user()->hasRole('Superadmin');
+        $department = Department::find($data['department_id']);
+
+        if (!$canCreateGlobal && $department && $department->branch_id != $userBranchId) {
+            return back()->withInput()->withErrors(['department_id' => 'Anda hanya dapat menginput pemakaian untuk departemen di cabang Anda sendiri.']);
+        }
 
         try {
             DB::transaction(function () use ($data, $goodIssue) {
@@ -392,7 +449,12 @@ class GoodIssuesController extends Controller
                     'requirement' => $data['requirement'] ?? null,
                 ]);
 
-                $goodIssue->items()->delete();
+                // Hapus hanya baris dengan barang AKTIF; baris yang barangnya
+                // sudah diarsipkan (soft delete) dipertahankan agar riwayat
+                // dokumen tidak berubah.
+                $goodIssue->items()
+                    ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+                    ->delete();
 
                 foreach ($data['items'] as $itemData) {
                     $goodIssue->items()->create([

@@ -7,7 +7,7 @@
             <Breadcrumb :items="breadcrumbs" />
             <div class="flex items-center gap-2">
                 <!-- Show Update Payment button for unpaid orders -->
-                <button v-if="po.status_invoice === 'belum_dibayar' || po.status_invoice === 'belum_lunas'" @click="onUpdatePayment"
+                <button v-if="canUpdate && (po.status_invoice === 'belum_dibayar' || po.status_invoice === 'belum_lunas')" @click="onUpdatePayment"
                     class="inline-flex items-center rounded bg-orange-600 px-3 py-2 text-sm font-medium text-white hover:bg-orange-700">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
@@ -16,7 +16,7 @@
                 </button>
 
                 <!-- Show Barang Diterima button when status is pending -->
-                <button v-if="po.status_delivered === 'pending'" @click="onReceive"
+                <button v-if="canUpdate && po.status_delivered === 'pending'" @click="onReceive"
                     class="inline-flex items-center rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -25,7 +25,7 @@
                 </button>
 
                 <!-- Show Update Barang Diterima button when status is partial -->
-                <button v-if="po.status_delivered === 'partial'" @click="onReceive"
+                <button v-if="canUpdate && po.status_delivered === 'partial'" @click="onReceive"
                     class="inline-flex items-center rounded bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -45,6 +45,33 @@
                     <span :class="`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClass(po.status_delivered)}`">
                         {{ statusLabel(po.status_delivered) }}
                     </span>
+                </div>
+            </div>
+
+            <div
+                v-if="po.status_invoice === 'lunas' && po.has_deleted_items"
+                class="flex flex-wrap items-center gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm dark:border-amber-900 dark:bg-amber-900/20"
+            >
+                <span class="text-amber-700 dark:text-amber-300">
+                    Salah satu barang di PO ini sudah dihapus. Tampilkan total:
+                </span>
+                <div class="flex items-center gap-1 rounded-md border border-amber-300 bg-white p-0.5 dark:border-amber-700 dark:bg-gray-800">
+                    <button
+                        type="button"
+                        @click="showBeforeDelete = true"
+                        :class="showBeforeDelete ? 'bg-amber-600 text-white' : 'text-amber-700 dark:text-amber-300'"
+                        class="rounded px-2 py-1 text-xs font-medium"
+                    >
+                        Sebelum Dihapus
+                    </button>
+                    <button
+                        type="button"
+                        @click="showBeforeDelete = false"
+                        :class="!showBeforeDelete ? 'bg-amber-600 text-white' : 'text-amber-700 dark:text-amber-300'"
+                        class="rounded px-2 py-1 text-xs font-medium"
+                    >
+                        Setelah Dihapus
+                    </button>
                 </div>
             </div>
 
@@ -74,8 +101,24 @@
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ po.from_pr?.number }}</div>
                 </div>
                 <div>
-                    <div class="text-xs text-gray-500">Total</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(po.total) }}</div>
+                    <div class="text-xs text-gray-500">Subtotal</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(displayTotals.subtotal || 0) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500">Diskon</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">- {{ formatCurrency(po.discount || 0) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500">PPN ({{ po.tax_percent || 11 }}%)</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(displayTotals.ppn || 0) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500">Biaya Lain-Lain</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency(po.other_cost || 0) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500">Total Akhir</div>
+                    <div class="font-bold text-blue-600 dark:text-blue-400">{{ formatCurrency(displayTotals.total) }}</div>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Jumlah Dibayar</div>
@@ -83,7 +126,7 @@
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Sisa Pembayaran</div>
-                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency((po.total || 0) - (po.paid_amount || 0)) }}</div>
+                    <div class="font-semibold text-gray-800 dark:text-gray-200">{{ formatCurrency((displayTotals.total || 0) - (po.paid_amount || 0)) }}</div>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500">Status Pembayaran</div>
@@ -132,6 +175,7 @@
                         <col style="width:90px" />
                         <col style="width:120px" />
                         <col style="width:120px" />
+                        <col style="width:90px" />
                         <col />
                     </colgroup>
                     <thead>
@@ -160,6 +204,16 @@
                             </th>
                             <th
                                 class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
+                                <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Rusak / Cacat
+                                </div>
+                            </th>
+                            <th
+                                class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
+                                <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Hilang
+                                </div>
+                            </th>
+                            <th
+                                class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
                                 <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Harga Satuan
                                 </div>
                             </th>
@@ -175,36 +229,51 @@
                                 class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
                                 <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Catatan</div>
                             </th>
-                            <th
-                                class="py-2.5 bg-gray-100 border-y border-gray-200 dark:border-gray-600 dark:bg-gray-800">
-                                <div class="px-3 text-left font-medium text-gray-600 dark:text-gray-300">Catatan Penerimaan</div>
-                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="!po.items || po.items.length === 0">
-                            <td colspan="10" class="text-center py-8 text-gray-500">Tidak ada item</td>
+                            <td colspan="11" class="text-center py-8 text-gray-500">Tidak ada item</td>
                         </tr>
                         <tr v-for="(it, idx) in po.items" :key="it.id"
                             class="border-b border-gray-200 dark:border-gray-700">
                             <td class="px-3 py-2">{{ idx + 1 }}</td>
-                            <td class="px-3 py-2">{{ it.item_name }}</td>
+                            <td class="px-3 py-2">
+                                {{ it.item_name }}
+                                <span
+                                    v-if="it.is_deleted"
+                                    class="ml-1 inline-block rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                >
+                                    Dihapus
+                                </span>
+                            </td>
                             <td class="px-3 py-2 font-mono">{{ it.item_code }}</td>
-                            <td class="px-3 py-2">{{ it.quantity_ordered }}</td>
+                            <td class="px-3 py-2">{{ parseFloat(it.quantity_ordered) }}</td>
                             <td class="px-3 py-2">
                                 <span :class="it.quantity_received > 0 ? 'text-green-600 font-semibold' : 'text-gray-500'">
-                                    {{ it.quantity_received || 0 }}
+                                    {{ parseFloat(it.quantity_received || 0) }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2">
+                                <span :class="it.quantity_damaged > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'">
+                                    {{ parseFloat(it.quantity_damaged || 0) }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2">
+                                <span :class="it.quantity_lost > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'">
+                                    {{ parseFloat(it.quantity_lost || 0) }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">{{ formatCurrency(it.cost) }}</td>
                             <td class="px-3 py-2">{{ formatCurrency(it.quantity_ordered * it.cost) }}</td>
                             <td class="px-3 py-2">{{ it.unit }}</td>
-                            <td class="px-3 py-2">{{ it.note || '-' }}</td>
                             <td class="px-3 py-2">
-                                <span v-if="it.note_received" class="text-sm text-gray-700 bg-green-50 px-2 py-1 rounded">
-                                    {{ it.note_received }}
-                                </span>
-                                <span v-else class="text-gray-400">-</span>
+                                <div>{{ it.note || '-' }}</div>
+                                <div v-if="it.note_received" class="mt-1">
+                                    <span class="inline-block text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                                        Penerimaan: {{ it.note_received }}
+                                    </span>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -275,91 +344,166 @@
                             <table class="min-w-full divide-y divide-gray-300">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty Dipesan</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty Dipesan</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             {{ po.status_delivered === 'partial' ? 'Qty Tambahan Diterima' : 'Qty Diterima' }}
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Satuan</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Satuan</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr v-for="(item, index) in po.items" :key="item.id">
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900">{{ item.item_name }}</div>
-                                            <div class="text-sm text-gray-500">{{ item.item_code }}</div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {{ item.quantity_ordered }}
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <!-- Show current received quantity for partial status -->
-                                            <div v-if="po.status_delivered === 'partial'" class="text-xs text-gray-600 mb-2">
-                                                <span class="font-medium">Sudah diterima: {{ item.quantity_received || 0 }}</span>
-                                                <span class="text-gray-400">/ {{ item.quantity_ordered }}</span>
-                                            </div>
+                                    <template v-for="(item, index) in po.items" :key="item.id">
+                                        <tr class="align-top">
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-gray-900">{{ item.item_name }}</div>
+                                                <div class="text-sm text-gray-500">{{ item.item_code }}</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                {{ parseFloat(item.quantity_ordered) }}
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <!-- Show current received quantity for partial status -->
+                                                <div v-if="po.status_delivered === 'partial'" class="text-xs text-gray-600 mb-2">
+                                                    <span class="font-medium">Sudah diterima: {{ parseFloat(item.quantity_received || 0) }}</span>
+                                                    <span class="text-gray-400">/ {{ parseFloat(item.quantity_ordered) }}</span>
+                                                </div>
 
-                                            <div class="flex items-center gap-2">
+                                                <div class="flex items-center gap-1">
+                                                    <input
+                                                        v-model.number="receivedQuantities[index]"
+                                                        type="number"
+                                                        min="0"
+                                                        step="any"
+                                                        :max="po.status_delivered === 'partial' ? (parseFloat(item.quantity_ordered) - parseFloat(item.quantity_received || 0)) : parseFloat(item.quantity_ordered)"
+                                                        :class="[
+                                                            'w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
+                                                            isNoteRequired(index) ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
+                                                        ]"
+                                                        :placeholder="po.status_delivered === 'partial' ? '0' : parseFloat(item.quantity_ordered)"
+                                                    />
+                                                    <span v-if="isNoteRequired(index)" class="text-orange-500 text-xs" title="Catatan wajib diisi">
+                                                        ⚠️
+                                                    </span>
+                                                </div>
+
+                                                <!-- Show remaining quantity for partial status -->
+                                                <div v-if="po.status_delivered === 'partial'" class="text-xs text-gray-500 mt-1">
+                                                    Sisa: {{ parseFloat((item.quantity_ordered || 0) - (item.quantity_received || 0)) }}
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                {{ item.unit }}
+                                            </td>
+                                            <td class="px-4 py-3">
                                                 <input
-                                                    v-model="receivedQuantities[index]"
-                                                    type="number"
-                                                    min="0"
-                                                    :max="po.status_delivered === 'partial' ? (item.quantity_ordered - (item.quantity_received || 0)) : item.quantity_ordered"
+                                                    v-model="itemNotes[index]"
+                                                    type="text"
                                                     :class="[
-                                                        'w-20 px-3 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                                                        isNoteRequired(index) ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
+                                                        'w-full px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm',
+                                                        isNoteRequired(index) ? 'border-red-300 bg-red-50' : 'border-gray-300'
                                                     ]"
-                                                    :placeholder="po.status_delivered === 'partial' ? '0' : item.quantity_ordered"
+                                                    :placeholder="isNoteRequired(index) ? 'Catatan wajib diisi!' : 'Catatan item (opsional)'"
                                                 />
-                                                <span v-if="isNoteRequired(index)" class="text-orange-500 text-xs" title="Catatan wajib diisi">
-                                                    ⚠️
-                                                </span>
-                                            </div>
-
-                                            <!-- Show remaining quantity for partial status -->
-                                            <div v-if="po.status_delivered === 'partial'" class="text-xs text-gray-500 mt-1">
-                                                Sisa: {{ (item.quantity_ordered || 0) - (item.quantity_received || 0) }}
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {{ item.unit }}
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <input
-                                                v-model="itemNotes[index]"
-                                                type="text"
-                                                :class="[
-                                                    'w-full px-3 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm',
-                                                    isNoteRequired(index) ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                                                ]"
-                                                :placeholder="isNoteRequired(index) ? 'Catatan wajib diisi!' : 'Catatan item (opsional)'"
-                                            />
-                                            <div v-if="isNoteRequired(index)" class="text-xs text-red-600 mt-1">
-                                                * Wajib diisi karena jumlah tidak sesuai
-                                            </div>
-                                        </td>
-                                    </tr>
+                                                <div v-if="isNoteRequired(index)" class="text-xs text-red-600 mt-1">
+                                                    * Wajib diisi karena jumlah tidak sesuai
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <!-- Expandable Shortage Allocation Section -->
+                                        <tr v-if="hasShortage(index)" class="bg-amber-50/20">
+                                            <td colspan="5" class="px-6 py-3 border-t border-gray-100">
+                                                <div class="bg-white dark:bg-transparent border border-dashed border-amber-300 rounded-lg p-4 space-y-3">
+                                                    <div class="flex items-center gap-2 text-sm font-semibold text-amber-700">
+                                                        <span>⚠️ Rincian Kekurangan Barang</span>
+                                                        <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
+                                                            Kekurangan: {{ parseFloat(getShortageQty(index)) }} {{ item.unit }}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <!-- Direct Inputs for Rusak and Hilang -->
+                                                    <div class="flex flex-wrap items-center gap-6 mt-2">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="text-xs text-gray-600 font-medium">Rusak / Cacat:</span>
+                                                            <input 
+                                                                v-model.number="shortages[index].rusak" 
+                                                                type="number" 
+                                                                min="0" 
+                                                                step="any"
+                                                                :max="getShortageQty(index)"
+                                                                @input="updateRusakShortage(index, shortages[index].rusak)"
+                                                                class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 
+                                                            />
+                                                            <span class="text-xs text-gray-500">{{ item.unit }}</span>
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="text-xs text-gray-600 font-medium">Hilang:</span>
+                                                            <input 
+                                                                v-model.number="shortages[index].hilang" 
+                                                                type="number" 
+                                                                min="0" 
+                                                                step="any"
+                                                                :max="getShortageQty(index)"
+                                                                @input="updateHilangShortage(index, shortages[index].hilang)"
+                                                                class="w-16 h-8 text-xs rounded-md border-gray-300 text-center focus:ring-1 focus:ring-blue-500" 
+                                                            />
+                                                            <span class="text-xs text-gray-500">{{ item.unit }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button
-                        @click="confirmReceive"
-                        type="button"
-                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-                    >
-                        {{ po.status_delivered === 'partial' ? 'Update Penerimaan' : 'Konfirmasi Diterima' }}
-                    </button>
-                    <button
-                        @click="closeReceiveModal"
-                        type="button"
-                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                    >
-                        Batal
-                    </button>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6">
+                    <!-- Lampiran Penerimaan -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Lampiran Penerimaan <span class="text-gray-400 text-xs">(PDF/Gambar/Word max 10MB)</span></label>
+                        <div class="space-y-2">
+                            <label class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 text-sm">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                </svg>
+                                Tambah Lampiran
+                                <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple @change="handleAttachmentChange" />
+                            </label>
+
+                            <div v-if="receiveAttachmentFiles.length > 0" class="flex flex-col gap-1.5 mt-2">
+                                <div v-for="(file, idx) in receiveAttachmentFiles" :key="idx" class="text-sm text-gray-600 flex items-center gap-2 bg-gray-50 p-1.5 px-3 rounded-md border border-gray-200 w-fit">
+                                    <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <button type="button" @click="triggerAddedFilePreview(file)" class="hover:underline text-blue-600 font-medium text-left truncate max-w-[200px]" title="Klik untuk pratinjau">
+                                        {{ file.name }}
+                                    </button>
+                                    <button type="button" @click="removeReceiveAttachmentFile(idx)" class="text-red-400 hover:text-red-600 ml-2 font-bold">&times;</button>
+                                </div>
+                            </div>
+                            <span v-else class="text-sm text-gray-400 block mt-1">Belum ada lampiran terpilih.</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-row-reverse gap-3">
+                        <button
+                            @click="confirmReceive"
+                            type="button"
+                            class="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:text-sm"
+                        >
+                            {{ po.status_delivered === 'partial' ? 'Update Penerimaan' : 'Konfirmasi Diterima' }}
+                        </button>
+                        <button
+                            @click="closeReceiveModal"
+                            type="button"
+                            class="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:text-sm"
+                        >
+                            Batal
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -394,13 +538,31 @@
 
                     <div class="mt-6">
                         <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Total Order</label>
-                                <div class="text-lg font-semibold text-gray-900">{{ formatCurrency(po.total) }}</div>
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-1.5 text-xs text-gray-600 mb-3">
+                                <div class="flex justify-between">
+                                    <span>Subtotal:</span>
+                                    <span class="font-medium text-gray-800">{{ formatCurrency(po.subtotal || 0) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Diskon:</span>
+                                    <span class="font-medium text-gray-800">- {{ formatCurrency(po.discount || 0) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>PPN ({{ po.tax_percent || 11 }}%):</span>
+                                    <span class="font-medium text-gray-800">{{ formatCurrency(po.ppn || 0) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Biaya Lain-Lain:</span>
+                                    <span class="font-medium text-gray-800">{{ formatCurrency(po.other_cost || 0) }}</span>
+                                </div>
+                                <div class="flex justify-between border-t border-gray-200 pt-1.5 text-sm font-semibold">
+                                    <span class="text-gray-900">Total Akhir:</span>
+                                    <span class="text-blue-600">{{ formatCurrency(po.total) }}</span>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah yang Sudah Dibayar</label>
-                                <div class="text-sm text-gray-600">{{ formatCurrency(po.paid_amount || 0) }}</div>
+                                <div class="text-sm font-semibold text-gray-900">{{ formatCurrency(po.paid_amount || 0) }}</div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah Pembayaran Tambahan *</label>
@@ -408,22 +570,29 @@
                                     v-model.number="paymentForm.additional_amount"
                                     type="number"
                                     min="0"
-                                    :max="(po.total || 0) - (po.paid_amount || 0)"
+                                    :max="Number(po.total || 0) - Number(po.paid_amount || 0)"
                                     step="0.01"
                                     :class="[
                                         'w-full px-3 py-2 rounded border focus:ring-2 focus:ring-orange-500 focus:border-orange-500',
-                                        paymentForm.additional_amount > ((po.total || 0) - (po.paid_amount || 0)) ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                        paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0)) ? 'border-red-500 bg-red-50' : 'border-gray-300'
                                     ]"
                                     placeholder="Masukkan jumlah pembayaran tambahan"
                                     required
-                                />
-                                <div v-if="paymentForm.additional_amount > 0" class="text-xs mt-1" :class="paymentForm.additional_amount > ((po.total || 0) - (po.paid_amount || 0)) ? 'text-red-600' : 'text-gray-500'">
-                                    <span v-if="paymentForm.additional_amount > ((po.total || 0) - (po.paid_amount || 0))" class="font-medium">
+                                  />
+                                <div class="text-xs mt-2 text-gray-600">
+                                    <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-200/60 space-y-1">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Total setelah pembayaran:</span>
+                                            <span class="font-semibold text-gray-800">{{ formatCurrency(Number(po.paid_amount || 0) + Number(paymentForm.additional_amount || 0)) }}</span>
+                                        </div>
+                                        <div class="flex justify-between border-t border-gray-200/60 pt-1">
+                                            <span class="text-gray-500">Sisa pembayaran baru:</span>
+                                            <span class="font-semibold text-gray-800">{{ formatCurrency(Number(po.total || 0) - (Number(po.paid_amount || 0) + Number(paymentForm.additional_amount || 0))) }}</span>
+                                        </div>
+                                    </div>
+                                    <div v-if="paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0))" class="text-red-600 font-medium mt-1">
                                         Jumlah pembayaran melebihi sisa yang harus dibayar!
-                                    </span>
-                                    <span v-else>
-                                        Total setelah pembayaran: {{ formatCurrency((po.paid_amount || 0) + paymentForm.additional_amount) }}
-                                    </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -433,7 +602,7 @@
                     <button
                         @click="confirmPayment"
                         type="button"
-                        :disabled="!paymentForm.additional_amount || paymentForm.additional_amount <= 0 || paymentForm.additional_amount > ((po.total || 0) - (po.paid_amount || 0))"
+                        :disabled="!paymentForm.additional_amount || paymentForm.additional_amount <= 0 || paymentForm.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0))"
                         class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Update Pembayaran
@@ -449,27 +618,100 @@
             </div>
         </div>
     </div>
+
+    <!-- Reusable Preview Modal -->
+    <div v-if="previewOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
+        <div class="relative max-w-5xl w-full bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate">{{ previewFileName }}</span>
+                <div class="flex items-center gap-2">
+                    <a :href="previewUrl" target="_blank" class="px-3 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded font-medium transition">Buka di Tab Baru</a>
+                    <button @click="closePreview" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold px-2 line-height-1">&times;</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-auto flex items-center justify-center p-6 min-h-[300px]">
+                <!-- Image Preview -->
+                <img v-if="isPreviewImage" :src="previewUrl" class="max-w-full max-h-[60vh] object-contain rounded shadow" />
+                
+                <!-- PDF Preview -->
+                <iframe v-else-if="isPreviewPdf" :src="previewUrl" class="w-full h-[65vh] border-0 rounded" />
+                
+                <!-- Fallback Info -->
+                <div v-else class="text-center py-10 space-y-3">
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Pratinjau tidak tersedia untuk jenis file ini.</p>
+                    <a :href="previewUrl" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition shadow">
+                        Unduh File
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3'
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, computed } from 'vue'
 import Breadcrumb from '@/Components/common/Breadcrumb.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
     po: { type: Object, required: true },
     activities: { type: Array, default: () => [] },
+    canUpdate: { type: Boolean, default: false },
 })
 
 const po = props.po
 const activities = props.activities
+
+// For Lunas orders with a deleted item, toggle between the original ("before delete")
+// and recalculated ("after delete") totals; other orders just use the totals from the backend.
+const showBeforeDelete = ref(true)
+const displayTotals = computed(() => {
+    if (po.status_invoice === 'lunas' && po.has_deleted_items) {
+        return showBeforeDelete.value ? po.totals_before_delete : po.totals_after_delete
+    }
+    return { subtotal: po.subtotal, ppn: po.ppn, total: po.total }
+})
 
 // Modal state
 const showReceiveModal = ref(false)
 const showPaymentModal = ref(false)
 const receivedQuantities = ref([])
 const itemNotes = ref([])
+const shortages = ref([])
+const receiveAttachmentFiles = ref([])
+
+// Preview Modal State
+const previewOpen = ref(false)
+const previewUrl = ref('')
+const previewFileName = ref('')
+
+const isPreviewImage = computed(() => {
+    if (!previewFileName.value) return false
+    return /\.(jpg|jpeg|png|webp|gif)$/i.test(previewFileName.value) || (previewUrl.value && previewUrl.value.startsWith('data:image/'))
+})
+
+const isPreviewPdf = computed(() => {
+    if (!previewFileName.value) return false
+    return /\.pdf$/i.test(previewFileName.value)
+})
+
+function triggerPreview(url, name) {
+    previewUrl.value = url
+    previewFileName.value = name
+    previewOpen.value = true
+}
+
+function triggerAddedFilePreview(file) {
+    const url = URL.createObjectURL(file)
+    triggerPreview(url, file.name)
+}
+
+function closePreview() {
+    previewOpen.value = false
+    previewUrl.value = ''
+    previewFileName.value = ''
+}
 const activeTab = ref('items')
 
 // Payment form
@@ -479,12 +721,39 @@ const paymentForm = ref({
 })
 
 // Initialize received quantities and notes arrays
-receivedQuantities.value = po.items?.map(item => item.quantity_received || 0) || []
+receivedQuantities.value = po.items?.map(item => parseFloat(item.quantity_received) || 0) || []
 itemNotes.value = po.items?.map(item => item.note_received || '') || []
 
-// Watch for quantity changes to update note requirements
-watch(receivedQuantities, () => {
-    // This will trigger reactivity for isNoteRequired function
+// Watch for quantity changes to update shortages
+watch(receivedQuantities, (newVal) => {
+    newVal.forEach((qty, index) => {
+        const item = po.items[index]
+        if (!item) return
+        const expected = po.status_delivered === 'partial' ? (parseFloat(item.quantity_ordered) - parseFloat(item.quantity_received || 0)) : parseFloat(item.quantity_ordered)
+        const diff = parseFloat((expected - (qty || 0)).toFixed(4))
+        
+        if (diff > 0) {
+            if (!shortages.value[index] || (shortages.value[index].rusak === 0 && shortages.value[index].hilang === 0)) {
+                shortages.value[index] = {
+                    rusak: diff,
+                    hilang: 0
+                }
+            } else {
+                const totalAllocated = Number(shortages.value[index].rusak || 0) + Number(shortages.value[index].hilang || 0)
+                if (parseFloat(totalAllocated.toFixed(4)) !== diff) {
+                    shortages.value[index] = {
+                        rusak: diff,
+                        hilang: 0
+                    }
+                }
+            }
+        } else {
+            shortages.value[index] = {
+                rusak: 0,
+                hilang: 0
+            }
+        }
+    })
 }, { deep: true })
 
 const breadcrumbs = [
@@ -498,12 +767,12 @@ defineOptions({
 })
 
 function isNoteRequired(index) {
-    const orderedQty = po.items[index]?.quantity_ordered || 0
-    const receivedQty = receivedQuantities.value[index] || 0
+    const orderedQty = Number(po.items[index]?.quantity_ordered || 0)
+    const receivedQty = Number(receivedQuantities.value[index] || 0)
 
     if (po.status_delivered === 'partial') {
         // For partial status, check if total received (existing + new) equals ordered
-        const alreadyReceived = po.items[index]?.quantity_received || 0
+        const alreadyReceived = Number(po.items[index]?.quantity_received || 0)
         const totalReceived = alreadyReceived + receivedQty
         return totalReceived !== orderedQty
     } else {
@@ -586,19 +855,87 @@ function onReceive() {
     showReceiveModal.value = true
 
     if (po.status_delivered === 'partial') {
-        // For partial status, start with 0 for additional quantities
         receivedQuantities.value = po.items?.map(() => 0) || []
     } else {
-        // For pending status, use ordered quantities as starting point
-        receivedQuantities.value = po.items?.map(item => item.quantity_ordered || 0) || []
+        receivedQuantities.value = po.items?.map(item => parseFloat(item.quantity_ordered) || 0) || []
     }
 
-    // Reset item notes
     itemNotes.value = po.items?.map(item => item.note_received || '') || []
+    shortages.value = po.items?.map(item => ({
+        rusak: item.quantity_damaged || 0,
+        hilang: item.quantity_lost || 0
+    })) || []
+    receiveAttachmentFiles.value = []
 }
 
 function closeReceiveModal() {
     showReceiveModal.value = false
+    receivedQuantities.value = []
+    itemNotes.value = []
+    shortages.value = []
+    receiveAttachmentFiles.value = []
+}
+
+const hasShortage = (index) => {
+    const item = po.items[index]
+    if (!item) return false
+    const expected = po.status_delivered === 'partial' 
+        ? (Number(item.quantity_ordered || 0) - Number(item.quantity_received || 0)) 
+        : Number(item.quantity_ordered || 0)
+    const receivedQty = Number(receivedQuantities.value[index] || 0)
+    return receivedQty < expected
+}
+
+// Split Shortages Helpers
+const getShortageQty = (index) => {
+    const item = po.items[index]
+    if (!item) return 0
+    const expected = po.status_delivered === 'partial' 
+        ? (Number(item.quantity_ordered || 0) - Number(item.quantity_received || 0)) 
+        : Number(item.quantity_ordered || 0)
+    const receivedQty = Number(receivedQuantities.value[index] || 0)
+    const diff = Math.max(0, expected - receivedQty)
+    return parseFloat(diff.toFixed(4))
+}
+
+const getRemainingShortageToAllocate = (index) => {
+    const totalShortage = getShortageQty(index)
+    if (totalShortage <= 0) return 0
+    const sh = shortages.value[index] || { rusak: 0, hilang: 0 }
+    const allocated = Number(sh.rusak || 0) + Number(sh.hilang || 0)
+    const diff = totalShortage - allocated
+    return parseFloat(diff.toFixed(4))
+}
+
+const updateRusakShortage = (index, val) => {
+    const total = getShortageQty(index)
+    let r = Math.min(total, Math.max(0, Number(val) || 0))
+    r = parseFloat(r.toFixed(4))
+    if (!shortages.value[index]) {
+        shortages.value[index] = { rusak: 0, hilang: 0 }
+    }
+    shortages.value[index].rusak = r
+    shortages.value[index].hilang = parseFloat((total - r).toFixed(4))
+}
+
+const updateHilangShortage = (index, val) => {
+    const total = getShortageQty(index)
+    let h = Math.min(total, Math.max(0, Number(val) || 0))
+    h = parseFloat(h.toFixed(4))
+    if (!shortages.value[index]) {
+        shortages.value[index] = { rusak: 0, hilang: 0 }
+    }
+    shortages.value[index].hilang = h
+    shortages.value[index].rusak = parseFloat((total - h).toFixed(4))
+}
+
+function handleAttachmentChange(event) {
+    const files = Array.from(event.target.files)
+    receiveAttachmentFiles.value.push(...files)
+}
+
+function removeReceiveAttachmentFile(index) {
+    receiveAttachmentFiles.value.splice(index, 1)
 }
 
 function closePaymentModal() {
@@ -611,7 +948,7 @@ function confirmPayment() {
         return
     }
 
-    if (paymentForm.value.additional_amount > ((po.total || 0) - (po.paid_amount || 0))) {
+    if (paymentForm.value.additional_amount > (Number(po.total || 0) - Number(po.paid_amount || 0))) {
         alert('Jumlah pembayaran tidak boleh melebihi sisa yang harus dibayar')
         return
     }
@@ -636,15 +973,18 @@ function confirmPayment() {
 }
 
 function confirmReceive() {
+    // Validate that all quantities are filled
+    const hasEmptyQuantities = receivedQuantities.value.some(qty => qty === null || qty === undefined || qty === '')
+
+    if (hasEmptyQuantities) {
+        alert(po.status_delivered === 'partial' 
+            ? 'Mohon isi semua jumlah barang tambahan yang diterima' 
+            : 'Mohon isi semua jumlah barang yang diterima'
+        )
+        return
+    }
+
     if (po.status_delivered === 'partial') {
-        // For partial status, validate additional quantities
-        const hasEmptyQuantities = receivedQuantities.value.some(qty => qty === null || qty === undefined || qty === '')
-
-        if (hasEmptyQuantities) {
-            alert('Mohon isi semua jumlah barang tambahan yang diterima')
-            return
-        }
-
         // Validate that additional quantities don't exceed remaining quantities
         const exceedsRemaining = receivedQuantities.value.some((qty, index) => {
             const orderedQty = po.items[index]?.quantity_ordered || 0
@@ -671,14 +1011,74 @@ function confirmReceive() {
             alert('Catatan penerimaan wajib diisi untuk item yang jumlahnya tidak sesuai dengan pesanan')
             return
         }
+    } else {
+        // Validate that received quantities don't exceed ordered quantities
+        const exceedsOrdered = receivedQuantities.value.some((qty, index) => {
+            const orderedQty = po.items[index]?.quantity_ordered || 0
+            return qty > orderedQty
+        })
 
-        // Prepare data for submission - send raw additional quantities
+        if (exceedsOrdered) {
+            alert('Jumlah diterima tidak boleh melebihi jumlah yang dipesan')
+            return
+        }
+
+        // Validate that notes are filled when quantities don't match
+        const missingNotes = receivedQuantities.value.some((qty, index) => {
+            const orderedQty = po.items[index]?.quantity_ordered || 0
+            const note = itemNotes.value[index] || ''
+            return qty !== orderedQty && (!note || note.trim() === '')
+        })
+
+        if (missingNotes) {
+            alert('Catatan penerimaan wajib diisi untuk item yang jumlahnya tidak sesuai dengan pesanan')
+            return
+        }
+    }
+
+    // Validate split shortage allocations match the shortage exactly
+    for (let index = 0; index < po.items.length; index++) {
+        if (hasShortage(index)) {
+            const remaining = getRemainingShortageToAllocate(index)
+            if (remaining > 0) {
+                alert(`Mohon alokasikan semua sisa kekurangan sebesar ${remaining} ${po.items[index].unit} pada item ${po.items[index].item_name}`)
+                return
+            }
+        }
+    }
+
+    if (po.status_delivered === 'partial') {
+        // Prepare data for submission - format sesuai purchase-orders.update-receive
         const receiveData = {
-            quantities: receivedQuantities.value.map((qty, index) => ({
-                item_id: po.items[index].id,
-                additional_quantity: qty,
-                receive_note: itemNotes.value[index] || ''
-            }))
+            quantities: receivedQuantities.value.map((qty, index) => {
+                const itemPayload = {
+                    item_id: po.items[index].id,
+                    additional_quantity: qty,
+                    receive_note: itemNotes.value[index] || ''
+                }
+
+                if (hasShortage(index) && shortages.value[index]) {
+                    const sh = shortages.value[index]
+                    const list = []
+                    if (Number(sh.rusak || 0) > 0) {
+                        list.push({
+                            reason: 'rusak',
+                            quantity: Number(sh.rusak),
+                            description: itemNotes.value[index] || ''
+                        })
+                    }
+                    if (Number(sh.hilang || 0) > 0) {
+                        list.push({
+                            reason: 'hilang',
+                            quantity: Number(sh.hilang),
+                            description: itemNotes.value[index] || ''
+                        })
+                    }
+                    itemPayload.shortages = list
+                }
+
+                return itemPayload
+            })
         }
 
         // Submit the data
@@ -693,43 +1093,64 @@ function confirmReceive() {
             }
         })
     } else {
-        // For pending status, use original validation
-        const hasEmptyQuantities = receivedQuantities.value.some(qty => qty === null || qty === undefined || qty === '')
-
-        if (hasEmptyQuantities) {
-            alert('Mohon isi semua jumlah barang yang diterima')
-            return
-        }
-
-        // Validate that received quantities don't exceed ordered quantities
-        const exceedsOrdered = receivedQuantities.value.some((qty, index) => {
-            const orderedQty = po.items[index]?.quantity_ordered || 0
-            return qty > orderedQty
-        })
-
-        // Validate that notes are filled when quantities don't match
-        const missingNotes = receivedQuantities.value.some((qty, index) => {
-            const orderedQty = po.items[index]?.quantity_ordered || 0
-            const note = itemNotes.value[index] || ''
-            return qty !== orderedQty && (!note || note.trim() === '')
-        })
-
-        if (missingNotes) {
-            alert('Catatan penerimaan wajib diisi untuk item yang jumlahnya tidak sesuai dengan pesanan')
-            return
-        }
-
-        // Prepare data for submission
+        // Prepare data for submission - pending status
         const receiveData = {
-            quantities: receivedQuantities.value.map((qty, index) => ({
-                item_id: po.items[index].id,
-                quantity_received: qty,
-                receive_note: itemNotes.value[index] || ''
-            }))
+            quantities: receivedQuantities.value.map((qty, index) => {
+                const itemPayload = {
+                    item_id: po.items[index].id,
+                    quantity_received: qty,
+                    receive_note: itemNotes.value[index] || '',
+                }
+
+                if (hasShortage(index) && shortages.value[index]) {
+                    const sh = shortages.value[index]
+                    const list = []
+                    if (Number(sh.rusak || 0) > 0) {
+                        list.push({
+                            reason: 'rusak',
+                            quantity: Number(sh.rusak),
+                            description: itemNotes.value[index] || ''
+                        })
+                    }
+                    if (Number(sh.hilang || 0) > 0) {
+                        list.push({
+                            reason: 'hilang',
+                            quantity: Number(sh.hilang),
+                            description: itemNotes.value[index] || ''
+                        })
+                    }
+                    itemPayload.shortages = list
+                }
+
+                return itemPayload
+            })
         }
 
-        // Submit the data
-        router.post(route('purchase-orders.receive', po.id), receiveData, {
+        // Submit the data using FormData
+        const formData = new FormData()
+        
+        receiveData.quantities.forEach((q, i) => {
+            formData.append(`quantities[${i}][item_id]`, q.item_id)
+            formData.append(`quantities[${i}][quantity_received]`, q.quantity_received)
+            formData.append(`quantities[${i}][receive_note]`, q.receive_note)
+
+            // Serialize multiple shortages array
+            if (q.shortages && q.shortages.length > 0) {
+                q.shortages.forEach((sh, shIdx) => {
+                    formData.append(`quantities[${i}][shortages][${shIdx}][reason]`, sh.reason)
+                    formData.append(`quantities[${i}][shortages][${shIdx}][quantity]`, sh.quantity)
+                    formData.append(`quantities[${i}][shortages][${shIdx}][description]`, sh.description)
+                })
+            }
+        })
+
+        if (receiveAttachmentFiles.value.length > 0) {
+            receiveAttachmentFiles.value.forEach((file) => {
+                formData.append('attachments[]', file)
+            })
+        }
+
+        router.post(route('purchase-orders.receive', po.id), formData, {
             onSuccess: () => {
                 closeReceiveModal()
                 window.location.reload()

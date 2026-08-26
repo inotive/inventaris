@@ -8,6 +8,7 @@ use App\Models\Item;
 use Inertia\Inertia;
 use App\Models\Employee;
 use App\Models\Department;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use App\Models\MaterialRequest;
 use Illuminate\Support\Facades\DB;
@@ -38,12 +39,12 @@ class MaterialRequestController extends Controller
         }
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
         $userBranchId = Auth::user()->employee->branch_id ?? null;
-
+        $canViewGlobal = Auth::user()->can('material_requests.view_global') || $isSuperadmin;
         $departments = Department::where('branch_id', $userBranchId)->pluck('id');
 
         $query = MaterialRequest::query()
-            ->with(['department:id,name', 'requester:id,name', 'approver:id,name'])
-            ->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departments) {
+            ->with(['department.branch', 'requester:id,name', 'approver:id,name'])
+            ->when(!$canViewGlobal, function ($query) use ($departments) {
                 return $query->whereIn('department_id', $departments);
             });
 
@@ -130,13 +131,21 @@ class MaterialRequestController extends Controller
         $canDelete = Auth::user()->can('material_requests.delete');
         $canView = Auth::user()->can('material_requests.view');
         $canCreate = Auth::user()->can('material_requests.create');
+        $canViewGlobal = Auth::user()->can('material_requests.view_global') || $isSuperadmin;
 
+        $departments = Department::where('name', 'Gudang')->with('branch')
+            ->when(!$canViewGlobal, function ($query) use ($departments) {
+                return $query->whereIn('id', $departments);
+            })
+            ->get()
+            ->map(function ($d) {
+                return [
+                    'id' => $d->id,
+                    'name' => $d->branch ? $d->branch->name : $d->name,
+                ];
+            })->sortBy('name')->values();
 
-        $departments = Department::query()->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departments) {
-            return $query->whereIn('id', $departments);
-        })->select('id', 'name')->orderBy('name')->get();
-
-        $employees = Employee::query()->when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($departments) {
+        $employees = Employee::query()->when(!$canViewGlobal, function ($query) use ($departments) {
             return $query->whereIn('department_id', $departments);
         })->select('id', 'name')->orderBy('name')->get();
 
@@ -149,7 +158,7 @@ class MaterialRequestController extends Controller
                 return [
                     'id' => $mr->id,
                     'request_no' => $mr->request_no,
-                    'department' => $mr->department?->name,
+                    'department' => $mr->department?->branch?->name ?? $mr->department?->name,
                     'requested_by' => $mr->requester?->name,
                     'requested_at' => Carbon::parse($mr->requested_at)->locale('id')->translatedFormat('d F Y'),
                     'status' => $mr->status,
@@ -172,17 +181,36 @@ class MaterialRequestController extends Controller
     public function create()
     {
         $requestNo = MaterialRequest::generateRequestNo();
-        $departments = Department::with(['branch'])->orderBy('name')->get();
+        $departments = Branch::all()->map(function ($b) {
+            $gudangDept = Department::firstOrCreate(
+                ['branch_id' => $b->id, 'name' => 'Gudang'],
+                ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+            );
+            return [
+                'id' => $gudangDept->id,
+                'name' => 'Gudang',
+                'branch' => $b,
+            ];
+        })->sortBy(fn($d) => $d['branch']->name)->values();
         $employees = Employee::orderBy('name')->get();
 
         // Get user's department branch to filter items
         $user = Auth::user();
+        $isSuperadmin = $user->hasRole("Superadmin");
         $userBranchId = $user->employee?->department?->branch_id;
 
         // Filter items based on user's department branch
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
-            ->when($userBranchId && $userBranchId != 2, function ($query) use ($userBranchId) {
-                return $query->where('branch_id', $userBranchId);
+        $canCreateGlobal = Auth::user()->can('material_requests.create_global') || $isSuperadmin;
+
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
+                return $query->where('items.branch_id', $userBranchId);
             })
             ->orderBy('name')
             ->get()
@@ -191,7 +219,7 @@ class MaterialRequestController extends Controller
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
-                    'stock' => $item->stock?->last_stock ?? 0,
+                    'stock' => $item->true_stock ?? 0,
                     'unit' => $item->unit,
                 ];
             });
@@ -212,16 +240,20 @@ class MaterialRequestController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'request_no' => ['required', 'string', 'unique:material_requests,request_no'],
+            'request_no' => ['nullable', 'string', 'unique:material_requests,request_no'],
             'requested_at' => ['required', 'date'],
             'department_id' => ['required', 'exists:departments,id'],
             'employee_id' => ['required', 'exists:employees,id'],
             'requirement' => ['nullable', 'string'],
             'requests' => ['required', 'array'],
             'requests.*.item_id' => ['required_with:requests', 'exists:items,id'],
-            'requests.*.request' => ['required_with:requests', 'integer', 'min:1'],
+            'requests.*.request' => ['required_with:requests', 'numeric', 'min:0.0001'],
             'requests.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        if (empty($data['request_no'])) {
+            $data['request_no'] = MaterialRequest::generateRequestNo($data['requested_at']);
+        }
 
         try {
             DB::transaction(function () use ($data) {
@@ -261,7 +293,7 @@ class MaterialRequestController extends Controller
     public function show(MaterialRequest $materialRequest)
     {
         $materialRequest->load([
-            'department:id,name',
+            'department.branch',
             'requester:id,name',
             'approver:id,name',
             'items.item.unit:id,name,short_name',
@@ -288,16 +320,17 @@ class MaterialRequestController extends Controller
             'mr' => [
                 'id' => $materialRequest->id,
                 'request_no' => $materialRequest->request_no,
-                'department' => $materialRequest->department?->name,
+                'department' => $materialRequest->department?->branch?->name ?? $materialRequest->department?->name,
                 'requested_by' => $materialRequest->requester?->name,
-                'requested_at' => optional($materialRequest->requested_at)->format('Y-m-d'),
+                'requested_at' => $materialRequest->requested_at ? $materialRequest->requested_at->locale('id')->translatedFormat('d F Y') : null,
                 'approved_by' => $materialRequest->approver?->name,
-                'approved_at' => optional($materialRequest->approved_at)?->format('Y-m-d'),
+                'approved_at' => $materialRequest->approved_at ? $materialRequest->approved_at->locale('id')->translatedFormat('d F Y H:i') : null,
                 'requirement' => $materialRequest->requirement,
                 'note' => $materialRequest->note,
                 'status' => $materialRequest->status,
+                'purchase_requests' => $materialRequest->purchaseRequest()->pluck('request_no')->toArray(),
             ],
-            'items' => $materialRequest->items->map(function ($item) {
+            'items' => $materialRequest->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_name' => $item->item?->name,
@@ -323,7 +356,15 @@ class MaterialRequestController extends Controller
         ]);
 
         // Get all items for the select options
-        $allItems = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->get();
+        $allItems = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Admin/MaterialRequests/Edit', [
             'mr' => [
@@ -335,7 +376,7 @@ class MaterialRequestController extends Controller
                 'status' => $materialRequest->status,
                 'requirement' => $materialRequest->requirement,
             ],
-            'items' => $materialRequest->items->map(function ($it) {
+            'items' => $materialRequest->items->filter(fn ($it) => $it->item !== null)->values()->map(function ($it) {
                 return [
                     'id' => $it->id,
                     'item_id' => $it->item?->id,
@@ -351,11 +392,21 @@ class MaterialRequestController extends Controller
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
-                    'stock' => $item->stock?->last_stock ?? 0,
+                    'stock' => $item->true_stock ?? 0,
                     'unit' => $item->unit,
                 ];
             }),
-            'departments' => Department::query()->select('id', 'name')->orderBy('name')->get(),
+            'departments' => Branch::all()->map(function ($b) {
+                $gudangDept = Department::firstOrCreate(
+                    ['branch_id' => $b->id, 'name' => 'Gudang'],
+                    ['status' => true, 'description' => 'Gudang Otomatis Cabang ' . $b->name]
+                );
+                return [
+                    'id' => $gudangDept->id,
+                    'name' => 'Gudang',
+                    'branch' => $b,
+                ];
+            })->sortBy(fn($d) => $d['branch']->name)->values(),
             'employees' => Employee::query()->select('id', 'name')->orderBy('name')->get(),
             'statusOptions' => [
                 ['value' => 'on_progress', 'label' => 'Menunggu Persetujuan'],
@@ -383,14 +434,18 @@ class MaterialRequestController extends Controller
             'requirement' => ['nullable', 'string'],
             'requests' => ['required', 'array'],
             'requests.*.item_id' => ['required_with:requests', 'exists:items,id'],
-            'requests.*.request' => ['required_with:requests', 'integer', 'min:1'],
+            'requests.*.request' => ['required_with:requests', 'numeric', 'min:0.0001'],
             'requests.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 
         $data['requested_by'] = $data['employee_id'];
         $materialRequest->update($data);
 
-        $materialRequest->items()->delete();
+        // Hapus hanya baris dengan barang AKTIF; baris yang barangnya sudah
+        // diarsipkan (soft delete) dipertahankan agar riwayat dokumen tidak berubah.
+        $materialRequest->items()
+            ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+            ->delete();
 
         foreach ($data['requests'] as $r) {
             $materialRequest->items()->create([
@@ -423,11 +478,11 @@ class MaterialRequestController extends Controller
         $materialRequest->update([
             'status' => 'rejected',
             'approved_at' => now(),
-            'approved_by' => Auth::user()->id,
+            'approved_by' => Auth::user()->employee->id,
         ]);
         $this->logActivity($materialRequest->id, 'Menolak Permintaan', 'Permintaan ditolak.');
         return redirect()
-            ->route('material-requests.index')
+            ->route('material-requests.show', $materialRequest->id)
             ->with('success', 'Penolakan permintaan berhasil.');
     }
 
@@ -436,7 +491,7 @@ class MaterialRequestController extends Controller
         app(ApproveMaterialRequest::class)->execute($materialRequest, $request->all());
 
         $this->logActivity($materialRequest->id, 'Menyetujui Permintaan', 'Permintaan disetujui beserta jumlah yang disetujui.');
-        return redirect()->route('material-requests.index')->with('success', 'Permintaan disetujui.');
+        return redirect()->route('material-requests.show', $materialRequest->id)->with('success', 'Permintaan disetujui.');
     }
 
     public function issue(MaterialRequest $materialRequest)
@@ -455,7 +510,7 @@ class MaterialRequestController extends Controller
             'status' => 'cancelled',
         ]);
         $this->logActivity($materialRequest->id, 'Membatalkan Permintaan', 'Permintaan dibatalkan.');
-        return redirect()->route('material-requests.index')->with('success', 'Permintaan dibatalkan.');
+        return redirect()->route('material-requests.show', $materialRequest->id)->with('success', 'Permintaan dibatalkan.');
     }
 
     public function getMaterialRequests(Request $request)
@@ -504,7 +559,13 @@ class MaterialRequestController extends Controller
             return response()->json(['items' => []]);
         }
 
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->where('branch_id', $department->branch_id)
             ->orderBy('name')
             ->get()
@@ -513,7 +574,7 @@ class MaterialRequestController extends Controller
                     'id' => $item->id,
                     'name' => $item->name,
                     'code' => $item->code,
-                    'stock' => $item->stock?->last_stock ?? 0,
+                    'stock' => $item->true_stock ?? 0,
                     'unit' => $item->unit,
                 ];
             });
@@ -536,7 +597,8 @@ class MaterialRequestController extends Controller
             return response()->json(['items' => []]);
         }
 
-        $items = $materialRequest->items->map(function ($mrItem) {
+        // Filter baris yang barangnya sudah diarsipkan (soft delete)
+        $items = $materialRequest->items->filter(fn ($mrItem) => $mrItem->item !== null)->values()->map(function ($mrItem) {
             return [
                 'id' => $mrItem->item->id,
                 'name' => $mrItem->item->name,
@@ -550,6 +612,86 @@ class MaterialRequestController extends Controller
         });
 
         return response()->json(['items' => $items]);
+    }
+
+    public function getItemStockBreakdown(Request $request)
+    {
+        $itemId = $request->integer('item_id');
+
+        if (!$itemId) {
+            return response()->json([
+                'item_name' => '',
+                'item_code' => '',
+                'total_stock' => 0,
+                'breakdown' => []
+            ]);
+        }
+
+        $item = Item::find($itemId);
+
+        if (!$item) {
+            return response()->json([
+                'item_name' => '',
+                'item_code' => '',
+                'total_stock' => 0,
+                'breakdown' => []
+            ]);
+        }
+
+        $code = $item->code;
+        $name = $item->name;
+
+        // Query all branches
+        $branches = \App\Models\Branch::orderBy('name', 'asc')->get();
+
+        // Query all items with the same code (ignoring branch suffix) or name
+        $items = Item::with(['branch'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->where(function ($query) use ($code, $name) {
+                // Strip branch suffix like -B1, -B12 to get the base code prefix
+                $baseCode = $code;
+                if (preg_match('/^(.*?)-B\d+$/i', $code, $matches)) {
+                    $baseCode = $matches[1];
+                }
+
+                if (!empty($baseCode) && $baseCode !== '-') {
+                    $query->where('code', 'like', $baseCode . '-%')
+                          ->orWhere('code', $baseCode)
+                          ->orWhere('name', $name);
+                } else {
+                    $query->where('name', $name);
+                }
+            })
+            ->get();
+
+        // Create a lookup map of branch_id => stock
+        $itemStocksByBranch = [];
+        foreach ($items as $it) {
+            $itemStocksByBranch[$it->branch_id] = (float) ($it->true_stock ?? 0);
+        }
+
+        // Build the breakdown for ALL branches to be transparent and clear
+        $breakdown = $branches->map(function ($branch) use ($itemStocksByBranch) {
+            return [
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->name,
+                'stock' => $itemStocksByBranch[$branch->id] ?? 0.0,
+            ];
+        })->values();
+
+        $totalStock = $breakdown->sum('stock');
+
+        return response()->json([
+            'item_name' => $name,
+            'item_code' => $code,
+            'total_stock' => $totalStock,
+            'breakdown' => $breakdown,
+        ]);
     }
 
     private function logActivity($materialRequestId, $title, $description)

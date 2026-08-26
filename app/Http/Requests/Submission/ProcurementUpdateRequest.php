@@ -27,7 +27,7 @@ class ProcurementUpdateRequest extends FormRequest
             'note' => 'sometimes|nullable|string',
             'items' => 'sometimes|required|array',
             'items.*.item_id' => 'sometimes|required|exists:items,id',
-            'items.*.quantity' => 'sometimes|required|integer|min:1',
+            'items.*.quantity' => 'sometimes|required|numeric|min:0.0001',
             // 'items.*.note' => 'sometimes|nullable|string',
         ];
     }

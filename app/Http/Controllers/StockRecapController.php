@@ -27,26 +27,87 @@ class StockRecapController extends Controller
             'unit_id' => $request->integer('unit_id') ?: null,
             'branch_id' => $request->integer('branch_id') ?: null,
             'q' => (string) $request->get('q', ''),
+            'hide_empty' => $request->boolean('hide_empty'),
         ];
 
 
         // Set default date range if not provided (use full datetime boundaries)
-        $tanggalAwal = $filters['date_from'] ? \Carbon\Carbon::parse($filters['date_from'])->startOfDay() : now()->startOfMonth();
+        $tanggalAwal = $filters['date_from'] ? \Carbon\Carbon::parse($filters['date_from'])->startOfDay() : \Carbon\Carbon::create(2000, 1, 1)->startOfDay();
         $tanggalAkhir = $filters['date_to'] ? \Carbon\Carbon::parse($filters['date_to'])->endOfDay() : now()->endOfDay();
-
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
+        $canViewGlobal = Auth::user()->can('stock_recap.view_global') || $isSuperadmin;
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        
         // Get all items with stock data grouped by item and branch
-        $itemsQuery = Item::with(['category', 'unit', 'branch'])
+        $uniqueQuery = Item::query()
+            ->select('items.name', 'items.category_id', 'items.unit_id', DB::raw('MIN(items.id) as id'))
+            ->groupBy('items.name', 'items.category_id', 'items.unit_id')
+            ->when($filters['item_id'], function ($q) use ($filters) {
+                // If specific item is selected, we filter by name of that item
+                $selectedItem = Item::find($filters['item_id']);
+                if ($selectedItem) {
+                    $q->where('items.name', $selectedItem->name);
+                }
+            })
+            ->when($filters['category_id'], function ($q) use ($filters) {
+                $q->where('items.category_id', $filters['category_id']);
+            })
+            ->when($filters['unit_id'], function ($q) use ($filters) {
+                $q->where('items.unit_id', $filters['unit_id']);
+            })
+            ->when($filters['branch_id'], function ($q) use ($filters) {
+                $q->whereExists(function ($sub) use ($filters) {
+                    $sub->select(DB::raw(1))
+                        ->from('items as sub_items')
+                        ->whereColumn('sub_items.name', 'items.name')
+                        ->whereColumn('sub_items.category_id', 'items.category_id')
+                        ->whereColumn('sub_items.unit_id', 'items.unit_id')
+                        ->where('sub_items.branch_id', $filters['branch_id']);
+                });
+            })
+            ->when($filters['q'], function ($q) use ($filters) {
+                $q->where('items.name', 'like', '%' . $filters['q'] . '%');
+            })
+            ->when($filters['hide_empty'], function ($query) use ($tanggalAwal, $tanggalAkhir) {
+                $query->whereExists(function ($sub) use ($tanggalAwal, $tanggalAkhir) {
+                    $sub->select(DB::raw(1))
+                        ->from('items as sub_items')
+                        ->whereColumn('sub_items.name', 'items.name')
+                        ->whereColumn('sub_items.category_id', 'items.category_id')
+                        ->whereColumn('sub_items.unit_id', 'items.unit_id')
+                        ->whereRaw('(
+                            COALESCE((SELECT SUM(CASE WHEN type IN ("In", "in", "adjust_in", "transfer_in", "return_in") THEN amount ELSE -amount END) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND item_stocks.created_at < ?), 0) +
+                            COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND type IN ("In", "in", "adjust_in", "transfer_in", "return_in") AND item_stocks.created_at BETWEEN ? AND ?), 0) -
+                            COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = sub_items.id AND type IN ("Out", "out", "adjust_out", "transfer_out") AND item_stocks.created_at BETWEEN ? AND ?), 0)
+                        ) > 0', [$tanggalAwal, $tanggalAwal, $tanggalAkhir, $tanggalAwal, $tanggalAkhir]);
+                });
+            })
+            ->when(!$canViewGlobal, function ($query) use ($userBranchId) {
+                $query->whereExists(function ($sub) use ($userBranchId) {
+                    $sub->select(DB::raw(1))
+                        ->from('items as sub_items')
+                        ->whereColumn('sub_items.name', 'items.name')
+                        ->whereColumn('sub_items.category_id', 'items.category_id')
+                        ->whereColumn('sub_items.unit_id', 'items.unit_id')
+                        ->where('sub_items.branch_id', $userBranchId);
+                });
+            })
+            ->orderBy('items.name', 'asc');
+
+        $items = $uniqueQuery->paginate($request->integer('per_page') ?: 15)->withQueryString();
+
+        $itemGroups = $items->getCollection();
+        $names = $itemGroups->pluck('name')->unique()->toArray();
+
+        // Query all matching items across branches with their stock details
+        $allBranchItems = Item::whereIn('items.name', $names)
             ->select('items.*')
             ->leftJoin('branches', 'items.branch_id', '=', 'branches.id')
             ->addSelect('branches.name as branch_name')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2 && empty($filters['branch_id']), function ($query) {
-                return $query->where('items.branch_id', Auth::user()->employee->branch_id);
-            })
             // stok_awal (qty) before start date
             ->selectSub(function ($q) use ($tanggalAwal) {
                 $q->from('item_stocks')
-                    ->selectRaw("COALESCE(SUM(CASE WHEN type = 'In' THEN amount ELSE -amount END), 0)")
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
                     ->whereColumn('item_stocks.item_id', 'items.id')
                     ->where('item_stocks.created_at', '<', $tanggalAwal);
             }, 'stok_awal')
@@ -55,7 +116,7 @@ class StockRecapController extends Controller
                 $q->from('item_stocks')
                     ->selectRaw('COALESCE(SUM(amount), 0)')
                     ->whereColumn('item_stocks.item_id', 'items.id')
-                    ->where('type', 'In')
+                    ->whereIn('type', ['In', 'in', 'adjust_in', 'transfer_in', 'return_in'])
                     ->whereBetween('item_stocks.created_at', [$tanggalAwal, $tanggalAkhir]);
             }, 'stok_masuk')
             // stok_keluar (qty) within range
@@ -63,83 +124,70 @@ class StockRecapController extends Controller
                 $q->from('item_stocks')
                     ->selectRaw('COALESCE(SUM(amount), 0)')
                     ->whereColumn('item_stocks.item_id', 'items.id')
-                    ->where('type', 'Out')
+                    ->whereIn('type', ['Out', 'out', 'adjust_out', 'transfer_out'])
                     ->whereBetween('item_stocks.created_at', [$tanggalAwal, $tanggalAkhir]);
             }, 'stok_keluar')
-            // Nominal perhitungan dinonaktifkan (tidak ada kolom items.price)
-            ->when($filters['item_id'], function ($q) use ($filters) {
-                $q->where('items.id', $filters['item_id']);
-            })
-            ->when($filters['category_id'], function ($q) use ($filters) {
-                // filter by single category relation
-                $q->where('items.category_id', $filters['category_id']);
-            })
-            ->when($filters['unit_id'], function ($q) use ($filters) {
-                // filter by unit
-                $q->where('items.unit_id', $filters['unit_id']);
-            })
-            ->when($filters['branch_id'], function ($q) use ($filters) {
-                // filter by branch
-                $q->where('items.branch_id', $filters['branch_id']);
-            })
-            ->when($filters['q'], function ($q) use ($filters) {
-                $q->where('items.name', 'like', '%' . $filters['q'] . '%');
-            })
-            // Order by stok_masuk DESC (highest first), then stok_keluar DESC
-            ->orderByRaw('(
-                COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = items.id AND type = "In" AND item_stocks.created_at BETWEEN ? AND ?), 0)
-            ) DESC', [$tanggalAwal, $tanggalAkhir])
-            ->orderByRaw('(
-                COALESCE((SELECT SUM(amount) FROM item_stocks WHERE item_stocks.item_id = items.id AND type = "Out" AND item_stocks.created_at BETWEEN ? AND ?), 0)
-            ) DESC', [$tanggalAwal, $tanggalAkhir]);
+            ->get();
 
-        $items = $itemsQuery->paginate($request->integer('per_page') ?: 15)->withQueryString();
+        // Group the branch items by name, category_id, unit_id for easy lookup
+        $branchItemsGrouped = $allBranchItems->groupBy(function ($item) {
+            return $item->name . '_' . $item->category_id . '_' . $item->unit_id;
+        });
 
-        $data = $items->getCollection()->map(function ($item) use ($tanggalAwal, $tanggalAkhir) {
-            // Use values from subqueries that respect date filters
-            $stokAwal = (float) ($item->stok_awal ?? 0);
-            $stokMasuk = (float) ($item->stok_masuk ?? 0);
-            $stokKeluar = (float) ($item->stok_keluar ?? 0);
+        // Load relationships for the paginated item groups
+        $itemGroups->load(['category', 'unit']);
 
-            // Calculate ending stock based on date range: saldo awal + masuk - keluar
-            $stokAkhir = $stokAwal + $stokMasuk - $stokKeluar;
+        $data = $itemGroups->map(function ($group) use ($branchItemsGrouped) {
+            $lookupKey = $group->name . '_' . $group->category_id . '_' . $group->unit_id;
+            $itemsForGroup = $branchItemsGrouped->get($lookupKey) ?: collect();
 
-            // Calculate activity (total movement)
-            $aktivitas = $stokMasuk + $stokKeluar;
+            $stocksByBranch = [];
+            $branchesData = [];
+            $totalPersediaan = 0;
+
+            foreach ($itemsForGroup as $item) {
+                $stokAwal = (float) ($item->stok_awal ?? 0);
+                $stokMasuk = (float) ($item->stok_masuk ?? 0);
+                $stokKeluar = (float) ($item->stok_keluar ?? 0);
+                $stokAkhir = $stokAwal + $stokMasuk - $stokKeluar;
+
+                $stocksByBranch[$item->branch_id] = [
+                    'item_id' => $item->id,
+                    'qty' => $stokAkhir,
+                ];
+
+                $branchesData[] = [
+                    'item_id' => $item->id,
+                    'branch_id' => $item->branch_id,
+                    'branch_name' => $item->branch_name ?? 'Tanpa Cabang',
+                ];
+
+                $totalPersediaan += $stokAkhir;
+            }
 
             return [
-                'id' => $item->id,
+                'id' => $group->id,
                 'item' => [
-                    'id' => $item->id,
-                    'code' => $item->code,
-                    'name' => $item->name,
-                    'unit' => $item->unit ? $item->unit->name : null,
-                    // price & categories di-nonaktifkan/diringkas
+                    'id' => $group->id,
+                    'code' => $group->code,
+                    'name' => $group->name,
+                    'unit' => $group->unit ? ($group->unit->short_name ?? $group->unit->name) : null,
                     'price' => 0,
-                    'category' => $item->category ? $item->category->name : null,
+                    'category' => $group->category ? $group->category->name : null,
                 ],
-                'branch' => $item->branch_name ?? 'Semua Cabang',
-                'saldo_awal' => [
-                    'qty' => $stokAwal,
-                    'value' => 0,
-                ],
-                'in' => [
-                    'qty' => $stokMasuk,
-                    'value' => 0,
-                ],
-                'out' => [
-                    'qty' => $stokKeluar,
-                    'value' => 0,
-                ],
-                'ending' => [
-                    'qty' => $stokAkhir,
-                    'value' => 0
-                ],
-                'aktivitas' => $aktivitas, // Total pergerakan (masuk + keluar)
+                'stocks' => $stocksByBranch,
+                'branches_data' => $branchesData,
+                'total_persediaan' => $totalPersediaan,
             ];
         });
 
         $items->setCollection($data);
+
+        $branchesQuery = \App\Models\Branch::select('id', 'name');
+        if (!$canViewGlobal) {
+            $branchesQuery->where('id', $userBranchId);
+        }
+        $branches = $branchesQuery->get();
 
         return Inertia::render('Admin/StockRecap/Index', [
             'recaps' => $items,
@@ -147,7 +195,10 @@ class StockRecapController extends Controller
             'items' => Item::select('id', 'name')->get(),
             'categories' => ItemCategory::select('id', 'name')->get(),
             'units' => Unit::select('id', 'name')->get(),
-            'branches' => \App\Models\Branch::select('id', 'name')->get(),
+            'branches' => $branches,
+            'can' => [
+                'adjust' => Auth::user()->can('stock_recap.adjust') || $isSuperadmin,
+            ]
         ]);
     }
 
@@ -157,61 +208,121 @@ class StockRecapController extends Controller
         $type = $request->input('type');
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
-
         // Set default date range
-        $tanggalAwal = $dateFrom ? \Carbon\Carbon::parse($dateFrom)->startOfDay() : now()->startOfMonth();
+        $tanggalAwal = $dateFrom ? \Carbon\Carbon::parse($dateFrom)->startOfDay() : \Carbon\Carbon::create(2000, 1, 1)->startOfDay();
         $tanggalAkhir = $dateTo ? \Carbon\Carbon::parse($dateTo)->endOfDay() : now()->endOfDay();
 
-        $query = ItemStock::where('item_id', $itemId);
+        // Fetch ALL transactions for the item up to $tanggalAkhir
+        // to accurately calculate the running stock in chronological order
+        $allTransactions = ItemStock::with('source')
+            ->where('item_id', $itemId)
+            ->where('created_at', '<=', $tanggalAkhir)
+            ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
-        // Filter based on type
-        switch ($type) {
-            case 'saldo_awal':
-                // Transactions before start date
-                $query->where('created_at', '<', $tanggalAwal);
-                break;
-            case 'stok_masuk':
-                // In transactions within range
-                $query->where('type', 'In')
-                    ->whereBetween('created_at', [$tanggalAwal, $tanggalAkhir]);
-                break;
-            case 'stok_keluar':
-                // Out transactions within range
-                $query->where('type', 'Out')
-                    ->whereBetween('created_at', [$tanggalAwal, $tanggalAkhir]);
-                break;
-            case 'total_persediaan':
-                // All transactions up to end date
-                $query->where('created_at', '<=', $tanggalAkhir);
-                break;
-            default:
-                // All transactions within range
-                $query->whereBetween('created_at', [$tanggalAwal, $tanggalAkhir]);
-        }
+        $runningStock = 0;
+        
+        $processedTransactions = $allTransactions->map(function ($stock) use (&$runningStock) {
+            $is_in = in_array(strtolower((string) $stock->type), ['in', 'adjust_in', 'transfer_in', 'return_in']);
+            $amount = (float) $stock->amount;
+            
+            $initial = $runningStock;
+            if ($is_in) {
+                $runningStock += $amount;
+            } else {
+                $runningStock -= $amount;
+            }
 
-        $transactions = $query->with('source')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($stock) {
-                return [
-                    'id' => $stock->id,
-                    'type' => $stock->type,
-                    'source_type' => $this->getType($stock),
-                    'source_id' => $stock->source_id,
-                    'reference' => $this->getReference($stock),
-                    'initial_stock' => $stock->initial_stock,
-                    'amount' => $stock->amount,
-                    'last_stock' => $stock->last_stock,
-                    'note' => $stock->note ?? '-',
-                    'transaction_value' => $this->getTransactionValue($stock),
-                    'created_at' => $stock->created_at->format('Y-m-d H:i:s'),
-                ];
-            });
+            return (object) [
+                'stock' => $stock,
+                'is_in' => $is_in,
+                'initial_stock' => $initial,
+                'last_stock' => $runningStock,
+            ];
+        });
+
+        // Filter based on requested type
+        $filteredTransactions = $processedTransactions->filter(function ($item) use ($type, $tanggalAwal, $tanggalAkhir) {
+            $createdAt = $item->stock->created_at;
+            
+            switch ($type) {
+                case 'saldo_awal':
+                    return $createdAt->lt($tanggalAwal);
+                case 'stok_masuk':
+                    return $item->is_in && $createdAt->between($tanggalAwal, $tanggalAkhir);
+                case 'stok_keluar':
+                    return !$item->is_in && $createdAt->between($tanggalAwal, $tanggalAkhir);
+                case 'total_persediaan':
+                    return $createdAt->between($tanggalAwal, $tanggalAkhir);
+                default:
+                    return $createdAt->between($tanggalAwal, $tanggalAkhir);
+            }
+        });
+
+        // Format for output and reverse order (newest first)
+        $transactions = $filteredTransactions->reverse()->values()->map(function ($item) {
+            $stock = $item->stock;
+            return [
+                'id' => $stock->id,
+                'type' => $item->is_in ? 'In' : 'Out',
+                'original_type' => $stock->type,
+                'source_type' => $this->getType($stock),
+                'source_id' => $stock->source_id,
+                'reference' => $this->getReference($stock),
+                'initial_stock' => $item->initial_stock,
+                'amount' => (float) $stock->amount,
+                'last_stock' => $item->last_stock,
+                'note' => $stock->note ?? '-',
+                'transaction_value' => $this->getTransactionValue($stock),
+                'created_at' => $stock->created_at->format('Y-m-d H:i:s'),
+            ];
+        });
 
         return response()->json([
             'transactions' => $transactions,
             'total' => $transactions->count(),
+            'true_sisa_stok' => $runningStock
         ]);
+    }
+
+    public function adjust(Request $request)
+    {
+        if (!Auth::user()->can('stock_recap.adjust') && !Auth::user()->hasRole('Superadmin')) {
+            abort(403, 'Anda tidak memiliki hak akses untuk melakukan penyesuaian stok.');
+        }
+
+        $request->validate([
+            'item_id' => 'required|exists:items,id',
+            'actual_stock' => 'required|numeric|min:0',
+            'note' => 'nullable|string'
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+            $item = Item::findOrFail($request->item_id);
+            $lastStockRecord = $item->stocks()->orderByDesc('id')->first();
+            $currentStock = $lastStockRecord?->last_stock ?? 0;
+            $actualStock = $request->actual_stock;
+            $difference = $actualStock - $currentStock;
+
+            if ($difference == 0) {
+                return back()->with('success', 'Stok sudah sesuai, tidak ada penyesuaian yang dilakukan.');
+            }
+
+            $type = $difference > 0 ? 'adjust_in' : 'adjust_out';
+            $amount = abs($difference);
+
+            $stockData = [
+                'type' => $type,
+                'amount' => $amount,
+                'tanggal' => now()->toDateString(),
+                'note' => $request->note ?? 'Penyesuaian stok (Opname)'
+            ];
+
+            app(\App\Actions\Data\Item\UpdateStockItem::class)->execute($stockData, $item);
+
+            return back()->with('success', 'Penyesuaian stok berhasil disimpan.');
+        });
     }
 
     private function getReference($stock)
@@ -259,6 +370,11 @@ class StockRecapController extends Controller
 
     private function getType($stock)
     {
+        $type = strtolower((string) $stock->type);
+        if (str_contains($type, 'adjust')) {
+            return 'Penyesuaian';
+        }
+
         if (!$stock->source_type || !$stock->source_id) {
             return 'Manual';
         }
@@ -290,6 +406,8 @@ class StockRecapController extends Controller
 
     private function getTransactionValue($stock)
     {
-        return $stock->amount * $stock->item->price;
+        // Guard: relasi item bisa null jika barang sudah diarsipkan (soft delete).
+        // Kolom price tidak ada di tabel items, sehingga nilai transaksi selalu 0.
+        return $stock->amount * ($stock->item?->price ?? 0);
     }
 }

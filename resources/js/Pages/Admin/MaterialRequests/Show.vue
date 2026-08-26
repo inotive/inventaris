@@ -42,19 +42,19 @@
                                 <td class="p-2 font-mono">
                                     {{ ap.item_code }}
                                 </td>
-                                <td class="p-2">
-                                    {{ ap.quantity_requested }}
-                                    <span class="px-1">{{ ap.unit }}</span>
-                                </td>
-                                <td class="p-2">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        class="px-2 w-28 h-9 rounded border"
-                                        v-model.number="ap.quantity_approved"
-                                    />
-                                    <span class="px-1">{{ ap.unit }}</span>
-                                </td>
+                                 <td class="p-2">
+                                     {{ parseFloat(ap.quantity_requested) }}
+                                     <span class="px-1">{{ ap.unit }}</span>
+                                 </td>
+                                 <td class="p-2">
+                                     <input
+                                         type="text"
+                                         inputmode="decimal"
+                                         class="px-2 w-28 h-9 rounded border text-center"
+                                         v-model="ap.quantity_approved"
+                                     />
+                                     <span class="px-1">{{ ap.unit }}</span>
+                                 </td>
                                 <td class="p-2">
                                     <input
                                         type="text"
@@ -111,7 +111,7 @@
                     </div>
                 </div>
                 <div>
-                    <div class="text-xs text-gray-500">Departemen</div>
+                    <div class="text-xs text-gray-500">Untuk Cabang</div>
                     <div class="font-semibold text-gray-800 dark:text-gray-200">
                         {{ mr.department }}
                     </div>
@@ -268,11 +268,11 @@
                                 {{ it.item_code }}
                             </td>
                             <td class="px-3 py-2">
-                                {{ it.quantity_requested }}
+                                {{ it.quantity_requested ? parseFloat(it.quantity_requested) : 0 }}
                                 <span class="px-2">{{ it.unit }}</span>
                             </td>
                             <td class="px-3 py-2">
-                                {{ it.quantity_approved }}
+                                {{ it.quantity_approved ? parseFloat(it.quantity_approved) : '' }}
                                 <span class="px-2">{{ it.unit }}</span>
                             </td>
                             <td class="px-3 py-2">{{ it.note }}</td>
@@ -372,10 +372,11 @@
 
     <ConfirmModal
         :show="showConfirmPR"
-        :question="`Buat Pengajuan Pembelian dari ${mr.request_no}?`"
-        :selected="`${mr.request_no}`"
-        title="Proses ke Pengajuan Pembelian"
-        confirmText="Ya, Buat Pengajuan"
+        :title="mr.purchase_requests && mr.purchase_requests.length > 0 ? 'Peringatan: Pengajuan Sudah Ada' : 'Proses ke Pengajuan Pembelian'"
+        :question="mr.purchase_requests && mr.purchase_requests.length > 0 ? `Peringatan: Permintaan ini sudah pernah diproses menjadi Pengajuan Pembelian (${mr.purchase_requests.join(', ')}). Apakah Anda yakin ingin tetap membuat pengajuan pembelian baru` : `Buat Pengajuan Pembelian dari ${mr.request_no}`"
+        selected=""
+        :confirmText="mr.purchase_requests && mr.purchase_requests.length > 0 ? 'Lanjutkan Kirim' : 'Ya, Buat Pengajuan'"
+        :cancelText="mr.purchase_requests && mr.purchase_requests.length > 0 ? 'Batalkan' : 'Batal'"
         maxWidth="md"
         @close="closeProcessPR"
         @confirm="submitProcessPR"
@@ -407,7 +408,7 @@
 
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import Breadcrumb from "@/Components/common/Breadcrumb.vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
 
@@ -419,17 +420,17 @@ const props = defineProps({
     can_approve: { type: Boolean, default: false },
 });
 
-const mr = props.mr;
-const items = props.items;
-const activities = props.activities;
-const can_approve = props.can_approve;
+const mr = computed(() => props.mr);
+const items = computed(() => props.items);
+const activities = computed(() => props.activities);
+const can_approve = computed(() => props.can_approve);
 
-console.log("mr status:", mr.status);
-const breadcrumbs = [
+console.log("mr status:", props.mr.status);
+const breadcrumbs = computed(() => [
     { label: "Penyimpanan" },
     { label: "Permintaan Barang", href: route("material-requests.index") },
-    { label: mr.request_no },
-];
+    { label: props.mr.request_no },
+]);
 
 const activeTab = ref("items");
 const showApprove = ref(false);
@@ -472,7 +473,7 @@ function badgeClass(s) {
 function onRejected() {
     if (!confirm("Tolak permintaan ini?")) return;
     router.post(
-        route("material-requests.rejected", mr.id),
+        route("material-requests.rejected", props.mr.id),
         {},
         { preserveScroll: true }
     );
@@ -487,22 +488,36 @@ function closeConfirmRejected() {
 }
 
 function openApprove() {
-    approvals.value = (items || []).map((it) => ({
-        id: it.id,
-        item_name: it.item_name,
-        item_code: it.item_code,
-        unit: it.unit,
-        quantity_requested: it.quantity_requested,
-        quantity_approved: it.quantity_approved ?? it.quantity_requested,
-        note: it.note || "",
-    }));
+    approvals.value = (props.items || []).map((it) => {
+        const qty = it.quantity_approved ?? it.quantity_requested;
+        return {
+            id: it.id,
+            item_name: it.item_name,
+            item_code: it.item_code,
+            unit: it.unit,
+            quantity_requested: it.quantity_requested,
+            quantity_approved: qty ? parseFloat(qty).toString().replace('.', ',') : '',
+            note: it.note || "",
+        };
+    });
     showApprove.value = true;
 }
 
 function submitApprove() {
+    const sanitizedApprovals = approvals.value.map((it) => {
+        let val = it.quantity_approved;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        return {
+            ...it,
+            quantity_approved: parseFloat(val) || 0,
+        };
+    });
+
     router.post(
-        route("material-requests.approve", mr.id),
-        { approvals: approvals.value },
+        route("material-requests.approve", props.mr.id),
+        { approvals: sanitizedApprovals },
         {
             preserveScroll: true,
             onFinish: () => {
@@ -514,7 +529,7 @@ function submitApprove() {
 
 function submitRejected() {
     router.post(
-        route("material-requests.rejected", mr.id),
+        route("material-requests.rejected", props.mr.id),
         {},
         {
             preserveScroll: true,
@@ -535,7 +550,7 @@ function closeConfirmCancel() {
 
 function submitCancel() {
     router.post(
-        route("material-requests.cancel", mr.id),
+        route("material-requests.cancel", props.mr.id),
         {},
         {
             preserveScroll: true,
@@ -556,7 +571,7 @@ function closeProcessPR() {
 
 function submitProcessPR() {
     router.post(
-        route("purchase-requests.from-material-request", mr.id),
+        route("purchase-requests.from-material-request", props.mr.id),
         {},
         {
             preserveScroll: true,
@@ -577,7 +592,7 @@ function closeIssueConfirm() {
 
 function submitIssue() {
     router.post(
-        route("material-requests.issue", mr.id),
+        route("material-requests.issue", props.mr.id),
         {},
         {
             preserveScroll: true,

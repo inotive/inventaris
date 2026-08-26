@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class GetLowStockItems
 {
-    public function execute($limit = 50)
+    public function execute($limit = null)
     {
         // Get latest stock for each item using subquery
         $latestStockIds = ItemStock::select('item_id')
@@ -28,21 +28,27 @@ class GetLowStockItems
         }
 
         // Get all items with their latest stock
-        $items = Item::select([
+        $query = Item::select([
                 'id',
                 'name',
                 'code',
                 'min_stock',
+                'branch_id',
             ])
-            ->orderBy('name', 'asc')
-            ->limit($limit)
-            ->get()
+            ->with('branch:id,name')
+            ->orderBy('name', 'asc');
+
+        if ($limit) {
+            $query->limit($limit);
+        }
+
+        $items = $query->get()
             ->map(function ($item) use ($latestStocks) {
                 // Get latest stock for this item
                 $latestStock = $latestStocks->get($item->id);
-                $actualStock = $latestStock ? (int) ($latestStock->last_stock ?? 0) : 0;
-                $minimumStock = (int) ($item->min_stock ?? 0);
-                $difference = $actualStock - $minimumStock;
+                $actualStock = $latestStock ? (float) ($latestStock->last_stock ?? 0) : 0.0;
+                $minimumStock = (float) ($item->min_stock ?? 0);
+                $difference = (float) ($actualStock - $minimumStock);
 
                 return [
                     'id' => $item->id,
@@ -51,7 +57,7 @@ class GetLowStockItems
                     'actual_stock' => $actualStock,
                     'minimum_stock' => $minimumStock,
                     'difference' => $difference,
-                    'price' => null, // Price tidak ada di tabel items
+                    'branch_name' => $item->branch->name ?? '-',
                 ];
             })
             ->values()

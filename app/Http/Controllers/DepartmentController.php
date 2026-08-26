@@ -243,9 +243,15 @@ class DepartmentController extends Controller
 
     public function getEmployees(Department $department)
     {
-        abort_unless(Gate::allows('departments.view'), 403, 'Anda tidak memiliki akses');
+        // Allow access if the user has departments.view permission OR is logged in (needed for dropdowns in forms like Material Requests)
+        abort_unless(Gate::allows('departments.view') || auth()->check(), 403, 'Anda tidak memiliki akses');
 
-        $employees = $department->employees()->get();
+        // Restrict returned columns to avoid exposing sensitive data like salary, NIK, etc.
+        $employees = $department->employees()
+            ->select('id', 'name', 'department_id', 'user_id')
+            ->with(['user:id,name,email'])
+            ->get();
+
         return response()->json($employees);
     }
 }

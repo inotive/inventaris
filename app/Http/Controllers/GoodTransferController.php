@@ -14,6 +14,7 @@ use App\Models\ItemStock;
 use App\Models\GoodTransfer;
 use Illuminate\Http\Request;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseOrder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -44,13 +45,16 @@ class GoodTransferController extends Controller
         $sortDirection = $request->get('sortDirection', 'desc');
         $groupBy = $request->get('groupBy');
 
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
-        $branchScopeIds = Branch::where('id', Auth::user()->employee->branch_id)->pluck('id'); // ⬅️ rename untuk mencegah tabrakan nama
+        $canViewGlobal = Auth::user()->can('good_transfers.view_global') || $isSuperadmin;
 
         $query = GoodTransfer::query()
             ->with(['fromBranch:id,name', 'toBranch:id,name', 'sentBy:id,name', 'receivedBy:id,name'])
-            ->when(!$isSuperadmin, function ($query) use ($branchScopeIds) {
-                return $query->whereIn('from_branch', $branchScopeIds)->orWhereIn('to_branch', $branchScopeIds);
+            ->when(!$canViewGlobal, function ($query) use ($userBranchId) {
+                return $query->where(function ($q) use ($userBranchId) {
+                    $q->where('from_branch', $userBranchId)->orWhere('to_branch', $userBranchId);
+                });
             });
 
         // Apply filters
@@ -62,20 +66,25 @@ class GoodTransferController extends Controller
         }
 
         // Other filters
-        if ($filters['from_branch']) $query->where('from_branch', $filters['from_branch']);
-        if ($filters['to_branch']) $query->where('to_branch', $filters['to_branch']);
-        if ($filters['date_from']) $query->whereDate('transferred_at', '>=', $filters['date_from']);
-        if ($filters['date_to']) $query->whereDate('transferred_at', '<=', $filters['date_to']);
-        if ($filters['status']) $query->where('status', $filters['status']);
+        if ($filters['from_branch'])
+            $query->where('from_branch', $filters['from_branch']);
+        if ($filters['to_branch'])
+            $query->where('to_branch', $filters['to_branch']);
+        if ($filters['date_from'])
+            $query->whereDate('transferred_at', '>=', $filters['date_from']);
+        if ($filters['date_to'])
+            $query->whereDate('transferred_at', '<=', $filters['date_to']);
+        if ($filters['status'])
+            $query->where('status', $filters['status']);
 
         // Sorting
         $sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
         $validSortColumns = ['transfer_no', 'from_branch', 'to_branch', 'transferred_at', 'status', 'created_at'];
         $query->orderBy(in_array($sortBy, $validSortColumns) ? $sortBy : 'created_at', $sortDirection);
 
-        // Dropdown cabang (dibatasi jika bukan superadmin)
-        $branches = Branch::when(!$isSuperadmin, function ($q) use ($branchScopeIds) {
-            return $q->whereIn('id', $branchScopeIds);
+        // Dropdown cabang (dibatasi jika tidak memiliki akses global)
+        $branches = Branch::when(!$canViewGlobal, function ($q) use ($userBranchId) {
+            return $q->where('id', $userBranchId);
         })->select('id', 'name')->orderBy('name')->get();
 
         $goodTransfers = $query->paginate($perPage)->withQueryString();
@@ -91,6 +100,7 @@ class GoodTransferController extends Controller
                     'status' => $gt->status,
                     'sent_by' => $gt->sentBy?->name,
                     'received_by' => $gt->receivedBy?->name,
+                    'po_no' => $gt->po_no,
                     'transferred_at' => $gt->transferred_at->locale('id')->translatedFormat('d F Y'),
                     'created_at' => Carbon::parse($gt->created_at)->locale('id')->translatedFormat('d F Y'),
                 ];
@@ -120,21 +130,41 @@ class GoodTransferController extends Controller
         $transfer_no = GoodTransfer::generateTransferNo();
         $branches = Branch::orderBy('id')->get();
         $employees = Employee::orderBy('name')->get();
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
         $isSuperadmin = Auth::user()->hasRole("Superadmin");
-        $branchIds = Branch::where('id', Auth::user()->employee->branch_id)->pluck('id');
+        $canCreateGlobal = Auth::user()->can('good_transfers.create_global') || $isSuperadmin;
 
-        // fix: hilangkan referensi $filters tak terdefinisi
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->orderBy('name')
-            ->when(!$isSuperadmin, function ($query) use ($branchIds) {
-                return $query->whereIn('items.branch_id', $branchIds);
-            })->get();
+            ->when(!$canCreateGlobal, function ($query) use ($userBranchId) {
+                return $query->where('items.branch_id', $userBranchId);
+            })->get()
+            ->map(function ($item) {
+                $item->stock = $item->true_stock;
+                return $item;
+            });
 
         $roles = Auth::user()->getRoleNames()->first();
 
+        $purchaseOrders = PurchaseOrder::query()
+            ->select('id', 'order_no')
+            ->whereNotIn('order_no', function ($query) {
+                $query->select('po_no')
+                    ->from('good_transfers')
+                    ->whereNotNull('po_no');
+            })
+            ->orderBy('order_no')
+            ->get();
+
         return Inertia::render(
             'Admin/GoodTransfers/Create',
-            compact('transfer_no',  'branches', 'employees', 'items', 'user', 'roles')
+            compact('transfer_no', 'branches', 'employees', 'items', 'user', 'roles', 'purchaseOrders')
         );
     }
 
@@ -146,27 +176,61 @@ class GoodTransferController extends Controller
         abort_unless(Gate::allows('good_transfers.create'), 403, 'Anda tidak memiliki akses untuk menambah perpindahan barang');
 
         $data = $request->validate([
+            'transfer_no' => ['nullable', 'string', 'max:255', 'unique:good_transfers,transfer_no'],
             'from_branch_id' => ['required', 'exists:branches,id'],
             'to_branch_id' => ['required', 'exists:branches,id'],
             'employee_id' => ['required', 'exists:employees,id'],
             'transferred_at' => ['required', 'date'],
             'purpose' => ['nullable', 'string'],
+            'po_no' => ['nullable', 'string', 'max:255'],
+            'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.quantity_transferred' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.quantity_transferred' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
 
+        // Handle multiple attachment uploads
+        $attachmentPaths = [];
+        $attachmentNames = [];
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $attachmentNames[] = $file->getClientOriginalName();
+                $attachmentPaths[] = $file->store('good-transfers/attachments', 'public');
+            }
+        }
+
+        // Fallback for single attachment
+        if ($request->hasFile('attachment')) {
+            $attachmentNames[] = $request->file('attachment')->getClientOriginalName();
+            $attachmentPaths[] = $request->file('attachment')->store('good-transfers/attachments', 'public');
+        }
+
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $canCreateGlobal = Auth::user()->can('good_transfers.create_global') || Auth::user()->hasRole('Superadmin');
+
+        // Validasi: user hanya bisa memindahkan barang dari cabangnya sendiri, KECUALI dia punya akses global
+        if (!$canCreateGlobal && $data['from_branch_id'] != $userBranchId) {
+            return back()->withInput()->withErrors(['from_branch_id' => 'Anda hanya dapat memindahkan barang dari gudang/cabang Anda sendiri.']);
+        }
+
         try {
-            DB::transaction(function () use ($data) {
+            DB::transaction(function () use ($data, $attachmentPaths, $attachmentNames) {
 
                 $goodTransfer = GoodTransfer::create([
+                    'transfer_no' => $data['transfer_no'] ?? null,
                     'from_branch' => $data['from_branch_id'],
                     'to_branch' => $data['to_branch_id'],
                     'sent_by' => $data['employee_id'],
                     'transferred_at' => $data['transferred_at'],
                     'purpose' => $data['purpose'] ?? null,
                     'status' => 'Shipped',
+                    'attachment_path' => !empty($attachmentPaths) ? $attachmentPaths : null,
+                    'attachment_name' => !empty($attachmentNames) ? $attachmentNames : null,
+                    'po_no' => $data['po_no'] ?? null,
                 ]);
 
                 if ($data['items']) {
@@ -213,14 +277,17 @@ class GoodTransferController extends Controller
     {
         abort_unless(Gate::allows('good_transfers.view'), 403, 'Anda tidak memiliki akses untuk melihat detail perpindahan barang');
 
-        $goodTransfer->load(['fromBranch', 'toBranch', 'sentBy', 'receivedBy', 'items.item.unit', 'activities.createdBy']);
+        $goodTransfer->load(['fromBranch', 'toBranch', 'sentBy', 'receivedBy', 'items.item.unit', 'activities.createdBy', 'goodReceipt']);
         $user = Auth::user()->load('employee', 'roles');
 
         return Inertia::render('Admin/GoodTransfers/Show', [
             'isSuperadmin' => Auth::user()->hasRole("Superadmin"),
+            'canApprove' => Auth::user()->can('good_transfers.approve') || Auth::user()->hasRole('Superadmin'),
+            'canCancel' => Auth::user()->can('good_transfers.edit') || Auth::user()->can('good_transfers.approve') || Auth::user()->hasRole('Superadmin'),
             'goodTransfer' => [
                 'id' => $goodTransfer->id,
                 'transfer_no' => $goodTransfer->transfer_no,
+                'po_no' => $goodTransfer->po_no,
                 'from_branch' => $goodTransfer->fromBranch?->name,
                 'from_branch_id' => $goodTransfer->from_branch,
                 'to_branch' => $goodTransfer->toBranch?->name,
@@ -233,8 +300,33 @@ class GoodTransferController extends Controller
                 'transferred_at' => $goodTransfer->transferred_at->locale('id')->translatedFormat('d F Y'),
                 'created_at' => $goodTransfer->created_at->locale('id')->translatedFormat('d F Y H:i'),
                 'updated_at' => $goodTransfer->updated_at->locale('id')->translatedFormat('d F Y H:i'),
+                'attachment_path' => $goodTransfer->attachment_path,
+                'attachment_name' => $goodTransfer->attachment_name,
+                'receipt_attachment_path' => $goodTransfer->goodReceipt?->attachment_path,
+                'receipt_attachment_name' => $goodTransfer->goodReceipt?->attachment_name,
             ],
-            'items' => $goodTransfer->items->map(function ($item) {
+            'items' => $goodTransfer->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) use ($goodTransfer) {
+                $goodReceipt = $goodTransfer->goodReceipt;
+                $rusak = 0;
+                $hilang = 0;
+                if ($goodReceipt) {
+                    $rusak = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
+                        ->where('source_id', $goodReceipt->id)
+                        ->whereHas('item', function ($query) use ($item) {
+                            $query->where('name', $item->item?->name);
+                        })
+                        ->where('reason', 'rusak')
+                        ->sum('quantity');
+
+                    $hilang = \App\Models\ItemDisposal::where('source_type', \App\Models\GoodReceipt::class)
+                        ->where('source_id', $goodReceipt->id)
+                        ->whereHas('item', function ($query) use ($item) {
+                            $query->where('name', $item->item?->name);
+                        })
+                        ->where('reason', 'hilang')
+                        ->sum('quantity');
+                }
+
                 return [
                     'id' => $item->id,
                     'item_name' => $item->item?->name,
@@ -244,6 +336,8 @@ class GoodTransferController extends Controller
                     'unit' => $item->item?->unit?->short_name,
                     'note' => $item->note,
                     'note_received' => $item->note_received,
+                    'quantity_damaged' => (int) $rusak,
+                    'quantity_lost' => (int) $hilang,
                 ];
             }),
             'activities' => $goodTransfer->activities->map(function ($activity) {
@@ -286,13 +380,26 @@ class GoodTransferController extends Controller
         $goodTransfer->load(['items.item.unit', 'sentBy', 'receivedBy']);
         $branches = Branch::orderBy('id')->get();
         $employees = Employee::orderBy('name')->get();
-        $items = Item::with(['unit', 'stock:id,item_id,last_stock'])->orderBy('name')->get();
+        $items = Item::with(['unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($item) {
+                $item->stock = $item->true_stock;
+                return $item;
+            });
         $roles = Auth::user()->getRoleNames()->first();
 
         return Inertia::render('Admin/GoodTransfers/Edit', [
             'goodTransfer' => [
                 'id' => $goodTransfer->id,
                 'transfer_no' => $goodTransfer->transfer_no,
+                'po_no' => $goodTransfer->po_no,
                 'from_branch_id' => $goodTransfer->from_branch,
                 'to_branch_id' => $goodTransfer->to_branch,
                 'employee_id' => $goodTransfer->sent_by,
@@ -300,7 +407,7 @@ class GoodTransferController extends Controller
                 'purpose' => $goodTransfer->purpose,
                 'status' => $goodTransfer->status,
             ],
-            'items' => $goodTransfer->items->map(function ($item) {
+            'items' => $goodTransfer->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,
@@ -316,6 +423,20 @@ class GoodTransferController extends Controller
             'allItems' => $items,
             'user' => $user,
             'roles' => $roles,
+            'purchaseOrders' => PurchaseOrder::query()
+                ->select('id', 'order_no')
+                ->where(function ($query) use ($goodTransfer) {
+                    $query->whereNotIn('order_no', function ($q) {
+                        $q->select('po_no')
+                            ->from('good_transfers')
+                            ->whereNotNull('po_no');
+                    });
+                    if ($goodTransfer->po_no) {
+                        $query->orWhere('order_no', $goodTransfer->po_no);
+                    }
+                })
+                ->orderBy('order_no')
+                ->get(),
         ]);
     }
 
@@ -332,28 +453,45 @@ class GoodTransferController extends Controller
         }
 
         $data = $request->validate([
+            'transfer_no' => ['nullable', 'string', 'max:255', 'unique:good_transfers,transfer_no,' . $goodTransfer->id],
             'from_branch_id' => ['required', 'exists:branches,id'],
             'to_branch_id' => ['required', 'exists:branches,id'],
             'employee_id' => ['required', 'exists:employees,id'],
             'transferred_at' => ['required', 'date'],
             'purpose' => ['nullable', 'string'],
+            'po_no' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array'],
             'items.*.item_id' => ['required_with:items', 'exists:items,id'],
-            'items.*.amount' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.amount' => ['required_with:items', 'numeric', 'min:0.0001'],
             'items.*.note' => ['nullable', 'string', 'max:225'],
         ]);
+
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
+        $canCreateGlobal = Auth::user()->can('good_transfers.create_global') || Auth::user()->hasRole('Superadmin');
+
+        // Validasi
+        if (!$canCreateGlobal && $data['from_branch_id'] != $userBranchId) {
+            return back()->withInput()->withErrors(['from_branch_id' => 'Anda hanya dapat memindahkan barang dari gudang/cabang Anda sendiri.']);
+        }
 
         try {
             DB::transaction(function () use ($data, $goodTransfer) {
                 $goodTransfer->update([
+                    'transfer_no' => $data['transfer_no'] ?? $goodTransfer->transfer_no,
                     'from_branch' => $data['from_branch_id'],
                     'to_branch' => $data['to_branch_id'],
                     'sent_by' => $data['employee_id'],
                     'transferred_at' => $data['transferred_at'],
                     'purpose' => $data['purpose'] ?? null,
+                    'po_no' => $data['po_no'] ?? null,
                 ]);
 
-                $goodTransfer->items()->delete();
+                // Hapus hanya baris dengan barang AKTIF; baris yang barangnya
+                // sudah diarsipkan (soft delete) dipertahankan agar riwayat
+                // dokumen tidak berubah.
+                $goodTransfer->items()
+                    ->whereDoesntHave('item', fn ($q) => $q->onlyTrashed())
+                    ->delete();
 
                 foreach ($data['items'] as $item) {
                     $goodTransfer->items()->create([
@@ -437,10 +575,17 @@ class GoodTransferController extends Controller
      */
     public function receive(Request $request, GoodTransfer $goodTransfer)
     {
-        abort_unless(Gate::allows('good_transfers.edit'), 403, 'Anda tidak memiliki akses untuk memproses perpindahan barang');
+        abort_unless(Gate::allows('good_transfers.approve') || Auth::user()->hasRole('Superadmin'), 403, 'Anda tidak memiliki akses untuk memproses perpindahan barang');
 
         try {
-            app(ReceiveGoodTranfer::class)->execute($goodTransfer, $request->all());
+            $requestData = $request->all();
+            if ($request->hasFile('attachment')) {
+                $requestData['attachment'] = $request->file('attachment');
+            }
+            if ($request->hasFile('attachments')) {
+                $requestData['attachments'] = $request->file('attachments');
+            }
+            app(ReceiveGoodTranfer::class)->execute($goodTransfer, $requestData);
 
             return redirect()->route('good-transfers.index')
                 ->with('success', 'Pemindahan barang berhasil ditandai sebagai diterima!');
@@ -459,7 +604,7 @@ class GoodTransferController extends Controller
      */
     public function cancel(Request $request, GoodTransfer $goodTransfer)
     {
-        abort_unless(Gate::allows('good_transfers.edit'), 403, 'Anda tidak memiliki akses untuk membatalkan perpindahan barang');
+        abort_unless(Gate::allows('good_transfers.edit') || Gate::allows('good_transfers.approve') || Auth::user()->hasRole('Superadmin'), 403, 'Anda tidak memiliki akses untuk membatalkan perpindahan barang');
 
         // Prevent canceling if already received or canceled
         if (in_array($goodTransfer->status, ['Received', 'Canceled'])) {
@@ -525,9 +670,72 @@ class GoodTransferController extends Controller
             'toBranch:id,name',
             'sentBy:id,name',
             'receivedBy:id,name',
-            'items.item:id,name,code'
+            'items.item:id,name,code,unit_id',
+            'items.item.unit:id,name'
         ]);
 
         return view('good-transfers.print-receipt', compact('goodTransfer'));
+    }
+
+    /**
+     * Get PO items and quantities resolved for the source branch.
+     */
+    public function getPOItems(Request $request, $orderNo)
+    {
+        $fromBranchId = $request->query('from_branch_id');
+
+        $purchaseOrder = PurchaseOrder::with(['items.item'])
+            ->where('order_no', $orderNo)
+            ->first();
+
+        if (!$purchaseOrder) {
+            return response()->json(['error' => 'Purchase order not found'], 404);
+        }
+
+        $items = $purchaseOrder->items->map(function ($poItem) use ($fromBranchId) {
+            $poItemRecord = $poItem->item;
+            if (!$poItemRecord) {
+                return null;
+            }
+
+            $branchItem = null;
+            if ($fromBranchId) {
+                $branchItem = Item::with(['unit'])
+                    ->select('items.*')
+                    ->selectSub(function ($query) {
+                        $query->from('item_stocks')
+                            ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                            ->whereColumn('item_stocks.item_id', 'items.id');
+                    }, 'true_stock')
+                    ->where('branch_id', $fromBranchId)
+                    ->where(function ($q) use ($poItemRecord) {
+                        if ($poItemRecord->code) {
+                            $q->where('code', $poItemRecord->code);
+                        } else {
+                            $q->where('name', $poItemRecord->name);
+                        }
+                    })->first();
+                
+                if ($branchItem) {
+                    $branchItem->stock = $branchItem->true_stock;
+                }
+            }
+
+            $resolvedItem = $branchItem ?? $poItemRecord;
+
+            return [
+                'id' => $resolvedItem->id,
+                'name' => $resolvedItem->name,
+                'code' => $resolvedItem->code,
+                'stock' => $resolvedItem->stock ? ($resolvedItem->stock->last_stock ?? 0) : 0,
+                'unit' => $resolvedItem->unit,
+                'quantity_ordered' => $poItem->quantity_ordered,
+                'note' => $poItem->note,
+            ];
+        })->filter()->values();
+
+        return response()->json([
+            'items' => $items
+        ]);
     }
 }

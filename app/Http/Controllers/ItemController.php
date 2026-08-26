@@ -21,13 +21,17 @@ class ItemController extends Controller
         $user = Auth::user()->load('employee.branch');
 
         $perPage = (int) $request->input('per_page', 10);
+        $isSuperadmin = Auth::user()->hasRole("Superadmin");
+        $userBranchId = Auth::user()->employee->branch_id ?? null;
 
         $filters = [
             'q' => $request->string('q')->toString(),
             'code' => $request->string('code')->toString(),
             'name' => $request->string('name')->toString(),
             'unit_id' => $request->integer('unit_id') ?: null,
-            'branch_id' => $request->has('branch_id') && $request->input('branch_id') !== '' ? (int) $request->input('branch_id') : null,
+            'branch_id' => $request->has('branch_id') 
+                ? ($request->input('branch_id') !== '' ? (int) $request->input('branch_id') : null) 
+                : ($isSuperadmin ? null : $userBranchId),
             'item_id' => $request->integer('item_id') ?: null,
             'category_id' => $request->integer('category_id') ?: null,
         ];
@@ -36,16 +40,21 @@ class ItemController extends Controller
         $sortDirection = strtolower($request->get('sortDirection', 'desc')) === 'asc' ? 'asc' : 'desc';
         $groupBy = $request->get('groupBy');
 
-        $isSuperadmin = Auth::user()->hasRole("Superadmin");
-        $branches = Branch::where('id', Auth::user()->employee->branch_id)->pluck('id');
-
+        $canViewGlobal = Auth::user()->can('items.view_global') || $isSuperadmin;
+        
         $query = Item::query()
-            ->with(['branch', 'category', 'unit', 'stocks', 'stock'])
+            ->with(['branch', 'category', 'unit'])
+            ->select('items.*')
+            ->selectSub(function ($query) {
+                $query->from('item_stocks')
+                    ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('In', 'in', 'adjust_in', 'transfer_in', 'return_in') THEN amount ELSE -amount END), 0)")
+                    ->whereColumn('item_stocks.item_id', 'items.id');
+            }, 'true_stock')
             ->leftJoin('item_categories as ic', 'ic.id', '=', 'items.category_id')
             ->leftJoin('units as u', 'u.id', '=', 'items.unit_id')
-            ->select('items.*')
-            ->when(!$isSuperadmin && empty($filters['branch_id']), function ($query) use ($branches) {
-                return $query->whereIn('items.branch_id', $branches);
+            ->leftJoin('branches as b', 'b.id', '=', 'items.branch_id')
+            ->when(!$canViewGlobal && empty($filters['branch_id']), function ($query) use ($userBranchId) {
+                return $query->where('items.branch_id', $userBranchId);
             });
 
         if ($filters['q']) {
@@ -74,6 +83,21 @@ class ItemController extends Controller
             $query->where('items.category_id', $filters['category_id']);
         }
 
+        // Auto-sort by groupBy field if provided
+        if ($groupBy) {
+            switch ($groupBy) {
+                case 'category':
+                    $query->orderBy('ic.name', 'asc');
+                    break;
+                case 'branch':
+                    $query->orderBy('b.name', 'asc');
+                    break;
+                case 'item':
+                    $query->orderBy('items.name', 'asc');
+                    break;
+            }
+        }
+
         switch ($sortBy) {
             case 'code':
             case 'name':
@@ -85,6 +109,9 @@ class ItemController extends Controller
             case 'unit':
             case 'unit_id':
                 $query->orderBy('u.name', $sortDirection);
+                break;
+            case 'branch':
+                $query->orderBy('b.name', $sortDirection);
                 break;
             default:
                 $query->orderBy('items.id', $sortDirection);
@@ -107,11 +134,11 @@ class ItemController extends Controller
                     'category_id' => $gt->category_id,
                     'branch_id' => $gt->branch_id,
                     'branch' => $gt->branch?->name ?? null,
-                    'stock' => $gt->stocks?->first()?->last_stock ?? 0,
+                    'stock' => $gt->true_stock ?? 0,
                     'min_stock' => $gt->min_stock ?? 0,
-                    'unit' => $gt->unit?->name ?? '-',
+                    'unit' => $gt->unit?->short_name ?? $gt->unit?->name ?? '-',
                     'unit_id' => $gt->unit_id,
-                    'last_stock' => $gt->stock?->last_stock ?? 0,
+                    'last_stock' => $gt->true_stock ?? 0,
                     'created_at' => $gt->created_at->locale('id')->translatedFormat('d F Y'),
                 ];
             }),
@@ -123,7 +150,7 @@ class ItemController extends Controller
             'sortDirection' => $sortDirection,
             'groupBy' => in_array($groupBy, ['ordered_by'], true) ? $groupBy : null,
             'sidebarCounts' => [
-                'total' => Item::where('branch_id', $user->employee->branch_id ?: 1)->count(),
+                'total' => $canViewGlobal ? Item::count() : Item::where('branch_id', $userBranchId)->count(),
             ],
         ]);
     }
@@ -132,11 +159,11 @@ class ItemController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'code' => ['nullable', 'string', 'max:50', 'unique:items,code'],
+            'code' => ['nullable', 'string', 'max:50'],
             'category_id' => ['required', 'exists:item_categories,id'],
             'unit_id' => ['nullable', 'exists:units,id'],
             'description' => ['nullable', 'string'],
-            'min_stock' => ['nullable', 'integer', 'min:0'],
+            'min_stock' => ['nullable', 'numeric', 'min:0'],
             'image_path' => ['nullable', 'string', 'max:255'],
         ], [
             'category_id.required' => 'Kategori barang wajib di isi.',
@@ -149,7 +176,16 @@ class ItemController extends Controller
                 $generatedCode = 'ITM-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
             } while (Item::where('code', $generatedCode)->exists());
             $validated['code'] = $generatedCode;
+        } else {
+            // Kode unik divalidasi hanya terhadap barang AKTIF; barang yang
+            // sudah diarsipkan (soft delete) tidak mengunci kodenya.
+            $duplicate = Item::where('code', $validated['code'])->exists();
+            if ($duplicate) {
+                return back()->withInput()->with('error', 'Kode barang sudah digunakan oleh barang lain yang masih aktif.');
+            }
         }
+
+        $validated['min_stock'] = $validated['min_stock'] ?? 0;
 
         try {
             DB::transaction(function () use ($validated) {
@@ -162,7 +198,7 @@ class ItemController extends Controller
             return back()->with('success', 'Barang berhasil ditambahkan');
         } catch (Throwable $e) {
             Log::error('Store Item failed', ['error' => $e->getMessage()]);
-            return back()->with('error', 'Gagal menambah barang');
+            return back()->with('error', 'Gagal menambah barang: ' . $e->getMessage());
         }
     }
 
@@ -175,17 +211,27 @@ class ItemController extends Controller
             'category_id' => ['required', 'exists:item_categories,id'],
             'unit_id' => ['required', 'exists:units,id'],
             'description' => ['nullable', 'string'],
-            'min_stock' => ['nullable', 'integer', 'min:0'],
+            'min_stock' => ['nullable', 'numeric', 'min:0'],
             'image_path' => ['nullable', 'string', 'max:255'],
         ], [
             'category_id.required' => 'Kategori barang wajib di isi.',
             'category_id.exists' => 'Kategori barang tidak valid.',
         ]);
 
+        $validated['min_stock'] = $validated['min_stock'] ?? 0;
+
         try {
-            $items = Item::where('code', $validated['code'])->get();
+            if ($item->code) {
+                $items = Item::where('code', $item->code)->get();
+            } else {
+                $items = Item::where('name', $item->name)->get();
+            }
+
+            $updateData = $validated;
+            unset($updateData['branch_id']);
+
             foreach ($items as $row) {
-                $row->update($validated);
+                $row->update($updateData);
             }
 
             return back()->with('success', 'Barang berhasil diupdate');
@@ -195,38 +241,63 @@ class ItemController extends Controller
         }
     }
 
+    private function deleteItemGroup(string $code): ?bool
+    {
+        $items = Item::where('code', $code)->get();
+        if ($items->isEmpty()) {
+            return null;
+        }
+
+        $hasHistory = $items->contains(fn ($row) =>
+            $row->stocks()->exists() || $row->transfers()->exists() || $row->movements()->exists() ||
+            $row->goodIssueItems()->exists() || $row->purchaseRequestItems()->exists() ||
+            $row->goodReceiptItems()->exists() || $row->purchaseOrderItems()->exists() ||
+            $row->materialRequestItems()->exists()
+        );
+
+        DB::transaction(function () use ($items, $hasHistory) {
+            foreach ($items as $row) {
+                $hasHistory ? $row->delete() : $row->forceDelete();
+            }
+        });
+
+        return $hasHistory;
+    }
+
     public function destroy(Item $item)
     {
         try {
-            $items = Item::where('code', $item->code)->get();
+            $this->deleteItemGroup($item->code);
 
-            DB::transaction(function () use ($items) {
-                foreach ($items as $row) {
-                    $hasStock = $row->stocks()->exists();
-                    $hasTransfers = $row->transfers()->exists();
-                    $hasMovements = $row->movements()->exists();
-                    $hasGoodIssueItems = $row->goodIssueItems()->exists();
-                    $hasPurchaseRequestItems = $row->purchaseRequestItems()->exists();
-                    $hasGoodReceiptItems = $row->goodReceiptItems()->exists();
-                    $hasPurchaseOrderItems = $row->purchaseOrderItems()->exists();
-                    $hasMaterialRequestItems = $row->materialRequestItems()->exists();
-
-                    if (
-                        $hasStock || $hasTransfers || $hasMovements || $hasGoodIssueItems ||
-                        $hasPurchaseRequestItems || $hasGoodReceiptItems || $hasPurchaseOrderItems ||
-                        $hasMaterialRequestItems
-                    ) {
-                        throw new \RuntimeException('Data barang tidak dapat dihapus karena sedang digunakan');
-                    }
-
-                    $row->delete();
-                }
-            });
-
-            return back()->with('success', 'Barang berhasil dihapus');
+            return back()->with('success', 'Berhasil menghapus barang');
         } catch (Throwable $e) {
             Log::error('Delete Item failed', ['error' => $e->getMessage()]);
             return back()->with('error', $e->getMessage() ?: 'Gagal menghapus barang');
+        }
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'codes' => ['required', 'array', 'min:1'],
+            'codes.*' => ['string'],
+        ]);
+
+        try {
+            $deletedCount = 0;
+
+            foreach (array_unique($validated['codes']) as $code) {
+                $archived = $this->deleteItemGroup($code);
+                if ($archived === null) {
+                    continue;
+                }
+                $deletedCount++;
+            }
+
+            return back()->with('success', "Berhasil menghapus {$deletedCount} barang");
+        } catch (Throwable $e) {
+            Log::error('Bulk delete Item failed', ['error' => $e->getMessage()]);
+            return back()->with('error', 'Gagal menghapus barang terpilih: ' . $e->getMessage());
         }
     }
 

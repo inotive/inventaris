@@ -212,10 +212,10 @@
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
                                     <input
-                                        v-model.number="item.quantity_ordered"
+                                        v-model="item.quantity_ordered"
                                         @input="calculateSubtotal(i)"
-                                        type="number"
-                                        min="1"
+                                        type="text"
+                                        inputmode="decimal"
                                         class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
                                         required
                                     />
@@ -289,6 +289,26 @@
                         </tr>
                     </tbody>
                     <tfoot v-if="form.items.length > 0">
+                        <tr class="border-t border-gray-200 dark:border-gray-600">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Sub Total:</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(subtotalAmount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="form.discount > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Diskon:</td>
+                            <td class="px-3 py-2 text-sm text-center text-red-600">- {{ formatCurrency(form.discount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="ppnAmount > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">PPN ({{ form.tax_percent ?? 11 }}%):</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(ppnAmount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="form.other_cost > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Biaya Lain-Lain:</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(form.other_cost) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
                         <tr class="border-t-2 border-gray-300 dark:border-gray-600">
                             <td colspan="5" class="px-3 py-2 text-right font-semibold">Total:</td>
                             <td class="px-3 py-2 font-semibold text-center">{{ formatCurrency(totalAmount) }}</td>
@@ -340,9 +360,27 @@
                     <div class="text-sm text-gray-600 mb-4">
                         Masukkan jumlah yang telah dibayar untuk Purchase Order ini. Anda juga dapat menyimpan tanpa pembayaran.
                     </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Total Order</label>
-                        <div class="text-lg font-semibold text-gray-900">{{ formatCurrency(totalAmount) }}</div>
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-1.5 text-xs text-gray-600 mb-4">
+                        <div class="flex justify-between">
+                            <span>Subtotal:</span>
+                            <span class="font-medium text-gray-800">{{ formatCurrency(subtotalAmount) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Diskon:</span>
+                            <span class="font-medium text-gray-800">- {{ formatCurrency(form.discount || 0) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>PPN ({{ form.tax_percent ?? 11 }}%):</span>
+                            <span class="font-medium text-gray-800">{{ formatCurrency(ppnAmount) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Biaya Lain-Lain:</span>
+                            <span class="font-medium text-gray-800">{{ formatCurrency(form.other_cost || 0) }}</span>
+                        </div>
+                        <div class="flex justify-between border-t border-gray-200 pt-1.5 text-sm font-semibold">
+                            <span class="text-gray-900">Total Akhir:</span>
+                            <span class="text-blue-600">{{ formatCurrency(totalAmount) }}</span>
+                        </div>
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah yang Dibayar (Opsional)</label>
@@ -425,6 +463,9 @@ const form = useForm({
     employee_id: props.user?.employee?.id,
     branch_id: props.user?.employee?.branch_id || (props.branches.length > 0 ? props.branches[0].id : null),
     amount_paid: 0,
+    discount: '',
+    other_cost: '',
+    tax_percent: 11,
 });
 
 const showPayment = ref(false);
@@ -477,18 +518,62 @@ const calculateSubtotal = (index) => {
 };
 
 const getAvailableItems = (currentIndex) => {
+    if (!form.branch_id) {
+        return [];
+    }
+
     // Get all currently selected item IDs except the current item
     const selectedItemIds = form.items
         .filter((item, index) => index !== currentIndex && item.item_id)
         .map(item => item.item_id);
 
-    // Filter out selected items from the available items
-    return props.items.filter(item => !selectedItemIds.includes(item.id));
+    // Filter out selected items from the available items and match branch_id
+    return props.items.filter(item => {
+        const notSelected = !selectedItemIds.includes(item.id);
+        const branchMatch = item.branch_id == form.branch_id;
+        return notSelected && branchMatch;
+    });
 };
 
+// Reset selected items when branch changes to enforce branch-based filtering
+watch(
+    () => form.branch_id,
+    () => {
+        form.items.forEach((row) => {
+            row.item_id = '';
+            row.selectedItem = null;
+            row.unit = '';
+            row.code = '';
+            row.name = '';
+        });
+        // Trigger reactivity to update available items in other selects
+        form.items = [...form.items];
+    }
+);
+
+const ppnAmount = computed(() => {
+    const subtotal = subtotalAmount.value;
+    const discount = form.discount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const percent = typeof form.tax_percent === 'number' ? form.tax_percent : 11;
+    return taxableAmount * (percent / 100);
+});
+
 const totalAmount = computed(() => {
+    const subtotal = subtotalAmount.value;
+    const discount = form.discount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    return taxableAmount + ppnAmount.value + (form.other_cost || 0);
+});
+
+const subtotalAmount = computed(() => {
     return form.items.reduce((total, item) => {
-        return total + (item.quantity_ordered * item.cost);
+        let qty = item.quantity_ordered;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        const numericQty = qty ? Number(qty) : 0;
+        return total + (numericQty * item.cost);
     }, 0);
 });
 
@@ -511,6 +596,19 @@ const showPaymentModal = () => {
     showPayment.value = true;
 };
 
+const sanitizeItems = () => {
+    form.items = form.items.map(item => {
+        let qty = item.quantity_ordered;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        return {
+            ...item,
+            quantity_ordered: qty ? Number(qty) : 0,
+        };
+    });
+};
+
 const submitWithoutPayment = () => {
     if (form.items.length === 0) {
         alert('Minimal harus ada satu item');
@@ -525,6 +623,8 @@ const submitWithoutPayment = () => {
     // Set amount_paid to 0 for no payment
     form.amount_paid = 0;
 
+    sanitizeItems();
+
     // Submit the form
     form.post(route('purchase-orders.store'));
 };
@@ -536,6 +636,8 @@ const closePaymentModal = () => {
 const submitWithZeroPayment = () => {
     // Set amount_paid to 0 for no payment
     form.amount_paid = 0;
+
+    sanitizeItems();
 
     // Submit the form
     form.post(route('purchase-orders.store'), {
@@ -559,6 +661,8 @@ const submitWithPayment = () => {
     // Update form with payment data (can be 0 if no amount entered)
     form.amount_paid = paymentForm.value.amount_paid || 0;
 
+    sanitizeItems();
+
     // Submit the form
     form.post(route('purchase-orders.store'), {
         onSuccess: () => {
@@ -572,6 +676,8 @@ const submit = () => {
         alert('Minimal harus ada satu item');
         return;
     }
+
+    sanitizeItems();
 
     form.post(route('purchase-orders.store'));
 };
@@ -589,21 +695,26 @@ watch(
             return;
         }
 
-        const pr = props.purchaseRequests.find((p) => p.id === newVal);
+        const pr = props.purchaseRequests.find((p) => p.id == newVal);
         if (pr && pr.items) {
             // Clear existing items first
             form.items = [];
 
             // Add items from selected Purchase Request
             form.items = pr.items.map((item) => {
-                const itemData = props.items.find(i => i.id === item.item_id);
+                const itemData = props.items.find(i => i.id == item.item_id);
                 return {
                     item_id: item.item_id,
-                    selectedItem: itemData || null,
-                    quantity_ordered: item.quantity_requested || 1,
+                    selectedItem: itemData || {
+                        id: item.item_id,
+                        name: item.name || '',
+                        code: item.code || '',
+                        unit: { short_name: item.unit || '' }
+                    },
+                    quantity_ordered: item.quantity_requested ? parseFloat(item.quantity_requested) : 1,
                     cost: 0, // Default cost, user can fill manually
                     note: item.note || '',
-                    unit: itemData?.unit?.short_name || item.unit?.short_name || '',
+                    unit: itemData?.unit?.short_name || item.unit || '',
                     code: itemData?.code || item.code || '',
                     name: itemData?.name || item.name || '',
                 };

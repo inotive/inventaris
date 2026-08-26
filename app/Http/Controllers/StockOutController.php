@@ -45,12 +45,18 @@ class StockOutController extends Controller
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $branches     = Branch::where('id', $userBranchId)->pluck('id');
 
-        // Terima kedua kemungkinan casing 'out'/'Out'
-        $query = ItemStock::whereIn('type', ['out', 'Out'])
-            ->with(['source', 'item.unit', 'item.branch'])
-            ->when(!$isSuperadmin && $userBranchId != 2 && empty($filters['branch_id']), function ($query) use ($branches) {
-                return $query->whereHas('item', function ($query) use ($branches) {
-                    $query->whereIn('branch_id', $branches);
+        $canViewGlobal = Auth::user()->can('stock_out.view_global') || $isSuperadmin;
+
+        // Query transactions
+        // whereHas('item') mengecualikan transaksi yang itemnya sudah di-soft delete,
+        // agar relasi item tidak null di frontend.
+        $query = ItemStock::whereHas('item')
+            ->with(['item', 'item.unit', 'item.branch'])
+            ->whereIn('type', ['out', 'Out', 'adjust_out'])
+            ->when(!$canViewGlobal && empty($filters['branch_id']), function ($query) use ($branches) {
+                // Return items in user's branch
+                return $query->whereHas('item', function ($q) use ($branches) {
+                    $q->whereIn('branch_id', $branches);
                 });
             });
 
@@ -94,7 +100,8 @@ class StockOutController extends Controller
 
         $itemStocks = $query->paginate($perPage)->withQueryString();
 
-        $item = Item::when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($branches) {
+        $canViewGlobal = Auth::user()->can('stock_out.view_global') || $isSuperadmin;
+        $item = Item::when(!$canViewGlobal, function ($query) use ($branches) {
             return $query->whereIn('branch_id', $branches);
         })->with('stock', 'branch')->get()->map(function ($item) {
             $item->current_stock = $item->stock?->last_stock ?? 0;
@@ -129,7 +136,7 @@ class StockOutController extends Controller
             'sortDirection' => $sortDirection,
             'groupBy' => in_array($groupBy, ['ordered_by'], true) ? $groupBy : null,
             'sidebarCounts' => [
-                'total' => ItemStock::whereIn('type', ['out', 'Out'])->count(),
+                'total' => ItemStock::whereIn('type', ['out', 'Out', 'adjust_out'])->whereHas('item')->count(),
             ],
         ]);
     }

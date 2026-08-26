@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Data\GoodReceipt\CreateGoodReceipt;
 use App\Actions\Data\GoodTransfer\ReceiveGoodTranfer;
+use App\Actions\Data\Item\RecalculateItemStocks;
 use App\Actions\Data\Item\UpdateStockItem;
 use App\Actions\Data\PurchaseOrder\CreatePurchaseOrderLogActivities;
 use App\Http\Requests\GoodReceipt\CreateGoodReceiptRequest;
@@ -43,6 +44,7 @@ class GoodReceiptController extends Controller
         $isSuperadmin = $user->hasRole('Superadmin');
         $branchId = $user->employee->branch_id;
         $departmentIds = Department::where('branch_id', $branchId)->pluck('id');
+        $canViewGlobal = $user->can('good_receipts.view_global') || $isSuperadmin;
 
         // Query builder
         $query = GoodReceipt::query()
@@ -54,7 +56,7 @@ class GoodReceiptController extends Controller
                 'transfer.toBranch:id,name'
             ])
             ->when(
-                !$isSuperadmin && $branchId != 2,
+                !$canViewGlobal,
                 function ($q) use ($branchId) {
                     $q->where(function ($subQ) use ($branchId) {
                         $subQ->whereHas('order.applicant', function ($qr) use ($branchId) {
@@ -135,7 +137,7 @@ class GoodReceiptController extends Controller
         $canView = Auth::user()->can('good_receipts.view');
         $canCreate = Auth::user()->can('good_receipts.create');
 
-        $employees = Employee::query()->select('id', 'name')->when(!$isSuperadmin && $branchId != 2, function ($query) use ($departmentIds) {
+        $employees = Employee::query()->select('id', 'name')->when(!$canViewGlobal, function ($query) use ($departmentIds) {
             return $query->whereIn('department_id', $departmentIds);
         })->orderBy('name')->get();
 
@@ -179,13 +181,14 @@ class GoodReceiptController extends Controller
             $employees = Auth::user()->employee()->get();
         }
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
+        $canCreateGlobal = Auth::user()->can('good_receipts.create_global') || $isSuperadmin;
         $departementIds = Department::query()->select('id')->orderBy('name')->get()->pluck('id');
 
         $order = PurchaseOrder::query()
             ->with(['applicant:id,name'])
-            ->select('id', 'order_no', 'vendor', 'ordered_by')
+            ->select('id', 'order_no', 'vendor', 'ordered_by', 'branch_id')
             ->where('status_delivered', 'pending')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) use ($departementIds) {
+            ->when(!$canCreateGlobal, function ($query) {
                 return $query->where('branch_id', Auth::user()->employee->branch_id);
             })
             ->orderBy('order_no')
@@ -195,7 +198,7 @@ class GoodReceiptController extends Controller
             ->with(['fromBranch', 'toBranch', 'sentBy:id,name'])
             ->select('id', 'transfer_no', 'from_branch', 'to_branch', 'sent_by')
             ->where('status', 'Shipped')
-            ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) use ($departementIds) {
+            ->when(!$canCreateGlobal, function ($query) {
                 return $query->where('to_branch', Auth::user()->employee->branch_id);
             })
             ->orderBy('transfer_no')
@@ -206,13 +209,14 @@ class GoodReceiptController extends Controller
                     'transfer_no' => $t->transfer_no,
                     'from_branch' => $t->fromBranch?->name,
                     'to_branch' => $t->toBranch?->name,
+                    'to_branch_id' => $t->to_branch,
                     'sent_by' => $t->sent_by,
                     'sentBy' => $t->sentBy,
                 ];
             });
 
         // Load all items for the multiselect
-        $items = \App\Models\Item::with('unit')->select('id', 'name', 'code', 'unit_id')->get();
+        $items = \App\Models\Item::with('unit')->select('id', 'name', 'code', 'unit_id', 'branch_id')->get();
 
         return Inertia::render('Admin/GoodReceipts/Create', [
             'departments' => $departments,
@@ -228,11 +232,12 @@ class GoodReceiptController extends Controller
     public function loadItems(Request $request, $id)
     {
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
+        $canCreateGlobal = Auth::user()->can('good_receipts.create_global') || $isSuperadmin;
         if ($request->type === 'pembelian') {
 
             $order = PurchaseOrder::with(['items.item.unit'])
                 ->where('status_delivered', 'pending')
-                ->when(!$isSuperadmin && Auth::user()->employee->branch_id != 2, function ($query) {
+                ->when(!$canCreateGlobal, function ($query) {
                     return $query->where('branch_id', Auth::user()->employee->branch_id);
                 })
                 ->find($id);
@@ -242,7 +247,8 @@ class GoodReceiptController extends Controller
             }
 
 
-            $items = $order->items->map(function ($item) {
+            // Filter baris yang barangnya sudah diarsipkan (soft delete)
+            $items = $order->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,
@@ -260,12 +266,10 @@ class GoodReceiptController extends Controller
                 return response()->json(['error' => 'Good transfer not found'], 404);
             }
 
-            $items = $transfer->items->map(function ($item) use ($isSuperadmin) {
-                $itemId = $item->item_id;
-
-                if (!$isSuperadmin) {
-                    $itemId = Item::where('code', $item->item->code)->where('branch_id', Auth::user()->employee->branch_id)->first()->id;
-                }
+            // Filter baris yang barangnya sudah diarsipkan (soft delete)
+            $items = $transfer->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) use ($transfer) {
+                $toBranchItem = Item::where('code', $item->item->code)->where('branch_id', $transfer->to_branch)->first();
+                $itemId = $toBranchItem ? $toBranchItem->id : $item->item_id;
 
                 return [
                     'id' => $item->id,
@@ -288,10 +292,20 @@ class GoodReceiptController extends Controller
             $item['note'] = $item['received_note'];
             $item['quantity_transferred'] = $item['quantity_received'];
             $item['quantity_received'] = $item['quantity_actually_received'];
+            // shortage fields passed through
             return $item;
         })->toArray();
 
         $request->merge(['items' => $items]);
+
+        // Collect all data including attachment file
+        $allData = $request->all();
+        if ($request->hasFile('attachment')) {
+            $allData['attachment'] = $request->file('attachment');
+        }
+        if ($request->hasFile('attachments')) {
+            $allData['attachments'] = $request->file('attachments');
+        }
 
 
         if ($request->source === 'Pembelian') {
@@ -322,28 +336,39 @@ class GoodReceiptController extends Controller
 
             $statusMessage = $statusDelivered === PurchaseOrder::STATUS_DELIVERED ? 'Barang Diterima Lengkap' : 'Barang Diterima Sebagian';
             app(CreatePurchaseOrderLogActivities::class)->execute($order->id, 'Barang Diterima', 'Barang diterima dengan total ' . $totalReceived . ' item. Status: ' . $statusMessage);
-            app(CreateGoodReceipt::class)->execute($request->all());
+            app(CreateGoodReceipt::class)->execute($allData);
         } else {
             $transfer = GoodTransfer::with('items')->find($request->transfer_id);
 
             $dataItem = collect($items);
 
-            $items = $transfer->items->map(function ($item) use ($dataItem, $transfer) {
+            $quantities = $transfer->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) use ($dataItem, $transfer) {
                 $toBranchItem = $transfer->toBranch->items()->where('code', $item->item->code)->first();
+                $targetItemId = $toBranchItem ? $toBranchItem->id : $item->item_id;
 
-                $data = $dataItem->where('item_id', $toBranchItem->id)->first();
+                $data = $dataItem->where('item_id', $targetItemId)->first();
 
                 return [
-                    'item_id' => $item->id,
-                    'quantity_transferred' => $data['quantity_transferred'],
-                    'quantity_received' => $data['quantity_received'],
-                    'receive_note' => $data['note'],
+                    'item_id'              => $item->id,
+                    'quantity_transferred' => $data ? $data['quantity_transferred'] : 0,
+                    'quantity_received'    => $data ? $data['quantity_received'] : 0,
+                    'receive_note'         => $data ? $data['note'] : null,
+                    'shortage_quantity'    => $data ? ($data['shortage_quantity'] ?? 0) : 0,
+                    'shortage_reason'      => $data ? ($data['shortage_reason'] ?? null) : null,
+                    'shortage_description' => $data ? ($data['shortage_description'] ?? null) : null,
+                    'shortages'            => $data ? ($data['shortages'] ?? null) : null,
                 ];
             });
 
-            $request = ['quantities' => $items];
+            $receiveData = ['quantities' => $quantities];
+            if (isset($allData['attachment'])) {
+                $receiveData['attachment'] = $allData['attachment'];
+            }
+            if (isset($allData['attachments'])) {
+                $receiveData['attachments'] = $allData['attachments'];
+            }
 
-            app(ReceiveGoodTranfer::class)->execute($transfer, $request);
+            app(ReceiveGoodTranfer::class)->execute($transfer, $receiveData);
         }
 
         return redirect()->route('good-receipts.index');
@@ -366,12 +391,15 @@ class GoodReceiptController extends Controller
         $goodReceipt->items()->delete();
         $goodReceipt->items()->createMany($request->items);
 
-        // Update stock
-        $goodReceipt->items->each(function ($item) {
-            $item->item->stock->update([
-                'last_stock' => $item->item->stock->last_stock + $item->quantity_received,
-            ]);
-        });
+        // Update stock: reload ulang dari database (collection lama sudah stale
+        // setelah delete + createMany), lewati baris dengan barang terarsip,
+        // lalu hitung ulang stok berurutan via action agar konsisten.
+        $recalc = app(RecalculateItemStocks::class);
+        $goodReceipt->items()->with('item')->get()
+            ->filter(fn ($item) => $item->item !== null)
+            ->pluck('item_id')
+            ->unique()
+            ->each(fn ($itemId) => $recalc->execute((int) $itemId));
 
         return redirect()->route('good-receipts.index');
     }
@@ -386,8 +414,11 @@ class GoodReceiptController extends Controller
             'transfer.fromBranch:id,name',
             'transfer.toBranch:id,name',
             'items.item.unit',
-            'activities.createdBy'
+            'activities.createdBy',
+            'disposals.item'
         ])->findOrFail($id);
+
+        $goodReceipt->setRelation('items', $goodReceipt->items->filter(fn ($it) => $it->item !== null)->values());
 
         $departments = Department::query()->select('id', 'name')->orderBy('name')->get();
 
@@ -413,6 +444,7 @@ class GoodReceiptController extends Controller
             'departments' => $departments,
             'employees' => $employees,
             'activities' => $activities,
+            'canUpdate' => Auth::user()->can('good_receipts.edit') || Auth::user()->hasRole('Superadmin'),
         ]);
     }
 
@@ -423,8 +455,11 @@ class GoodReceiptController extends Controller
             'order:id,order_no,vendor',
             'transfer.fromBranch:id,name',
             'transfer.toBranch:id,name',
-            'items.item.unit'
+            'items.item.unit',
+            'disposals'
         ])->findOrFail($id);
+
+        $goodReceipt->setRelation('items', $goodReceipt->items->filter(fn ($it) => $it->item !== null)->values());
 
         $departments = Department::query()->select('id', 'name')->orderBy('name')->get();
 
@@ -435,7 +470,7 @@ class GoodReceiptController extends Controller
 
         $order = PurchaseOrder::query()
             ->with(['applicant:id,name'])
-            ->select('id', 'order_no', 'vendor', 'ordered_by')
+            ->select('id', 'order_no', 'vendor', 'ordered_by', 'branch_id')
             ->where('status_delivered', 'pending')
             ->when(!$isSuperadmin, function ($query) use ($departementIds) {
                 return $query->where('branch_id', Auth::user()->employee->branch_id);
@@ -458,13 +493,14 @@ class GoodReceiptController extends Controller
                     'transfer_no' => $t->transfer_no,
                     'from_branch' => $t->fromBranch?->name,
                     'to_branch' => $t->toBranch?->name,
+                    'to_branch_id' => $t->to_branch,
                     'sent_by' => $t->sent_by,
                     'sentBy' => $t->sentBy,
                 ];
             });
 
         // Load all items for the multiselect
-        $items = \App\Models\Item::with('unit')->select('id', 'name', 'code', 'unit_id')->get();
+        $items = \App\Models\Item::with('unit')->select('id', 'name', 'code', 'unit_id', 'branch_id')->get();
 
         $isSuperadmin = Auth::user()->hasRole('Superadmin');
 

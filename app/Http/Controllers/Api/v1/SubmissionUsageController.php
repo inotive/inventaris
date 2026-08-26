@@ -65,7 +65,8 @@ class SubmissionUsageController extends Controller
                 'id' => $goodIssue->department->id ?? null,
                 'name' => $goodIssue->department->name ?? null,
             ],
-            'items' => $goodIssue->items->map(function ($item) {
+            // Filter baris yang barangnya sudah diarsipkan (soft delete)
+            'items' => $goodIssue->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,
@@ -218,7 +219,7 @@ class SubmissionUsageController extends Controller
                 $update = $goodIssueItem->goodIssue()->update([
                     'status' => 'approved',
                     'approved_at' => now(),
-                    'approved_by' => Auth::user()->id,
+                    'approved_by' => Auth::user()->employee->id,
                 ]);
 
 
@@ -276,7 +277,7 @@ class SubmissionUsageController extends Controller
                 $goodIssue->update([
                     'status' => 'rejected',
                     'notes' => $notes,
-                    'approved_by' => Auth::id(),
+                    'approved_by' => Auth::user()->employee->id,
                     'approved_at' => now(),
                 ]);
 

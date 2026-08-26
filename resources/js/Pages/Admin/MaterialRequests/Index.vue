@@ -33,7 +33,7 @@
                         >
                             <option value="all">Kelompokan Berdasarkan</option>
                             <option value="department">
-                                Group: Departemen
+                                Group: Untuk Cabang
                             </option>
                             <option value="requested_by">
                                 Group: Diminta oleh
@@ -96,7 +96,7 @@
                                     @click="changeSort('department')"
                                     class="px-3 w-full font-medium text-left text-gray-600 whitespace-nowrap dark:text-gray-300"
                                 >
-                                    Departemen
+                                    Untuk Cabang
                                     <SortIcon
                                         :active="sortBy === 'department'"
                                         :direction="sortDirection"
@@ -188,7 +188,7 @@
                                         { id: null, name: 'Semua' },
                                         ...departments,
                                     ]"
-                                    label="Pilih Departemen"
+                                    label="Pilih Untuk Cabang"
                                     class="w-full text-xs sm:text-sm"
                                 />
                             </th>
@@ -542,7 +542,7 @@ const groupedData = computed(() => {
 function keyOf(row) {
     switch (effectiveGroup.value) {
         case "department":
-            return row.department ?? "Tanpa Departemen";
+            return row.department ?? "Tanpa Cabang";
         case "requested_by":
             return row.requested_by ?? "Tanpa Pemohon";
         case "status":
@@ -553,7 +553,7 @@ function keyOf(row) {
 function groupLabel(key) {
     switch (effectiveGroup.value) {
         case "department":
-            return `Departemen: ${key}`;
+            return `Untuk Cabang: ${key}`;
         case "requested_by":
             return `Diminta oleh: ${key}`;
         case "status":

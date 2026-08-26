@@ -208,10 +208,10 @@
                                     class="flex items-center gap-3 ps-6 whitespace-nowrap"
                                 >
                                     <input
-                                        v-model.number="item.quantity_ordered"
+                                        v-model="item.quantity_ordered"
                                         @input="calculateSubtotal(i)"
-                                        type="number"
-                                        min="1"
+                                        type="text"
+                                        inputmode="decimal"
                                         class="w-24 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
                                         required
                                     />
@@ -285,6 +285,26 @@
                         </tr>
                     </tbody>
                     <tfoot v-if="form.items.length > 0">
+                        <tr class="border-t border-gray-200 dark:border-gray-600">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Sub Total:</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(subtotalAmount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="form.discount > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Diskon:</td>
+                            <td class="px-3 py-2 text-sm text-center text-red-600">- {{ formatCurrency(form.discount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="ppnAmount > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">PPN ({{ form.tax_percent ?? 11 }}%):</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(ppnAmount) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr v-if="form.other_cost > 0" class="border-t border-gray-100 dark:border-gray-700">
+                            <td colspan="5" class="px-3 py-2 text-right text-sm text-gray-600">Biaya Lain-Lain:</td>
+                            <td class="px-3 py-2 text-sm text-center">{{ formatCurrency(form.other_cost) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
                         <tr class="border-t-2 border-gray-300 dark:border-gray-600">
                             <td colspan="5" class="px-3 py-2 text-right font-semibold">Total:</td>
                             <td class="px-3 py-2 font-semibold text-center">{{ formatCurrency(totalAmount) }}</td>
@@ -335,7 +355,7 @@ import Form from "./Form.vue";
 import TrashIcon from "@/Components/icons/TrashIcon.vue";
 import SelectBarang from "@/Components/form/SelectBarang.vue";
 import { Head, router, useForm } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 defineOptions({
     layout: AppLayout,
@@ -365,19 +385,30 @@ const form = useForm({
     ordered_by: props.po.ordered_by,
     note: props.po.note || '',
     branch_id: props.po.branch_id || null,
-    items: props.po.items.map(item => ({
-        id: item.id,
-        item_id: item.item_id,
-        selectedItem: props.items.find(i => i.id === item.item_id) || null,
-        quantity_ordered: item.quantity_ordered,
-        cost: item.cost,
-        note: item.note || '',
-        unit: item.unit,
-        code: item.item_code || '',
-        name: item.item_name || '',
-    })),
+    items: props.po.items.map(item => {
+        const itemData = props.items.find(i => i.id == item.item_id);
+        return {
+            id: item.id,
+            item_id: item.item_id,
+            selectedItem: itemData || {
+                id: item.item_id,
+                name: item.item_name || '',
+                code: item.item_code || '',
+                unit: { short_name: item.unit || '' }
+            },
+            quantity_ordered: item.quantity_ordered ? parseFloat(item.quantity_ordered) : 0,
+            cost: item.cost,
+            note: item.note || '',
+            unit: item.unit,
+            code: item.item_code || '',
+            name: item.item_name || '',
+        };
+    }),
     employee_id: props.po.ordered_by,
     amount_paid: props.po.amount_paid || 0,
+    discount: props.po.discount || '',
+    other_cost: props.po.other_cost || '',
+    tax_percent: props.po.tax_percent || 11,
 });
 
 const showPayment = ref(false);
@@ -425,31 +456,90 @@ const updateItemInfo = (index, selectedItem) => {
 };
 
 const getAvailableItems = (currentIndex) => {
+    if (!form.branch_id) {
+        return [];
+    }
+
     // Get all currently selected item IDs except the current item
     const selectedItemIds = form.items
         .filter((item, index) => index !== currentIndex && item.item_id)
         .map(item => item.item_id);
 
-    // Filter out selected items from the available items
-    return props.items.filter(item => !selectedItemIds.includes(item.id));
+    // Filter out selected items from the available items and match branch_id
+    return props.items.filter(item => {
+        const notSelected = !selectedItemIds.includes(item.id);
+        const branchMatch = item.branch_id == form.branch_id;
+        return notSelected && branchMatch;
+    });
 };
+
+// Reset selected items when branch changes to enforce branch-based filtering
+watch(
+    () => form.branch_id,
+    () => {
+        form.items.forEach((row) => {
+            row.item_id = '';
+            row.selectedItem = null;
+            row.unit = '';
+            row.code = '';
+            row.name = '';
+        });
+        // Trigger reactivity to update available items in other selects
+        form.items = [...form.items];
+    }
+);
 
 const calculateSubtotal = (index) => {
     // Trigger reactivity
     form.items[index] = { ...form.items[index] };
 };
 
+const ppnAmount = computed(() => {
+    const subtotal = subtotalAmount.value;
+    const discount = form.discount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const percent = typeof form.tax_percent === 'number' ? form.tax_percent : 11;
+    return taxableAmount * (percent / 100);
+});
+
 const totalAmount = computed(() => {
+    const subtotal = subtotalAmount.value;
+    const discount = form.discount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    return taxableAmount + ppnAmount.value + (form.other_cost || 0);
+});
+
+const subtotalAmount = computed(() => {
     return form.items.reduce((total, item) => {
-        return total + (item.quantity_ordered * item.cost);
+        let qty = item.quantity_ordered;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        const numericQty = qty ? Number(qty) : 0;
+        return total + (numericQty * item.cost);
     }, 0);
 });
+
+const sanitizeItems = () => {
+    form.items = form.items.map(item => {
+        let qty = item.quantity_ordered;
+        if (typeof qty === 'string') {
+            qty = qty.replace(',', '.');
+        }
+        return {
+            ...item,
+            quantity_ordered: qty ? Number(qty) : 0,
+        };
+    });
+};
 
 const showPaymentModal = () => {
     if (form.items.length === 0) {
         alert('Minimal harus ada satu item');
         return;
     }
+
+    sanitizeItems();
 
     form.put(route('purchase-orders.update', props.po.id), {
         onSuccess: () => {

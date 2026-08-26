@@ -26,7 +26,7 @@ class UpdateUsageRequest extends FormRequest
             'notes' => 'sometimes|nullable|string',
             'items' => 'sometimes|required|array',
             'items.*.id' => 'sometimes|required|integer',
-            'items.*.quantity' => 'sometimes|required|integer',
+            'items.*.quantity' => 'sometimes|required|numeric',
             // 'items.*.notes' => 'sometimes|nullable|string',
         ];
     }

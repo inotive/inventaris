@@ -160,14 +160,14 @@
                                             <span v-if="row.reference_no" class="font-mono">{{ row.reference_no }}</span>
                                             <span v-else class="inline-flex px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded">Manual</span>
                                         </td>
-                                        <td class="p-3 text-center">{{ row.item.name }}</td>
+                                        <td class="p-3 text-center">{{ row.item?.name ?? "-" }}</td>
                                         <td class="p-3 text-center">
-                                            <span v-if="row.item.branch" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">{{ row.item.branch.name }}</span>
+                                            <span v-if="row.item?.branch" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">{{ row.item?.branch?.name }}</span>
                                             <span v-else class="italic text-gray-400">—</span>
                                         </td>
-                                        <td class="p-3 text-center">{{ row.initial_stock }} {{ row.item.unit?.name }}</td>
-                                        <td class="p-3 font-semibold text-center text-red-500">- {{ row.amount }} {{ row.item.unit?.name }}</td>
-                                        <td class="p-3 text-center">{{ row.last_stock }} {{ row.item.unit?.name }}</td>
+                                        <td class="p-3 text-center">{{ parseFloat(row.initial_stock) }} {{ row.item?.unit?.short_name || row.item?.unit?.name }}</td>
+                                        <td class="p-3 font-semibold text-center text-red-500">- {{ parseFloat(row.amount) }} {{ row.item?.unit?.short_name || row.item?.unit?.name }}</td>
+                                        <td class="p-3 text-center">{{ parseFloat(row.last_stock) }} {{ row.item?.unit?.short_name || row.item?.unit?.name }}</td>
                                         <td class="p-3 text-center whitespace-nowrap">{{ row.created_at }}</td>
 
                                         <!-- Catatan -->
@@ -205,16 +205,16 @@
                                 </td>
                                 <td>
                                     <div class="flex items-center justify-center gap-3 whitespace-nowrap">
-                                        <span class="font-semibold">{{ row.item.name }}</span>
+                                        <span class="font-semibold">{{ row.item?.name ?? "-" }}</span>
                                     </div>
                                 </td>
                                 <td class="p-3 text-center">
-                                    <span v-if="row.item.branch" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">{{ row.item.branch.name }}</span>
+                                    <span v-if="row.item?.branch" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">{{ row.item?.branch?.name }}</span>
                                     <span v-else class="italic text-gray-400">—</span>
                                 </td>
-                                <td class="p-3 text-center">{{ row.initial_stock }} {{ row.item.unit?.name }}</td>
-                                <td class="p-3 font-semibold text-center text-red-500">- {{ row.amount }} {{ row.item.unit?.name }}</td>
-                                <td class="p-3 text-center">{{ row.last_stock }} {{ row.item.unit?.name }}</td>
+                                <td class="p-3 text-center">{{ parseFloat(row.initial_stock) }} {{ row.item?.unit?.short_name || row.item?.unit?.name }}</td>
+                                <td class="p-3 font-semibold text-center text-red-500">- {{ parseFloat(row.amount) }} {{ row.item?.unit?.short_name || row.item?.unit?.name }}</td>
+                                <td class="p-3 text-center">{{ parseFloat(row.last_stock) }} {{ row.item?.unit?.short_name || row.item?.unit?.name }}</td>
                                 <td class="p-3 text-center whitespace-nowrap">{{ row.created_at }}</td>
 
                                 <!-- Catatan -->
@@ -282,17 +282,15 @@
                     <div>
                         <label class="font-semibold text-gray-900">Qty <span class="text-red-500">*</span></label>
                         <input
-                            v-model.number="form.amount"
-                            type="number"
-                            step="0.0001"
-                            min="0"
-                            :max="currentStock !== null ? currentStock : undefined"
+                            v-model="form.amount"
+                            type="text"
+                            inputmode="decimal"
                             :disabled="form.processing || isSaving || !form.item_id"
                             class="w-full mt-1 text-sm border-gray-400 rounded"
                             placeholder="Masukkan jumlah"
                         />
                         <div v-if="form.errors.amount" class="text-sm text-red-500">{{ form.errors.amount }}</div>
-                        <div v-if="currentStock !== null && form.amount > currentStock" class="text-sm text-red-500 mt-1">
+                        <div v-if="currentStock !== null && Number(String(form.amount).replace(',', '.')) > currentStock" class="text-sm text-red-500 mt-1">
                             Qty tidak boleh melebihi stock saat ini ({{ formatStock(currentStock) }} {{ selectedItemUnit }})
                         </div>
                     </div>
@@ -399,7 +397,7 @@ const groupedData = computed(() => {
 function keyOf(row) {
     switch (effectiveGroup.value) {
         case "created_at": return row.created_at ?? "Tanggal Keluar";
-        case "item": return row.item.name;
+        case "item": return row.item?.name ?? "-";
         default: return "ungrouped";
     }
 }
@@ -499,7 +497,7 @@ const currentStock = computed(() => {
 const selectedItemUnit = computed(() => {
     if (!form.item_id) return '';
     const selectedItem = props.items.find(item => item.id === form.item_id);
-    return selectedItem?.unit?.name ?? '';
+    return selectedItem?.unit?.short_name || selectedItem?.unit?.name || '';
 });
 
 // Helper function untuk format stock
@@ -528,7 +526,10 @@ function validateForm() {
         setFieldError('item_id', 'Barang wajib dipilih.');
         valid = false;
     }
-    if (form.amount === null || form.amount === '' || Number(form.amount) <= 0) {
+    let amountStr = String(form.amount || '');
+    if (amountStr.includes(',')) amountStr = amountStr.replace(',', '.');
+    const amountVal = Number(amountStr);
+    if (form.amount === null || form.amount === '' || isNaN(amountVal) || amountVal <= 0) {
         setFieldError('amount', 'Qty harus lebih besar dari 0.');
         valid = false;
     }
@@ -537,7 +538,7 @@ function validateForm() {
         valid = false;
     }
     // Validasi qty tidak boleh melebihi stock saat ini
-    if (form.item_id && currentStock.value !== null && Number(form.amount) > currentStock.value) {
+    if (form.item_id && currentStock.value !== null && amountVal > currentStock.value) {
         setFieldError('amount', `Qty tidak boleh melebihi stock saat ini (${formatStock(currentStock.value)} ${selectedItemUnit.value}).`);
         valid = false;
     }
@@ -572,7 +573,7 @@ function openEditModal(row) {
     // Prefill dari baris
     form.id      = row.id;
     form.item_id = row.item_id ?? row.item?.id ?? null;
-    form.amount  = row.amount;
+    form.amount  = row.amount ? parseFloat(row.amount) : "";
     form.tanggal = row.tanggal || new Date().toISOString().split('T')[0];
     form.note    = row.note || "";
     // Simpan oldStockAmount dan oldItemId untuk validasi
@@ -614,6 +615,7 @@ function doSubmitPut() {
     });
 }
 
+// Post
 function doSubmitPost() {
     lastAction = doSubmitPost;
     form.post(route("stock-out.store"), {
@@ -639,6 +641,9 @@ function doSubmitPost() {
 
 function saveStock() {
     if (form.processing || isSaving.value) return; // cegah double submit
+    if (form.amount !== null && form.amount !== undefined) {
+        form.amount = String(form.amount).replace(',', '.');
+    }
     if (!validateForm()) return;
 
     if (isEditMode.value) {

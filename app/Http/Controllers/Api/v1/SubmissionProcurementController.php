@@ -57,7 +57,8 @@ class SubmissionProcurementController extends Controller
                 'id' => $procurement->department->id ?? null,
                 'name' => $procurement->department->name ?? null,
             ],
-            'items' => $procurement->items->map(function ($item) {
+            // Filter baris yang barangnya sudah diarsipkan (soft delete)
+            'items' => $procurement->items->filter(fn ($item) => $item->item !== null)->values()->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_id' => $item->item_id,

@@ -32,7 +32,7 @@
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ mr.request_no }}</div>
                 </div>
                 <div>
-                    <div class="text-xs text-gray-500">Departemen</div>
+                    <div class="text-xs text-gray-500">Sumber Cabang</div>
                     <div class="font-semibold text-gray-800 dark:text-gray-200">{{ mr.department }}</div>
                 </div>
                 <div>
@@ -106,10 +106,10 @@
                             <td class="px-3 py-2">{{ it.item_name }}</td>
                             <td class="px-3 py-2 font-mono">{{ it.item_code }}</td>
                             <td class="px-3 py-2">
-                                <span v-if="it.quantity_approved && it.quantity_approved !== it.qty" class="text-orange-600 dark:text-orange-400">
-                                    {{ it.quantity_approved }} / {{ it.qty }}
+                                <span v-if="it.quantity_approved && parseFloat(it.quantity_approved) !== parseFloat(it.qty)" class="text-orange-600 dark:text-orange-400">
+                                    {{ parseFloat(it.quantity_approved) }} / {{ parseFloat(it.qty) }}
                                 </span>
-                                <span v-else>{{ it.qty }}</span>
+                                <span v-else>{{ parseFloat(it.qty) }}</span>
                             </td>
                             <td class="px-3 py-2">{{ it.unit }}</td>
                             <td class="px-3 py-2">
@@ -180,21 +180,20 @@
                                 <div class="font-medium text-gray-900 dark:text-white">{{ item.item_name }}</div>
                                 <div class="text-xs text-gray-500">{{ item.item_code }}</div>
                             </td>
-                            <td class="py-3 text-gray-700 dark:text-gray-300">{{ item.qty }}</td>
+                            <td class="py-3 text-gray-700 dark:text-gray-300">{{ parseFloat(item.qty) }}</td>
                             <td class="py-3">
                                 <div class="flex flex-col gap-1">
                                     <input
                                         v-model="item.approval.quantity_approved"
-                                        type="number"
-                                        min="0"
-                                        :max="Math.min(item.qty, item.current_stock)"
-                                        class="w-20 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm"
-                                        :class="{ 'border-red-500': item.approval.quantity_approved > item.current_stock }"
+                                        type="text"
+                                        inputmode="decimal"
+                                        class="w-20 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm text-center"
+                                        :class="{ 'border-red-500': parseFloat(item.approval.quantity_approved?.toString().replace(',', '.')) > item.current_stock }"
                                     />
                                     <div class="text-xs text-gray-500">
-                                        Stok: {{ item.current_stock }}
+                                        Stok: {{ parseFloat(item.current_stock) }}
                                     </div>
-                                    <div v-if="item.approval.quantity_approved > item.current_stock" class="text-xs text-red-600">
+                                    <div v-if="parseFloat(item.approval.quantity_approved?.toString().replace(',', '.')) > item.current_stock" class="text-xs text-red-600">
                                         Melebihi stok yang tersedia!
                                     </div>
                                 </div>
@@ -232,7 +231,7 @@
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Breadcrumb from '@/Components/common/Breadcrumb.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -243,21 +242,24 @@ const props = defineProps({
     can_approve: { type: Boolean, default: false },
 })
 
-const mr = props.mr
-const items = ref(props.items.map(item => ({
-    ...item,
-    approval: {
-        quantity_approved: item.quantity_approved ?? item.qty ?? '',
-        note_received: item.note_received || ''
-    },
-    current_stock: item.current_stock ?? 0
-})))
-const activities = props.activities
-const breadcrumbs = [
+const mr = computed(() => props.mr)
+const items = ref(props.items.map(item => {
+    const qty = item.quantity_approved ?? item.qty;
+    return {
+        ...item,
+        approval: {
+            quantity_approved: qty ? parseFloat(qty).toString().replace('.', ',') : '',
+            note_received: item.note_received || ''
+        },
+        current_stock: item.current_stock ?? 0
+    }
+}))
+const activities = computed(() => props.activities)
+const breadcrumbs = computed(() => [
     { label: 'Dashboard', href: route('dashboard') },
     { label: 'Pemakaian Barang', href: route('good-issues.index') },
-    { label: mr.request_no },
-]
+    { label: props.mr.request_no },
+])
 
 const activeTab = ref('items')
 
@@ -294,7 +296,7 @@ function badgeClass(s) {
 const showApproveModal = ref(false)
 
 function onApprove() {
-    if (mr.status === 'approved') {
+    if (props.mr.status === 'approved') {
         return
     }
     showApproveModal.value = true
@@ -321,7 +323,11 @@ function confirmApprove() {
     // Validate stock availability
     const stockErrors = []
     items.value.forEach(item => {
-        const qtyApproved = parseInt(item.approval.quantity_approved) || 0
+        let val = item.approval.quantity_approved;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        const qtyApproved = parseFloat(val) || 0
         const currentStock = item.current_stock || 0
 
         if (qtyApproved > currentStock) {
@@ -335,13 +341,19 @@ function confirmApprove() {
     }
 
     // Prepare approvals data
-    const approvals = items.value.map(item => ({
-        id: item.id,
-        quantity_approved: parseInt(item.approval.quantity_approved),
-        note_received: item.approval.note_received || null
-    }))
+    const approvals = items.value.map(item => {
+        let val = item.approval.quantity_approved;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        return {
+            id: item.id,
+            quantity_approved: parseFloat(val) || 0,
+            note_received: item.approval.note_received || null
+        }
+    })
 
-    router.post(route('good-issues.approve', mr.id), { approvals }, {
+    router.post(route('good-issues.approve', props.mr.id), { approvals }, {
         onSuccess: () => {
             window.location.reload()
             showApproveModal.value = false

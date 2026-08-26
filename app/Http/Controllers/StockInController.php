@@ -44,10 +44,15 @@ class StockInController extends Controller
         $userBranchId = Auth::user()->employee->branch_id ?? null;
         $branches     = Branch::where('id', $userBranchId)->pluck('id');
 
-        // Terima kedua kemungkinan casing 'in'/'In'
-        $query = ItemStock::whereIn('type', ['in', 'In'])
+        $canViewGlobal = Auth::user()->can('stock_in.view_global') || $isSuperadmin;
+
+        // Query transactions
+        // whereHas('item') mengecualikan transaksi yang itemnya sudah di-soft delete,
+        // agar relasi item tidak null di frontend.
+        $query = ItemStock::whereIn('type', ['in', 'In', 'adjust_in'])
+            ->whereHas('item')
             ->with(['source', 'item.unit', 'item.branch'])
-            ->when(!$isSuperadmin && $userBranchId != 2 && empty($filters['branch_id']), function ($query) use ($branches) {
+            ->when(!$canViewGlobal && empty($filters['branch_id']), function ($query) use ($branches) {
                 return $query->whereHas('item', function ($query) use ($branches) {
                     $query->whereIn('branch_id', $branches);
                 });
@@ -110,7 +115,7 @@ class StockInController extends Controller
                     'created_at' => $gt->created_at->locale('id')->translatedFormat('d F Y'),
                 ];
             }),
-            'items'         => Item::when(!$isSuperadmin && $userBranchId != 2, function ($query) use ($branches) {
+            'items'         => Item::when(!$canViewGlobal, function ($query) use ($branches) {
                 return $query->whereIn('branch_id', $branches);
             })->with('branch')->get(),
             'branches' => Branch::get(),
@@ -120,7 +125,7 @@ class StockInController extends Controller
             'groupBy' => in_array($groupBy, ['ordered_by'], true) ? $groupBy : null,
             // Sidebar counters
             'sidebarCounts' => [
-                'total' => ItemStock::whereIn('type', ['in', 'In'])->count(),
+                'total' => ItemStock::whereIn('type', ['in', 'In', 'adjust_in'])->whereHas('item')->count(),
             ],
         ]);
     }

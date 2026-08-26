@@ -29,7 +29,9 @@ class ItemStockHistoryController extends Controller
         $dateTo = $request->query('date_to');
         $search = $request->query('q');
 
+        // whereHas('item') mengecualikan transaksi barang terarsip (soft delete)
         $query = ItemStock::query()
+            ->whereHas('item')
             ->with(['item:id,name,code'])
             ->select(['id', 'item_id', 'type', 'amount', 'initial_stock', 'last_stock', 'source_type', 'source_id', 'created_at'])
             ->orderByDesc('id');

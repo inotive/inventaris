@@ -123,7 +123,7 @@ const dropdownWrapper = ref(null);
 
 const selectedItem = computed(() => {
     // match by id
-    const byId = props.items.find((i) => i.id === props.modelValue);
+    const byId = props.items.find((i) => i.id == props.modelValue);
     if (byId) return byId;
     // if modelValue is a string (label), match by labelKey
     if (typeof props.modelValue === "string" && props.modelValue) {
@@ -138,7 +138,7 @@ const selectedItem = computed(() => {
 
 const selectedLabel = computed(() => {
     if (selectedItem.value) return selectedItem.value[props.labelKey];
-    if (typeof props.modelValue === "string" && props.modelValue)
+    if (typeof props.modelValue === "string" && props.modelValue && isNaN(Number(props.modelValue)))
         return props.modelValue;
     return props.label;
 });
@@ -226,7 +226,7 @@ function clearSelection() {
 
 function isSelected(item) {
     return (
-        props.modelValue === item.id ||
+        props.modelValue == item.id ||
         (typeof props.modelValue === "string" && (item[props.labelKey] || "") === props.modelValue)
     );
 }

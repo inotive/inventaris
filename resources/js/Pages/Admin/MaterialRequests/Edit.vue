@@ -212,9 +212,27 @@
                                 <div
                                     class="flex items-center px-3 whitespace-nowrap justify-center"
                                 >
-                                    <p class="text-gray-500 dark:text-gray-400">
-                                        {{ r.stock }} {{ r.unit?.short_name }}
-                                    </p>
+                                    <div v-if="r.isLoadingStock" class="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
+                                        <svg class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Memuat...</span>
+                                    </div>
+                                    <button
+                                        v-else-if="r.item_id"
+                                        type="button"
+                                        @click="openStockBreakdown(r)"
+                                        class="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition flex items-center gap-1 mx-auto cursor-pointer"
+                                        title="Klik untuk detail stok per gudang"
+                                    >
+                                        <span>{{ r.stock }}</span>
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                    <span v-else class="text-gray-400">-</span>
                                 </div>
                             </td>
                             <td
@@ -225,8 +243,8 @@
                                 >
                                     <input
                                         v-model="r.request"
-                                        type="number"
-                                        min="0"
+                                        type="text"
+                                        inputmode="decimal"
                                         :class="[
                                             'w-24 rounded dark:bg-gray-800 dark:text-white/90',
                                             form.errors[`requests.${i}.request`]
@@ -319,6 +337,62 @@
             </button>
         </div>
     </div>
+
+
+    <!-- Modal Detail Stok Per Gudang -->
+    <Modal
+        :show="showStockModal"
+        @close="showStockModal = false"
+        title="Detail Stok Per Gudang"
+        close-text="Tutup"
+        max-width="lg"
+    >
+        <div class="space-y-4">
+            <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Nama Barang:</span>
+                    <span class="font-semibold text-gray-950 dark:text-white">{{ selectedStockDetails.itemName }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Kode Barang:</span>
+                    <span class="font-mono text-gray-950 dark:text-white">{{ selectedStockDetails.itemCode }}</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-1.5 mt-1.5">
+                    <span class="text-gray-500 dark:text-gray-400 font-medium">Total Stok Keseluruhan:</span>
+                    <span class="font-bold text-blue-600 dark:text-blue-400">{{ selectedStockDetails.totalStock }} {{ selectedStockDetails.unit }}</span>
+                </div>
+            </div>
+
+            <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-xs">
+                    <thead class="bg-gray-50 dark:bg-gray-900/80">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">Gudang / Cabang</th>
+                            <th class="px-4 py-2 text-right font-semibold text-gray-500 dark:text-gray-400">Stok</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-800">
+                        <tr v-if="selectedStockDetails.breakdown.length === 0">
+                            <td colspan="2" class="px-4 py-3 text-center text-gray-500">Tidak ada data breakdown</td>
+                        </tr>
+                        <tr
+                            v-else
+                            v-for="b in selectedStockDetails.breakdown"
+                            :key="b.branch_id"
+                            class="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                            <td class="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{{ b.branch_name }}</td>
+                            <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">
+                                <span :class="b.stock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'">
+                                    {{ b.stock }} {{ selectedStockDetails.unit }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </Modal>
 </template>
 
 <script setup>
@@ -330,6 +404,7 @@ import Select from "@/Components/form/SelectBarang.vue";
 // import Select from "@/Components/form/Select.vue";
 import UpIcon from "@/Components/icons/UpIcon.vue";
 import DownIcon from "@/Components/icons/DownIcon.vue";
+import Modal from "@/Components/common/Modal.vue";
 import { Head, router, useForm, Link } from "@inertiajs/vue3";
 import { ref, reactive, watch, computed, onMounted } from "vue";
 import { v4 as uuidv4 } from "uuid";
@@ -355,12 +430,35 @@ const props = defineProps({
     statusOptions: { type: Array, default: () => [] },
 });
 
+// State for Stock Breakdown Modal
+const showStockModal = ref(false);
+const selectedStockDetails = ref({
+    itemName: "",
+    itemCode: "",
+    totalStock: 0,
+    breakdown: [],
+    unit: ""
+});
+
+const openStockBreakdown = (row) => {
+    if (!row.item_id) return;
+    
+    selectedStockDetails.value = {
+        itemName: row.name || row.item_id.name,
+        itemCode: row.code || row.item_id.code || "-",
+        totalStock: row.stock || 0,
+        breakdown: row.stockBreakdown || [],
+        unit: row.unit?.short_name || ""
+    };
+    showStockModal.value = true;
+};
+
 const options = ref(
     props.allItems.map((i) => ({
         id: i.id,
         name: i.name,
         code: i.code,
-        stock: i.stock,
+        stock: i.stock ? (i.stock.last_stock !== undefined ? parseFloat(i.stock.last_stock) : parseFloat(i.stock)) : 0,
         unit: i.unit,
     }))
 );
@@ -388,7 +486,7 @@ const fetchItemsByDepartment = async (departmentId) => {
                 id: item.id,
                 name: item.name,
                 code: item.code,
-                stock: item.stock,
+                stock: parseFloat(item.stock),
                 unit: item.unit,
             }));
             console.log('Fetched items:', options.value);
@@ -458,12 +556,14 @@ const requests = ref(
         return reactive({
             uid: uuidv4(),
             item_id: itemData || null,
-            request: item.qty,
+            request: item.qty ? parseFloat(item.qty) : 0,
             code: item.item_code || "",
             name: item.item_name || "",
             stock: itemData?.stock || 0,
             unit: itemData?.unit || null,
             note: item.note || "",
+            isLoadingStock: false,
+            stockBreakdown: [],
         });
     }) || [
         reactive({
@@ -473,6 +573,8 @@ const requests = ref(
             code: "",
             name: "",
             stock: "",
+            isLoadingStock: false,
+            stockBreakdown: [],
         }),
     ]
 );
@@ -487,6 +589,8 @@ const addRequest = () => {
         stock: "",
         unit: null,
         note: "",
+        isLoadingStock: false,
+        stockBreakdown: [],
     });
 
     requests.value.push(newRow);
@@ -501,21 +605,46 @@ const addRequest = () => {
 const bindWatcher = (row) => {
     watch(
         () => row.item_id,
-        (newVal) => {
+        async (newVal) => {
             console.log('bindWatcher - newVal:', newVal);
             console.log('bindWatcher - row before update:', { code: row.code, name: row.name, stock: row.stock });
 
             if (newVal) {
                 row.code = newVal.code;
                 row.name = newVal.name;
-                row.stock = newVal.stock || 0;
                 row.unit = newVal.unit;
+                
+                // Fetch overall stock breakdown
+                row.isLoadingStock = true;
+                row.stockBreakdown = [];
+                row.stock = 0;
+                
+                try {
+                    const response = await axios.get(route('items.stock-breakdown'), {
+                        params: { item_id: newVal.id }
+                    });
+                    if (response.data) {
+                        row.stock = parseFloat(response.data.total_stock);
+                        row.stockBreakdown = response.data.breakdown.map(b => ({
+                            ...b,
+                            stock: parseFloat(b.stock)
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Error fetching stock breakdown:', error);
+                    row.stock = newVal.stock ? parseFloat(newVal.stock) : 0;
+                } finally {
+                    row.isLoadingStock = false;
+                }
+                
                 console.log('bindWatcher - row after update:', { code: row.code, name: row.name, stock: row.stock });
             } else {
                 row.code = "";
                 row.name = "";
                 row.stock = "";
                 row.unit = {};
+                row.stockBreakdown = [];
+                row.isLoadingStock = false;
             }
         },
         { immediate: true } // Run immediately to handle initial values
@@ -628,7 +757,12 @@ function saveRequest() {
             form.setError(`requests.${i}.item_id`, 'Pilih barang yang diminta');
             return true;
         }
-        if (!r.request || r.request <= 0) {
+        let val = r.request;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        const numericVal = val ? Number(val) : 0;
+        if (isNaN(numericVal) || numericVal <= 0) {
             form.setError(`requests.${i}.request`, 'Jumlah permintaan harus lebih dari 0');
             return true;
         }
@@ -639,12 +773,18 @@ function saveRequest() {
         return;
     }
 
-    form.requests = requests.value.map((r, i) => ({
-        uid: r.uid,
-        item_id: r.item_id?.id ?? null, // karena Select pakai object
-        request: r.request,
-        note: r.note ?? null,
-    }));
+    form.requests = requests.value.map((r, i) => {
+        let val = r.request;
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        return {
+            uid: r.uid,
+            item_id: r.item_id?.id ?? null, // karena Select pakai object
+            request: val ? Number(val) : 0,
+            note: r.note ?? null,
+        };
+    });
 
     form.put(route("material-requests.update", props.mr?.id));
 }

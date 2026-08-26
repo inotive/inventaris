@@ -4,6 +4,25 @@
             <div>
                 <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >No. Pengajuan</label
+                >
+                <input
+                    v-model="form.request_no"
+                    type="text"
+                    class="h-10 p-0 w-full border-0 border-b-2 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 font-mono"
+                    placeholder="Auto-generate jika dikosongkan"
+                />
+                <div class="text-xs text-gray-400 mt-1">Kosongkan untuk generate otomatis (PR-SPB-001-06-2026)</div>
+                <p
+                    v-if="form.errors.request_no"
+                    class="mt-1 text-sm text-red-500"
+                >
+                    {{ form.errors.request_no[0] }}
+                </p>
+            </div>
+            <div>
+                <label
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300"
                     >Tanggal Pengajuan</label
                 >
                 <input
@@ -71,24 +90,16 @@
             <div>
                 <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >Departemen</label
+                    >Untuk Cabang</label
                 >
                 <Select
                     v-model="form.department_id"
-                    :items="departments"
+                    :items="branchesAsDepartments"
                     :search-key="'name'"
                     :label-key="'name'"
-                    label="Pilih departemen"
+                    label="Pilih Untuk Cabang"
                     class="mt-2"
-                    :disabled="!isSuperadmin"
-                >
-                    <template #item="{ item }">
-                        <span>
-                            {{ item.name
-                            }}{{ item.branch ? " - " + item.branch.name : "" }}
-                        </span>
-                    </template>
-                </Select>
+                />
                 <p
                     v-if="form.errors.department_id"
                     class="mt-1 text-xs text-rose-600"
@@ -121,6 +132,7 @@
 <script setup>
 import Input from "@/Components/form/Input.vue";
 import Select from "@/Components/form/SelectPemakaian.vue";
+import { computed } from "vue";
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -129,6 +141,16 @@ const props = defineProps({
     employees: { type: Array, required: true },
     user: { type: Object, default: null },
     isSuperadmin: { type: Boolean, required: true },
+});
+
+const branchesAsDepartments = computed(() => {
+    const list = props.departments || [];
+    return list.map(item => {
+        return {
+            id: item.id,
+            name: item.branch ? item.branch.name : item.name,
+        };
+    });
 });
 
 console.log('form:', props.form);

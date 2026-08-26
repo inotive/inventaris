@@ -11,7 +11,7 @@
                 </div>
                 <div>
                     <h2 class="text-2xl font-bold">
-                        {{ barangMetric?.total_stock || 0 }}
+                        {{ formatDecimal(barangMetric?.total_stock) }}
                     </h2>
                     <p class="text-gray-500">Total Barang Stok</p>
                 </div>
@@ -243,7 +243,7 @@
                             <th
                                 class="text-left py-3 text-sm font-medium text-gray-500"
                             >
-                                Harga
+                                Cabang
                             </th>
                         </tr>
                     </thead>
@@ -297,10 +297,10 @@
                                 {{ item.name }}
                             </td>
                             <td class="py-3 text-sm">
-                                {{ item.actual_stock }}
+                                {{ formatDecimal(item.actual_stock) }}
                             </td>
                             <td class="py-3 text-sm">
-                                {{ item.minimum_stock }}
+                                {{ formatDecimal(item.minimum_stock) }}
                             </td>
                             <td class="py-3 text-sm">
                                 <span
@@ -311,15 +311,11 @@
                                             : 'bg-green-100 text-green-600',
                                     ]"
                                 >
-                                    {{ item.difference }}
+                                    {{ formatDecimal(item.difference) }}
                                 </span>
                             </td>
                             <td class="py-3 text-sm text-gray-600">
-                                {{
-                                    item.price
-                                        ? `Rp ${Number(item.price).toLocaleString("id-ID")}`
-                                        : "-"
-                                }}
+                                {{ item.branch_name || "-" }}
                             </td>
                         </tr>
                     </tbody>
@@ -413,6 +409,12 @@
 <script setup>
 import { Package, BarChart3, Users, Grid3X3 } from "lucide-vue-next";
 import { ref, computed, watch } from "vue";
+
+// Helper function to format decimal values cleanly
+const formatDecimal = (val) => {
+    if (val === null || val === undefined) return 0;
+    return parseFloat(parseFloat(val).toFixed(4));
+};
 
 // Props
 const props = defineProps({
@@ -618,10 +620,17 @@ const barangOptions = computed(() => ({
     yaxis: {
         labels: {
             formatter: function (val) {
-                return val;
+                return val !== undefined && val !== null ? parseFloat(parseFloat(val).toFixed(4)) : val;
             },
         },
     },
+    tooltip: {
+        y: {
+            formatter: function (val) {
+                return val !== undefined && val !== null ? parseFloat(parseFloat(val).toFixed(4)) : val;
+            }
+        }
+    }
 }));
 
 const barangSeries = computed(() => [
@@ -666,10 +675,22 @@ const frequentItemsOptions = computed(() => ({
     xaxis: {
         categories:
             props.mostFrequentlyUsedItems?.map((item) => item.name) || [],
+        labels: {
+            formatter: function (val) {
+                return val !== undefined && val !== null ? parseFloat(parseFloat(val).toFixed(2)) : val;
+            }
+        }
     },
     colors: ["#1B84FF", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#F59E0B"],
     dataLabels: { enabled: false },
     legend: { show: false },
+    tooltip: {
+        y: {
+            formatter: function (val) {
+                return val !== undefined && val !== null ? parseFloat(parseFloat(val).toFixed(4)) : val;
+            }
+        }
+    }
 }));
 
 const frequentItemsSeries = computed(() => [
