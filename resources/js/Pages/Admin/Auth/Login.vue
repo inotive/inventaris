@@ -217,16 +217,9 @@
                                             class="flex items-center justify-center"
                                         >
                                             <img
-                                                v-if="slide.img_url"
-                                                :src="slide.img_url"
-                                                :alt="slide.title || 'Gambar'"
-                                                class="object-cover rounded-xl shadow-lg max-h-64 w-80 max-w-full opacity-95"
-                                            />
-                                            <img
-                                                v-else
-                                                src="/images/logo/bg-login.png"
-                                                :alt="slide.title || 'Gambar'"
-                                                class="object-cover rounded-xl shadow-lg max-h-64 w-80 max-w-full opacity-95"
+                                                :src="getSlideImage(slide, index)"
+                                                :alt="slide.title || 'Gambar Inventaris'"
+                                                class="object-cover rounded-xl shadow-xl w-[250px] h-[250px] opacity-95 drop-shadow-2xl"
                                             />
                                         </div>
 
@@ -373,6 +366,17 @@ const slides = ref(
               },
           ]
 );
+const defaultImages = [
+    "/images/logo/carousel-inventory-1.jpg",
+    "/images/logo/carousel-inventory-2.jpg",
+    "/images/logo/carousel-inventory-3.jpg",
+    "/images/logo/carousel-inventory-4.jpg",
+];
+
+const getSlideImage = (slide, index) => {
+    if (slide && slide.img_url) return slide.img_url;
+    return defaultImages[index % defaultImages.length] || "/images/logo/bg-login.png";
+};
 
 // Auto-play carousel
 let carouselInterval = null;
