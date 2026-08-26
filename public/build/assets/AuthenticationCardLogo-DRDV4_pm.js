@@ -1,0 +1,1 @@
+import{o as e,c as a,w as s,a as r,e as n,Q as o}from"./app-DNbKwDmp.js";const i={__name:"AuthenticationCardLogo",setup(c){return(l,t)=>(e(),a(n(o),{href:"/",class:"flex justify-center"},{default:s(()=>[...t[0]||(t[0]=[r("span",{class:"text-2xl font-bold text-gray-800 dark:text-white"},"Inventaris",-1)])]),_:1}))}};export{i as _};
